@@ -16,8 +16,8 @@ rect = screen.availableGeometry()
 # Create a Qt widget, which will be our window.
 window = QMainWindow()
 window.setFixedSize(QSize(rect.width(), rect.height()))
-button = QPushButton("Press Me!")
-window.setCentralWidget(button)
+#button = QPushButton("Press Me!")
+#window.setCentralWidget(button)
 
 driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
 print ('webdriver loaded')
