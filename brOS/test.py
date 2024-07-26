@@ -4,7 +4,7 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 
 print ('Starting ...')
-display = Display(visible=0, size=(1600, 1200))
+display = Display(visible=1, size=(1600, 1200))
 display.start()
 driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
 print ('webdriver loaded')
