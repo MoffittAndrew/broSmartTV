@@ -1,3 +1,4 @@
+from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import QApplication, QMainWindow
 
 # Only needed for access to command line arguments
@@ -9,14 +10,11 @@ import sys
 app = QApplication(sys.argv)
 
 screen = app.primaryScreen()
-print('Screen: %s' % screen.name())
-size = screen.size()
-print('Size: %d x %d' % (size.width(), size.height()))
 rect = screen.availableGeometry()
-print('Available: %d x %d' % (rect.width(), rect.height()))
 
 # Create a Qt widget, which will be our window.
 window = QMainWindow()
+window.setFixedSize(QSize(rect.width(), rect.height()))
 window.show()  # IMPORTANT!!!!! Windows are hidden by default.
 
 # Start the event loop.
