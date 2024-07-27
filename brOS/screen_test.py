@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton
 from selenium import webdriver
+from pyvirtualdisplay import Display
 
 # Only needed for access to command line arguments
 import sys
@@ -18,16 +19,22 @@ window = QMainWindow()
 window.setFixedSize(QSize(rect.width(), rect.height()))
 window.show()
 
+
+#display = Display(visible=1, size=(1600, 1200))
+#display.start()
+
 #driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
 #print ('webdriver loaded')
 
 # Navigate to target website
 #driver.get('https://www.youtube.com')
 
-  # IMPORTANT!!!!! Windows are hidden by default.
 
 button = QPushButton("Press Me!")
+button.setGeometry(200, 200, 500, 500)
+button.clicked.connect(window.closeEvent)
 window.setCentralWidget(button)
 
 # Start the event loop.
 app.exec()
+#display.stop()
