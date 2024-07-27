@@ -16,8 +16,6 @@ rect = screen.availableGeometry()
 # Create a Qt widget, which will be our window.
 window = QMainWindow()
 window.setFixedSize(QSize(rect.width(), rect.height()))
-#button = QPushButton("Press Me!")
-#window.setCentralWidget(button)
 
 #driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
 #print ('webdriver loaded')
@@ -26,6 +24,9 @@ window.setFixedSize(QSize(rect.width(), rect.height()))
 #driver.get('https://www.youtube.com')
 
 window.show()  # IMPORTANT!!!!! Windows are hidden by default.
+
+button = QPushButton("Press Me!")
+window.setCentralWidget(button)
 
 # Start the event loop.
 app.exec()
