@@ -21,7 +21,7 @@ window.setFixedSize(QSize(rect.width(), rect.height()))
 #window.show()
 
 
-display = Display(visible=False, size=(1600, 1200), backend="xvnc")
+display = Display(visible=False, size=(1600, 1200), backend="xvnc", rfbport=5904)
 display.start()
 
 #driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
