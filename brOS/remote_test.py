@@ -12,4 +12,5 @@ while True:
         print("IR detected!")
         IR_on = True
     elif IR_on:
-            print()
+        print()
+        IR_on = False
