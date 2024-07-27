@@ -21,14 +21,14 @@ window.setFixedSize(QSize(rect.width(), rect.height()))
 #window.show()
 
 
-display = Display(visible=False, size=(1600, 1200), backend="EGLFS")
-display.start()
+#display = Display(visible=False, size=(1600, 1200), backend="EGLFS")
+#display.start()
 
-driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
+#driver = webdriver.Chrome('/usr/lib/chromium-browser/chromedriver')
 print ('webdriver loaded')
 
 # Navigate to target website
-driver.get('https://www.youtube.com')
+#driver.get('https://www.youtube.com')
 
 
 #button = QPushButton("Press Me!", window)
@@ -40,4 +40,4 @@ window.show()
 
 # Start the event loop.
 app.exec()
-display.stop()
+#display.stop()
