@@ -16,8 +16,9 @@ rect = screen.availableGeometry()
 
 # Create a Qt widget, which will be our window.
 window = QMainWindow()
+window.setWindowTitle("brOS Smart TV")
 window.setFixedSize(QSize(rect.width(), rect.height()))
-window.show()
+#window.show()
 
 
 #display = Display(visible=1, size=(1600, 1200))
@@ -30,10 +31,12 @@ window.show()
 #driver.get('https://www.youtube.com')
 
 
-button = QPushButton("Press Me!")
-button.setGeometry(200, 200, 500, 500)
-button.clicked.connect(window.closeEvent)
-window.setCentralWidget(button)
+button = QPushButton("Press Me!", window)
+button.resize(500, 500)
+button.move(200, 200)
+button.clicked.connect(window.close)
+
+window.show()
 
 # Start the event loop.
 app.exec()
