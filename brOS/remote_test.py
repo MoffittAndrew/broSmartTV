@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 
+GPIO.setmode(GPIO.BCM)
 INPUT_PIN = 14
 
 # Infrared reciever
