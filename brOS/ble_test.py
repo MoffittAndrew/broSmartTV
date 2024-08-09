@@ -1,7 +1,7 @@
 import struct
 from bluepy.btle import Peripheral
 
-remote_mac = "28:cd:c1:0d:f6:61"
+remote_mac = "28:cd:c1:0d:f6:62"
 
 print(f"Searching for device with MAC address '{remote_mac}'...")
 
