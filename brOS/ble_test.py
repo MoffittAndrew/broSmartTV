@@ -7,11 +7,11 @@ print(f"Searching for device with MAC address '{remote_mac}'...")
 
 remote = Peripheral(remote_mac)
 #service = remote.getServiceByUUID("0x1849")
-charcteristics = remote.getCharacteristics()
+charcteristic = remote.getCharacteristic(uuid="0x7660ca10")
 descriptors = remote.getDescriptors()
 
 #print(service)
-print(charcteristics)
+print(charcteristic)
 print(descriptors)
 
 def _decode_button(data):
@@ -19,6 +19,6 @@ def _decode_button(data):
 
 while True:
     remote.waitForNotifications(600)
-    read = remote.readCharacteristic(charcteristics[0])
+    read = remote.readCharacteristic(charcteristic)
     print(read)
     print(_decode_button(read))
