@@ -1,4 +1,4 @@
-from btle import Peripheral
+from bluepy.btle import Peripheral
 
 remote_mac = "28:cd:c1:0d:f6:61"
 
