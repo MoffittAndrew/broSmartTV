@@ -18,7 +18,7 @@ def _decode_button(data):
     return struct.unpack("<h", data)[0] / 100
 
 while True:
-    remote.waitForNotifications()
+    remote.waitForNotifications(600)
     read = remote.readCharacteristic(charcteristics[0])
     print(read)
     print(_decode_button(read))
