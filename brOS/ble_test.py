@@ -6,11 +6,11 @@ remote_mac = "28:cd:c1:0d:f6:62"
 print(f"Searching for device with MAC address '{remote_mac}'...")
 
 remote = Peripheral(remote_mac)
-service = remote.getServiceByUUID("0x1849")
+#service = remote.getServiceByUUID("0x1849")
 charcteristics = remote.getCharacteristics()
 descriptors = remote.getDescriptors()
 
-print(service)
+#print(service)
 print(charcteristics)
 print(descriptors)
 
