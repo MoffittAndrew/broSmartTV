@@ -1,4 +1,5 @@
 import struct
+import uuid
 from bluepy.btle import Peripheral
 
 remote_mac = "28:cd:c1:0d:f6:62"
@@ -7,7 +8,7 @@ print(f"Searching for device with MAC address '{remote_mac}'...")
 
 remote = Peripheral(remote_mac)
 #service = remote.getServiceByUUID("0x1849")
-charcteristic = remote.getCharacteristics(uuid="0x7660ca10")
+charcteristic = remote.getCharacteristics(uuid=uuid.UUID("0x7660ca10"))
 descriptors = remote.getDescriptors()
 
 #print(service)
