@@ -19,7 +19,7 @@ def _decode_button(data):
     return struct.unpack("<h", data)[0] / 100
 
 while True:
-    remote.waitForNotifications(600)
+    remote.waitForNotifications(1)
     read = remote.readCharacteristic("0x7660ca10")
     print(read)
     print(_decode_button(read))
