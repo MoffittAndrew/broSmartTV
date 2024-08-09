@@ -3,7 +3,7 @@ from bluepy.btle import Peripheral
 
 remote_mac = "28:cd:c1:0d:f6:61"
 
-print(f"Searching for device with MAC address '{remote_mac}'")
+print(f"Searching for device with MAC address '{remote_mac}'...")
 
 remote = Peripheral(remote_mac)
 service = remote.getServiceByUUID("0x1849")
