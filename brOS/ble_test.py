@@ -21,7 +21,7 @@ print("Connected\n")
 
 read_backup = 0
 while True:
-    remote.waitForNotifications(0.1)
+    remote.waitForNotifications(0.05)
     read = charcteristic.read()
     if read != read_backup:
         print(_decode_button(read))
