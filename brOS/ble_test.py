@@ -4,7 +4,7 @@ from bluepy.btle import Peripheral
 remote_mac = "28:cd:c1:0d:f6:62"
 
 def _decode_button(data):
-    return struct.unpack("<h", data)[0]
+    return struct.unpack("<h", data)[0] / 10
 
 print(f"Searching for device with MAC address '{remote_mac}'...")
 
