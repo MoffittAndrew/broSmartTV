@@ -1,5 +1,4 @@
 import asyncio
-
 import bleak
 
 _REMOTE_NAME = "bro-ito"
@@ -13,23 +12,22 @@ _CHARACTERISTIC_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x2BA5)
 def _callback(sender: bleak.BleakGATTCharacteristic, data: bytearray):
     data = None if not data else data.decode()
     print(f"Recieved signal {data}")
-
-
-async def find_temp_sensor():
-    name = _REMOTE_NAME
-    return await bleak.BleakScanner.find_device_by_name(name)
+    
+    
+def _disconnected_callback(client: bleak.BleakClient):
+    print("Disconnected from remote.")
 
 
 async def do_connect():
     print("Scanning for remote...")
-    device = await find_temp_sensor()
+    device = await bleak.BleakScanner.find_device_by_name(_REMOTE_NAME, timeout=None)
     if not device:
         print("Remote not found")
         return
     else:
-        print("Connected")
+        print("Connecting...")
 
-    async with bleak.BleakClient(device) as client:
+    async with bleak.BleakClient(device, disconnected_callback=_disconnected_callback) as client:
         service = client.services.get_service(_SERVICE_UUID)
         if service is None:
             print("Service not found")
@@ -40,15 +38,17 @@ async def do_connect():
             print("Characteristic not found")
             return
 
+        print("Connected")
         await client.start_notify(characteristic, _callback)
         while client.is_connected:
-            await asyncio.sleep(1)
-    
-    print("Disconnected.")
+            await asyncio.sleep(5)
 
 
 async def main():
     while True:
-        await do_connect()
+        try:
+            await do_connect()
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 asyncio.run(main())
