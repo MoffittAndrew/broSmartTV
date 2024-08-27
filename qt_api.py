@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton
 class Button:
     def __init__(
         this,
+        enabled: bool = True,
         width: int = MIN_BUTTON_WIDTH,
         height: int = MIN_BUTTON_HEIGHT,
         text: str = "",
@@ -15,6 +16,7 @@ class Button:
         adjLeft = None,
         menuOptions: list = [],
     ):
+        this.__enabled
         this.__width
         this.__height
         this.__text
@@ -23,6 +25,7 @@ class Button:
         this.__adjButtons = {}
         this.__menuOptions = []
         
+        this.setEnabled(enabled)
         this.setWidth(width)
         this.setHeight(height)
         this.setText(text)
@@ -34,7 +37,40 @@ class Button:
         this.setAdjLeft(adjLeft)
         this.setMenuOptions(menuOptions)
         
+    ## Getters
+        
+    def getHeight(this):
+        return this.__height
+    
+    def getWidth(this):
+        return this.__width
+    
+    def getAdjButton(this, index: str = "right"):
+        if index in this.__adjButtons.keys:
+            return this.__adjButtons[index]
+        
+    def getAdjUp(this):
+        return this.setAdjButton("up")
+    
+    def getAdjRight(this):
+        return this.setAdjButton("right")
+        
+    def getAdjDown(this):
+        return this.setAdjButton("down")
+        
+    def getAdjLeft(this):
+        return this.setAdjButton("left")
+    
+    def getMenuOption(this, index: int = 0):
+        return this.__menuOptions[index]
+    
+    def getMenuOptions(this):
+        return this.__menuOptions
+        
     ## Setters
+    
+    def setEnabled(this, enabled: bool = True):
+        this.__enabled = True
         
     def setHeight(this, height: int):
         if height >= MIN_BUTTON_HEIGHT:
@@ -71,38 +107,14 @@ class Button:
         
     def setMenuOptions(this, menuOptions: list = []):
         this.__menuOptions = menuOptions
-       
-    ## Getters
-        
-    def getHeight(this):
-        return this.__height
-    
-    def getWidth(this):
-        return this.__width
-    
-    def getAdjButton(this, index: str = "right"):
-        if index in this.__adjButtons.keys:
-            return this.__adjButtons[index]
-        
-    def getAdjUp(this):
-        return this.setAdjButton("up")
-    
-    def getAdjRight(this):
-        return this.setAdjButton("right")
-        
-    def getAdjDown(this):
-        return this.setAdjButton("down")
-        
-    def getAdjLeft(this):
-        return this.setAdjButton("left")
-    
-    def getMenuOption(this, index: int = 0):
-        return this.__menuOptions[index]
-    
-    def getMenuOptions(this):
-        return this.__menuOptions
     
     # Other
+    
+    def enable(this):
+        this.setEnabled(True)
+        
+    def disable(this):
+        this.setEnabled(False)
     
     def addMenuOption(this, menuOption = None):
         if menuOption != None:
