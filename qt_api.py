@@ -9,7 +9,7 @@ class Button:
         height: int = MIN_BUTTON_HEIGHT,
         text: str = "",
         img = None,
-        callback: function = None,
+        callback = None,
         adjUp = None,
         adjRight = None,
         adjDown = None,
@@ -70,7 +70,7 @@ class Button:
     ## Setters
     
     def setEnabled(this, enabled: bool = True):
-        this.__enabled = True
+        this.__enabled = enabled
         
     def setHeight(this, height: int):
         if height >= MIN_BUTTON_HEIGHT:
@@ -86,7 +86,7 @@ class Button:
     def setImg(this, img = None):
         this.__img = img
         
-    def setCallback(this, callback: function = None):
+    def setCallback(this, callback = None):
         this.__callback = callback
         
     def setAdjButton(this, index: str = "right", button = None):
@@ -119,3 +119,6 @@ class Button:
     def addMenuOption(this, menuOption = None):
         if menuOption != None:
             this.__menuOptions.append(menuOption)
+            
+            
+defaultButton = Button()
