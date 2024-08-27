@@ -45,21 +45,21 @@ class Button:
     def getWidth(this):
         return this.__width
     
-    def getAdjButton(this, index: str = "right"):
+    def getAdjButton(this, index: str = "NAV_RIGHT"):
         if index in this.__adjButtons.keys:
             return this.__adjButtons[index]
         
     def getAdjUp(this):
-        return this.setAdjButton("up")
+        return this.setAdjButton("NAV_UP")
     
     def getAdjRight(this):
-        return this.setAdjButton("right")
+        return this.setAdjButton("NAV_RIGHT")
         
     def getAdjDown(this):
-        return this.setAdjButton("down")
+        return this.setAdjButton("NAV_DOWN")
         
     def getAdjLeft(this):
-        return this.setAdjButton("left")
+        return this.setAdjButton("NAV_LEFT")
     
     def getMenuOption(this, index: int = 0):
         return this.__menuOptions[index]
@@ -89,21 +89,21 @@ class Button:
     def setCallback(this, callback = None):
         this.__callback = callback
         
-    def setAdjButton(this, index: str = "right", button = None):
+    def setAdjButton(this, index: str = "NAV_RIGHT", button = None):
         if index in this.__adjButtons.keys:
             this.__adjButtons[index] = button
         
     def setAdjUp(this, button = None):
-        this.setAdjButton("up", button)
+        this.setAdjButton("NAV_UP", button)
     
     def setAdjRight(this, button = None):
-        this.setAdjButton("right", button)
+        this.setAdjButton("NAV_RIGHT", button)
         
     def setAdjDown(this, button = None):
-        this.setAdjButton("down", button)
+        this.setAdjButton("NAV_DOWN", button)
         
     def setAdjLeft(this, button = None):
-        this.setAdjButton("left", button)
+        this.setAdjButton("NAV_LEFT", button)
         
     def setMenuOptions(this, menuOptions: list = []):
         this.__menuOptions = menuOptions

@@ -2,3 +2,18 @@ DEFAULT_TILE_DIMENSIONS = (100, 100)
 
 MIN_BUTTON_HEIGHT = 10
 MIN_BUTTON_WIDTH = 10
+
+REMOTE_BUTTONS = [
+    "HOME",
+    "POWER",
+    "SELECT",
+    "NAV_UP",
+    "NAV_RIGHT",
+    "NAV_DOWN",
+    "NAV_LEFT",
+    "MENU",
+    "RETURN",
+    "VOL_UP",
+    "VOL_DOWN",
+    "MIC",
+]
