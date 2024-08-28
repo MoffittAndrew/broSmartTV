@@ -25,6 +25,14 @@ class Tile(Button):
         
     ## Getters
     
+    def getAllAttrs(this):
+        
+        attrs = {}
+        attrs["index"] = this.getIndex()
+        attrs["name"] = this.getName()
+        
+        return attrs
+    
     def getIndex(this):
         return this.__index
     
@@ -76,6 +84,13 @@ class DeviceTile(Tile):
         
     ## Getters
     
+    def getAllAttrs(this):
+        
+        attrs = super().getAllAttrs()
+        attrs["inputChannel"] = this.getInputChannel()
+        
+        return attrs
+    
     def getInputChannel(this):
         return this.__inputChannel
     
@@ -117,6 +132,16 @@ class WebTile(Tile):
         this.setIsPirate(isPirate)
         
     ## Getters
+    
+    def getAllAttrs(this):
+        
+        attrs = super().getAllAttrs()
+        attrs["url"] = this.getURL()
+        attrs["isMusic"] = this.isMusic()
+        attrs["hasSearch"] = this.hasSearch()
+        attrs["isPirate"] = this.isPirate()
+        
+        return attrs
     
     def getURL(this):
         return this.__url

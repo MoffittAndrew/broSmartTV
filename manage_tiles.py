@@ -3,16 +3,18 @@ from tile import Tile, DeviceTile, WebTile
 from os import listdir
 from os.path import isfile, join
 
-def getTilesFromPath(path, TileType):
+
+def _getTilesFromPath(path, TileType):
     
     tiles = []
-    tile_files = [f for f in listdir(path) if isfile(join(path, f))]
-    for file in tile_files:
-        kwargs = {}
+    tileFiles = [f for f in listdir(path) if isfile(join(path, f))]
+    for file in tileFiles:
+        filepath = path + file
+        kwargs = {"filepath": filepath}
         
-        tile_file = open(path + file)
-        lines = tile_file.readlines()
-        tile_file.close()
+        tileFile = open(filepath)
+        lines = tileFile.readlines()
+        tileFile.close()
         
         for line in lines:
             datapair = line.split("=", 1)
@@ -25,17 +27,31 @@ def getTilesFromPath(path, TileType):
         
     return tiles
 
+
+def _saveTile(tile):
+    
+    lines = []
+    tileAttrs = tile.getAllAttrs()
+    for key in tileAttrs:
+        lines.append(f"{key}={tileAttrs[key]}")
+        
+    tileFile = open(tile.getFilepath(), 'w')
+    tileFile.write('\n'.join(lines))
+    tileFile.close()
+
+
 def readTiles():
     
     tiles = []
     path = PATH + "tiles\\"
-    tiles += getTilesFromPath(path, Tile)
-    tiles += getTilesFromPath(path + "device\\", DeviceTile)
-    tiles += getTilesFromPath(path + "web\\", WebTile)
+    tiles += _getTilesFromPath(path, Tile)
+    tiles += _getTilesFromPath(path + "device\\", DeviceTile)
+    tiles += _getTilesFromPath(path + "web\\", WebTile)
     
     return tiles
+
 
 def writeTiles(tiles):
     
     for tile in tiles:
-        return ## TODO
+        _saveTile(tile)
