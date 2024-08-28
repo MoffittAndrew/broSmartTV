@@ -16,6 +16,8 @@ class Button:
         navLeft = None,
         navReturn = None,
         menuOptions:list = [],
+        isToggle:bool = False,
+        toggleVal:bool = True,
     ):
         this.__navButtons = {}
         
@@ -31,6 +33,8 @@ class Button:
         this.setNavLeft(navLeft)
         this.setNavReturn(navReturn)
         this.setMenuOptions(menuOptions)
+        this.setIsToggle(isToggle)
+        this.setToggleVal(toggleVal)
         
     ## Getters
     
@@ -76,6 +80,12 @@ class Button:
     
     def getMenuOptions(this):
         return this.__menuOptions
+    
+    def isToggle(this):
+        return this.__isToggle
+    
+    def getToggleVal(this):
+        return this.__toggleVal
         
     ## Setters
     
@@ -128,6 +138,12 @@ class Button:
             menuOptions[-1].setNavReturn(this)
             
         this.__menuOptions = menuOptions
+        
+    def setIsToggle(this, isToggle):
+        this.__isToggle = isToggle
+        
+    def setToggleVal(this, toggleVal = None):
+        this.__toggleVal = toggleVal
     
     # Other
     
@@ -150,12 +166,17 @@ class Button:
         if this.enabled():
             callback = this.getCallback()
             callback()
+            
+    def toggle(this):
+        if this.isToggle():
+            this.setToggleVal(not this.getToggleVal())
 
 class Tile(Button):
     def __init__(
         this,
         name:str = "new tile",
         url:str = "",
+        hasSearch:bool = False,
         width:int = TILE_WIDTH,
         height:int = TILE_HEIGHT,
         *args,
@@ -165,6 +186,7 @@ class Tile(Button):
             Button(text = TILE_EDIT_NAME_TEXT, callback = this.editName),
             Button(text = TILE_EDIT_URL_TEXT, callback = this.editURL),
             Button(text = TILE_EDIT_IMG_TEXT, callback = this.editImg),
+            Button(text = TILE_TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch, isToggle = True),
         ],
         super().__init__(
             width = width,
@@ -176,6 +198,7 @@ class Tile(Button):
         
         this.setName(name)
         this.setURL(url)
+        this.setHasSearch(hasSearch)
         
     ## Getters
     
@@ -185,6 +208,9 @@ class Tile(Button):
     def getURL(this):
         return this.__url
     
+    def hasSearch(this):
+        return this.__hasSearch
+    
     ## Setters
     
     def setName(this, name):
@@ -193,6 +219,12 @@ class Tile(Button):
     
     def setURL(this, url):
         this.__url = url
+        
+    def setHasSearch(this, hasSearch):
+        this.__hasSearch = hasSearch
+        for menuOption in this.getMenuOptions():
+            if menuOption.getText() == TILE_TOGGLE_SEARCH_TEXT and menuOption.isToggle():
+                menuOption.setToggleVal(hasSearch)
         
     ## Other
     
@@ -204,3 +236,6 @@ class Tile(Button):
     
     def editImg(this):
         return
+    
+    def toggleHasSearch(this):
+        this.setHasSearch(not this.hasSearch())

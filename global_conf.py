@@ -7,6 +7,7 @@ TILE_HEIGHT = 100
 TILE_EDIT_NAME_TEXT = "edit url"
 TILE_EDIT_URL_TEXT = "edit url"
 TILE_EDIT_IMG_TEXT = "edit image"
+TILE_TOGGLE_SEARCH_TEXT = "search feature?"
 
 ### REMOTE
 REMOTE_BUTTONS = [
