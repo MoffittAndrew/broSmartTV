@@ -52,9 +52,11 @@ class Tile(Button):
     def setName(this, name):
         this.__name = str(name)
         this.setText(this.getName())
+        if this.getFilepath() == "":
+            this.setFilepath(this.getName())
         
     def setFilepath(this, filepath):
-        this.__filepath = str(filepath)
+        this.__filepath = str(filepath).strip().replace(" ", "_")
         
     ## Callbacks
     

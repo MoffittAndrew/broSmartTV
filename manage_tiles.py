@@ -51,7 +51,7 @@ def readTiles():
     return tiles
 
 
-def writeTiles(tiles):
+def saveTiles(tiles):
     
     for tile in tiles:
         _saveTile(tile)
