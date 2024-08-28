@@ -167,5 +167,4 @@ class Button:
             callback()
             
     def toggle(this):
-        if this.isToggle():
-            this.setToggleVal(not this.getToggleVal())
+        this.setToggleVal(not this.getToggleVal())
