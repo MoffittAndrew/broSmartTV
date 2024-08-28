@@ -9,17 +9,14 @@ class Tile(Button):
         *args,
         **kwargs,
     ):
+        super().__init__(width = TILE.WIDTH, height = TILE.HEIGHT, *args, **kwargs)
+        
         menuOptions = [
             Button(text = TILE.EDIT_NAME_TEXT, callback = this.editName),
             Button(text = TILE.EDIT_IMG_TEXT, callback = this.editImg),
         ]
-        super().__init__(
-            width = TILE.WIDTH,
-            height = TILE.HEIGHT,
-            menuOptions = menuOptions,
-            *args,
-            **kwargs
-        )
+        for menuOption in menuOptions:
+            this.addMenuOption(menuOption)
         
         this.setName(name)
         this.setFilepath(filepath)
@@ -57,18 +54,15 @@ class DeviceTile(Tile):
         *args,
         **kwargs,
     ):
-        addMenuOptions = [
+        super().__init__(*args, **kwargs)
+        
+        menuOptions = [
             Button(text = TILE.EDIT_INPUT_TEXT, callback = this.editInputChannel),
         ]
-        super().__init__(
-            *args,
-            **kwargs
-        )
+        for menuOption in menuOptions:
+            this.addMenuOption(menuOption)
         
         this.setInputChannel(inputChannel)
-        
-        for menuOption in addMenuOptions:
-            this.addMenuOption(menuOption)
         
     ## Getters
     
@@ -98,20 +92,19 @@ class WebTile(Tile):
     ):
         super().__init__(*args, **kwargs)
         
-        addMenuOptions = [
+        menuOptions = [
             Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
             ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, callback = this.toggleIsMusic),
             ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch),
             ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, callback = this.toggleIsPirate),
         ]
+        for menuOption in menuOptions:
+            this.addMenuOption(menuOption)
         
         this.setURL(url)
         this.setIsMusic(isMusic)
         this.setHasSearch(hasSearch)
         this.setIsPirate(isPirate)
-        
-        for menuOption in addMenuOptions:
-            this.addMenuOption(menuOption)
         
     ## Getters
     
