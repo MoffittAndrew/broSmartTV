@@ -4,6 +4,7 @@ from button import Button, ToggleButton
 class Tile(Button):
     def __init__(
         this,
+        index:int = None,
         name:str = "new tile",
         filepath:str = "",
         *args,
@@ -18,10 +19,14 @@ class Tile(Button):
         for menuOption in menuOptions:
             this.addMenuOption(menuOption)
         
+        this.setIndex(index)
         this.setName(name)
         this.setFilepath(filepath)
         
     ## Getters
+    
+    def getIndex(this):
+        return this.__index
     
     def getName(this):
         return this.__name
@@ -30,6 +35,9 @@ class Tile(Button):
         return this.__filepath
     
     ## Setters
+    
+    def setIndex(this, index):
+        this.__index = index
     
     def setName(this, name):
         this.__name = name
