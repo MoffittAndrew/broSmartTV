@@ -16,14 +16,7 @@ class Button:
         adjLeft = None,
         menuOptions: list = [],
     ):
-        this.__enabled
-        this.__width
-        this.__height
-        this.__text
-        this.__img
-        this.__callback
         this.__adjButtons = {}
-        this.__menuOptions = []
         
         this.setEnabled(enabled)
         this.setWidth(width)
@@ -38,6 +31,9 @@ class Button:
         this.setMenuOptions(menuOptions)
         
     ## Getters
+    
+    def getEnabled(this):
+        return this.__enabled
         
     def getHeight(this):
         return this.__height
@@ -46,7 +42,7 @@ class Button:
         return this.__width
     
     def getAdjButton(this, index: str = "NAV_RIGHT"):
-        if index in this.__adjButtons.keys:
+        if index in this.__adjButtons.keys():
             return this.__adjButtons[index]
         
     def getAdjUp(this):
@@ -90,7 +86,7 @@ class Button:
         this.__callback = callback
         
     def setAdjButton(this, index: str = "NAV_RIGHT", button = None):
-        if index in this.__adjButtons.keys:
+        if index in this.__adjButtons.keys():
             this.__adjButtons[index] = button
         
     def setAdjUp(this, button = None):
@@ -119,6 +115,3 @@ class Button:
     def addMenuOption(this, menuOption = None):
         if menuOption != None:
             this.__menuOptions.append(menuOption)
-            
-            
-defaultButton = Button()
