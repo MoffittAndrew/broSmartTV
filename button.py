@@ -1,12 +1,11 @@
-from global_conf import *
-from PyQt5.QtWidgets import *
+from globals import BUTTON
 
 class Button:
     def __init__(
         this,
         enabled:bool = True,
-        width:int = MIN_BUTTON_WIDTH,
-        height:int = MIN_BUTTON_HEIGHT,
+        width:int = BUTTON.MIN_WIDTH,
+        height:int = BUTTON.MIN_HEIGHT,
         text:str = "",
         img = None,
         callback = None,
@@ -93,11 +92,11 @@ class Button:
         this.__enabled = enabled
         
     def setHeight(this, height):
-        if height >= MIN_BUTTON_HEIGHT:
+        if height >= BUTTON.MIN_HEIGHT:
             this.__height = height
             
     def setWidth(this, width):
-        if width >= MIN_BUTTON_WIDTH:
+        if width >= BUTTON.MIN_WIDTH:
             this.__width = width
             
     def setText(this, text):
@@ -170,72 +169,3 @@ class Button:
     def toggle(this):
         if this.isToggle():
             this.setToggleVal(not this.getToggleVal())
-
-class Tile(Button):
-    def __init__(
-        this,
-        name:str = "new tile",
-        url:str = "",
-        hasSearch:bool = False,
-        width:int = TILE_WIDTH,
-        height:int = TILE_HEIGHT,
-        *args,
-        **kwargs,
-    ):
-        menuOptions = [
-            Button(text = TILE_EDIT_NAME_TEXT, callback = this.editName),
-            Button(text = TILE_EDIT_URL_TEXT, callback = this.editURL),
-            Button(text = TILE_EDIT_IMG_TEXT, callback = this.editImg),
-            Button(text = TILE_TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch, isToggle = True),
-        ],
-        super().__init__(
-            width = width,
-            height = height,
-            menuOptions = menuOptions,
-            *args,
-            **kwargs
-        )
-        
-        this.setName(name)
-        this.setURL(url)
-        this.setHasSearch(hasSearch)
-        
-    ## Getters
-    
-    def getName(this):
-        return this.__name
-    
-    def getURL(this):
-        return this.__url
-    
-    def hasSearch(this):
-        return this.__hasSearch
-    
-    ## Setters
-    
-    def setName(this, name):
-        this.__name = name
-        this.setText(name)
-    
-    def setURL(this, url):
-        this.__url = url
-        
-    def setHasSearch(this, hasSearch):
-        this.__hasSearch = hasSearch
-        for menuOption in this.getMenuOptions():
-            if menuOption.getText() == TILE_TOGGLE_SEARCH_TEXT and menuOption.isToggle():
-                menuOption.setToggleVal(hasSearch)
-        
-    ## Other
-    
-    def editName(this):
-        return
-    
-    def editURL(this):
-        return
-    
-    def editImg(this):
-        return
-    
-    def toggleHasSearch(this):
-        this.setHasSearch(not this.hasSearch())
