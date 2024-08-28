@@ -74,18 +74,18 @@ class Button:
     ## Setters
     
     def setEnabled(this, enabled):
-        this.__enabled = enabled
+        this.__enabled = bool(enabled)
         
     def setHeight(this, height):
         if height >= BUTTON.MIN_HEIGHT:
-            this.__height = height
+            this.__height = int(height)
             
     def setWidth(this, width):
         if width >= BUTTON.MIN_WIDTH:
-            this.__width = width
+            this.__width = int(width)
             
     def setText(this, text):
-        this.__text = text
+        this.__text = str(text)
             
     def setImg(this, img):
         this.__img = img
@@ -132,7 +132,6 @@ class Button:
                 lastMenuOption = this.getMenuOptions()[-1]
                 menuOption.setNavUp(lastMenuOption)
                 lastMenuOption.setNavDown(menuOption)
-            menuOption.setNavReturn(this)
             this.__menuOptions.append(menuOption)
             
     def activate(this):
@@ -161,7 +160,7 @@ class ToggleButton(Button):
     ## Setters
         
     def setValue(this, value = None):
-        this.__value = value
+        this.__value = bool(value)
     
     # Other
             

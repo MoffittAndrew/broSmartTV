@@ -1,6 +1,6 @@
 import os
 
-PATH = os.path.dirname(__file__)
+PATH = os.path.dirname(__file__) + "\\..\\"
 
 class BUTTON:
     MIN_HEIGHT = 10

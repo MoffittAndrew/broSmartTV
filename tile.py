@@ -37,14 +37,14 @@ class Tile(Button):
     ## Setters
     
     def setIndex(this, index):
-        this.__index = index
+        this.__index = int(index)
     
     def setName(this, name):
-        this.__name = name
-        this.setText(name)
+        this.__name = str(name)
+        this.setText(this.getName())
         
     def setFilepath(this, filepath):
-        this.__filepath = filepath
+        this.__filepath = str(filepath)
         
     ## Callbacks
     
@@ -79,8 +79,8 @@ class DeviceTile(Tile):
     
     ## Setters
     
-    def setURL(this, inputChannel):
-        this.__inputChannel = inputChannel
+    def setInputChannel(this, inputChannel):
+        this.__inputChannel = str(inputChannel)
         
     ## Callbacks
     
@@ -131,25 +131,25 @@ class WebTile(Tile):
     ## Setters
     
     def setURL(this, url):
-        this.__url = url
+        this.__url = str(url)
         
     def setIsMusic(this, isMusic):
-        this.__isMusic = isMusic
+        this.__isMusic = bool(isMusic)
         for menuOption in this.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_MUSIC_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(isMusic)
+                menuOption.setValue(this.isMusic())
         
     def setHasSearch(this, hasSearch):
-        this.__hasSearch = hasSearch
+        this.__hasSearch = bool(hasSearch)
         for menuOption in this.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_SEARCH_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(hasSearch)
+                menuOption.setValue(this.hasSearch())
     
     def setIsPirate(this, isPirate):
-        this.__isPirate = isPirate
+        this.__isPirate = bool(isPirate)
         for menuOption in this.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_PIRATE_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(isPirate)
+                menuOption.setValue(this.isPirate())
         
     ## Callbacks
     
