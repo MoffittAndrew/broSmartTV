@@ -14,8 +14,6 @@ class Button:
         navDown = None,
         navLeft = None,
         menuOptions:list = [],
-        isToggle:bool = False,
-        toggleVal:bool = True,
     ):
         this.__navButtons = {}
         
@@ -30,8 +28,6 @@ class Button:
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
-        this.setIsToggle(isToggle)
-        this.setToggleVal(toggleVal)
         
     ## Getters
     
@@ -74,12 +70,6 @@ class Button:
     
     def getMenuOptions(this):
         return this.__menuOptions
-    
-    def isToggle(this):
-        return this.__isToggle
-    
-    def getToggleVal(this):
-        return this.__toggleVal
         
     ## Setters
     
@@ -127,12 +117,6 @@ class Button:
                 menuOptions[i].setNavDown(menuOptions[i + 1])
             
         this.__menuOptions = menuOptions
-        
-    def setIsToggle(this, isToggle):
-        this.__isToggle = isToggle
-        
-    def setToggleVal(this, toggleVal = None):
-        this.__toggleVal = toggleVal
     
     # Other
     
@@ -155,10 +139,7 @@ class Button:
         if this.enabled():
             callback = this.getCallback()
             callback()
-            
-    def toggle(this):
-        this.setToggleVal(not this.getToggleVal())
-        
+
 
 
 class ToggleButton(Button):
