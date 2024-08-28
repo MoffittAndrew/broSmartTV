@@ -15,13 +15,6 @@ class NavBar(QtWidgets.QtWidget):
         
         this.setButtons(buttons)
         
-        layout = QtWidgets.QHBoxLayout()
-        
-        for button in this.getButtons():
-            layout.addWidget(button)
-        
-        this.setLayout(layout)
-        
     ## Getters
         
     def getButtons(this):
@@ -34,7 +27,14 @@ class NavBar(QtWidgets.QtWidget):
     
     def setButtons(this, buttons):
         this.__buttons = buttons
-        this.setCurrentButtons(this.getButtons()[0])
+        this.setCurrentButton(this.getButtons()[0])
+        
+        layout = QtWidgets.QHBoxLayout()
+        
+        for button in this.getButtons():
+            layout.addWidget(button)
+        
+        this.setLayout(layout)
         
     def setCurrentButton(this, button):
         this.__currentButton = button
