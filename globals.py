@@ -10,18 +10,21 @@ class TILE:
     EDIT_IMG_TEXT = "edit image"
     TOGGLE_SEARCH_TEXT = "search feature?"
 
-### REMOTE
-REMOTE_BUTTONS = [
-    "HOME",
-    "POWER",
-    "SELECT",
-    "NAV_UP",
-    "NAV_RIGHT",
-    "NAV_DOWN",
-    "NAV_LEFT",
-    "MENU",
-    "RETURN",
-    "VOL_UP",
-    "VOL_DOWN",
-    "MIC",
-]
+class REMOTE:
+    NAME = "bro-ito"
+    SERVICE_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x1849)
+    CHARACTERISTIC_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x2BA5)
+    BUTTONS = [
+        "HOME",
+        "POWER",
+        "SELECT",
+        "NAV_UP",
+        "NAV_RIGHT",
+        "NAV_DOWN",
+        "NAV_LEFT",
+        "MENU",
+        "RETURN",
+        "VOL_UP",
+        "VOL_DOWN",
+        "MIC",
+    ]
