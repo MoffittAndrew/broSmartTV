@@ -16,6 +16,9 @@ class TILE:
     TOGGLE_MUSIC_TEXT = "music site?"
     TOGGLE_SEARCH_TEXT = "has search feature?"
     TOGGLE_PIRATE_TEXT = "pirate site?"
+    
+class TILEGRID:
+    COLUMNS = 5
 
 class REMOTE:
     NAME = "bro-ito"

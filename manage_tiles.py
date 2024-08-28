@@ -1,5 +1,6 @@
 from globals import PATH
 from tile import Tile, DeviceTile, WebTile
+
 from os import listdir
 from os.path import isfile, join
 

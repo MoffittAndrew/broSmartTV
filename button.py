@@ -1,6 +1,8 @@
 from globals import BUTTON
 
-class Button:
+from PyQt5 import QtWidgets
+
+class Button(QtWidgets.QWidget):
     def __init__(
         this,
         enabled:bool = True,
@@ -14,7 +16,11 @@ class Button:
         navDown = None,
         navLeft = None,
         menuOptions:list = [],
+        *args,
+        **kwargs,
     ):
+        super().__init__(*args, **kwargs)
+        
         this.__navButtons = {}
         
         this.setEnabled(enabled)

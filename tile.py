@@ -19,9 +19,9 @@ class Tile(Button):
         for menuOption in menuOptions:
             this.addMenuOption(menuOption)
         
+        this.setFilepath(filepath)
         this.setIndex(index)
         this.setName(name)
-        this.setFilepath(filepath)
         
     ## Getters
     

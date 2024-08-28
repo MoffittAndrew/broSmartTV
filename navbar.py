@@ -1,19 +1,27 @@
-from PyQt5 import QtWidgets
 from button import Button
 
-buttons = [
-    Button(text = "settings"),
-    Button(text = "search"),
-    Button(text = "home"),
-    Button(text = "filter"),
-    Button(text = "edit"),
+from PyQt5 import QtWidgets
+
+settingsButton = Button(text = "settings")
+searchButton = Button(text = "search")
+homeButton = Button(text = "home")
+filterButton = Button(text = "filter")
+editButton = Button(text = "edit")
+
+_buttons = [
+    settingsButton,
+    searchButton,
+    homeButton,
+    filterButton,
+    editButton,
 ]
 
-class NavBar(QtWidgets.QtWidget):
-    def __init__(this, buttons:list = buttons, *args, **kwargs):
+class NavBar(QtWidgets.QWidget):
+    def __init__(this, buttons:list = _buttons, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         this.setButtons(buttons)
+        this.setCurrentButton(homeButton)
         
     ## Getters
         
@@ -27,7 +35,6 @@ class NavBar(QtWidgets.QtWidget):
     
     def setButtons(this, buttons):
         this.__buttons = buttons
-        this.setCurrentButton(this.getButtons()[0])
         
         layout = QtWidgets.QHBoxLayout()
         
