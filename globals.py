@@ -2,13 +2,17 @@ import os
 
 PATH = os.path.dirname(__file__) + "\\..\\"
 
+class DISPLAY:
+    WIDTH = 1920
+    HEIGHT = 1080
+
 class BUTTON:
-    MIN_HEIGHT = 10
     MIN_WIDTH = 10
+    MIN_HEIGHT = 10
 
 class TILE:
-    WIDTH = 100
-    HEIGHT = 100
+    WIDTH = 500
+    HEIGHT = 500
     EDIT_NAME_TEXT = "edit url"
     EDIT_IMG_TEXT = "edit image"
     EDIT_INPUT_TEXT = "edit input channel"

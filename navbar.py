@@ -1,6 +1,6 @@
 from button import Button
 
-from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QWidget, QHBoxLayout
 
 settingsButton = Button(text = "settings")
 searchButton = Button(text = "search")
@@ -16,7 +16,7 @@ _buttons = [
     editButton,
 ]
 
-class NavBar(QtWidgets.QWidget):
+class NavBar(QWidget):
     def __init__(this, buttons:list = _buttons, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -36,7 +36,7 @@ class NavBar(QtWidgets.QWidget):
     def setButtons(this, buttons):
         this.__buttons = buttons
         
-        layout = QtWidgets.QHBoxLayout()
+        layout = QHBoxLayout()
         
         for button in this.getButtons():
             layout.addWidget(button)

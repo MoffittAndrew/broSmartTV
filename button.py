@@ -1,8 +1,10 @@
 from globals import BUTTON
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import QLabel
+from PyQt5.QtCore import Qt
 
-class Button(QtWidgets.QWidget):
+class Button(QLabel):
     def __init__(
         this,
         enabled:bool = True,
@@ -34,6 +36,9 @@ class Button(QtWidgets.QWidget):
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
+        
+        canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
+        this.setPixmap(canvas)
         
     ## Getters
     
@@ -144,6 +149,23 @@ class Button(QtWidgets.QWidget):
         if this.enabled():
             callback = this.getCallback()
             callback()
+            
+    def draw(this):
+        painter = QtGui.QPainter(this.pixmap())
+
+        pen = QtGui.QPen()
+        pen.setWidth(1)
+        pen.setColor(QtGui.QColor('green'))
+        painter.setPen(pen)
+
+        font = QtGui.QFont()
+        font.setFamily('Times')
+        font.setBold(True)
+        font.setPointSize(40)
+        painter.setFont(font)
+
+        painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, 'Hello, world!')
+        painter.end()
 
 
 

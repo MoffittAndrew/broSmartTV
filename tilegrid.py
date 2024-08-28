@@ -1,9 +1,9 @@
 from globals import TILEGRID
 from tiles import tiles
 
-from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QWidget, QGridLayout
 
-class TileGrid(QtWidgets.QWidget):
+class TileGrid(QWidget):
     def __init__(this, columns:int = TILEGRID.COLUMNS, tiles:list = tiles, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -31,7 +31,7 @@ class TileGrid(QtWidgets.QWidget):
                 counter = 0
             counter += 1
         
-        layout = QtWidgets.QGridLayout()
+        layout = QGridLayout()
         tiles = this.getTiles()
         
         for i_row in range(len(tiles)):
