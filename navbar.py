@@ -2,11 +2,11 @@ from PyQt5 import QtWidgets
 from button import Button
 
 buttons = [
-    Button(text = "home"),
+    Button(text = "settings"),
     Button(text = "search"),
+    Button(text = "home"),
     Button(text = "filter"),
     Button(text = "edit"),
-    Button(text = "settings"),
 ]
 
 class NavBar(QtWidgets.QtWidget):
