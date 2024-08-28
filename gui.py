@@ -1,22 +1,23 @@
-from global_conf import MIN_BUTTON_HEIGHT, MIN_BUTTON_WIDTH, DEFAULT_TILE_WIDTH, DEFAULT_TILE_HEIGHT
+from global_conf import *
 from PyQt5.QtWidgets import *
 
 class Button:
     def __init__(
         this,
-        enabled: bool = True,
-        width: int = MIN_BUTTON_WIDTH,
-        height: int = MIN_BUTTON_HEIGHT,
-        text: str = "",
+        enabled:bool = True,
+        width:int = MIN_BUTTON_WIDTH,
+        height:int = MIN_BUTTON_HEIGHT,
+        text:str = "",
         img = None,
         callback = None,
-        adjUp = None,
-        adjRight = None,
-        adjDown = None,
-        adjLeft = None,
-        menuOptions: list = [],
+        navUp = None,
+        navRight = None,
+        navDown = None,
+        navLeft = None,
+        navReturn = None,
+        menuOptions:list = [],
     ):
-        this.__adjButtons = {}
+        this.__navButtons = {}
         
         this.setEnabled(enabled)
         this.setWidth(width)
@@ -24,10 +25,11 @@ class Button:
         this.setText(text)
         this.setImg(img)
         this.setCallback(callback)
-        this.setAdjUp(adjUp)
-        this.setAdjRight(adjRight)
-        this.setAdjDown(adjDown)
-        this.setAdjLeft(adjLeft)
+        this.setNavUp(navUp)
+        this.setNavRight(navRight)
+        this.setNavDown(navDown)
+        this.setNavLeft(navLeft)
+        this.setNavReturn(navReturn)
         this.setMenuOptions(menuOptions)
         
     ## Getters
@@ -50,21 +52,24 @@ class Button:
     def getCallback(this):
         return this.__callback
     
-    def getAdjButton(this, index: str = "NAV_RIGHT"):
-        if index in this.__adjButtons.keys():
-            return this.__adjButtons[index]
+    def getNavButton(this, index: str = "NAV_RIGHT"):
+        if index in this.__navButtons.keys():
+            return this.__navButtons[index]
         
-    def getAdjUp(this):
-        return this.setAdjButton("NAV_UP")
+    def getNavUp(this):
+        return this.setNavButton("NAV_UP")
     
-    def getAdjRight(this):
-        return this.setAdjButton("NAV_RIGHT")
+    def getNavRight(this):
+        return this.setNavButton("NAV_RIGHT")
         
-    def getAdjDown(this):
-        return this.setAdjButton("NAV_DOWN")
+    def getNavDown(this):
+        return this.setNavButton("NAV_DOWN")
         
-    def getAdjLeft(this):
-        return this.setAdjButton("NAV_LEFT")
+    def getNavLeft(this):
+        return this.setNavButton("NAV_LEFT")
+    
+    def getNavReturn(this):
+        return this.setNavButton("RETURN")
     
     def getMenuOption(this, index):
         return this.__menuOptions[index]
@@ -94,23 +99,34 @@ class Button:
     def setCallback(this, callback):
         this.__callback = callback
         
-    def setAdjButton(this, index, button):
-        if index in this.__adjButtons.keys():
-            this.__adjButtons[index] = button
+    def setNavButton(this, index, button):
+        if index in this.__navButtons.keys():
+            this.__navButtons[index] = button
         
-    def setAdjUp(this, button):
-        this.setAdjButton("NAV_UP", button)
+    def setNavUp(this, button):
+        this.setNavButton("NAV_UP", button)
     
-    def setAdjRight(this, button):
-        this.setAdjButton("NAV_RIGHT", button)
+    def setNavRight(this, button):
+        this.setNavButton("NAV_RIGHT", button)
         
-    def setAdjDown(this, button):
-        this.setAdjButton("NAV_DOWN", button)
+    def setNavDown(this, button):
+        this.setNavButton("NAV_DOWN", button)
         
-    def setAdjLeft(this, button):
-        this.setAdjButton("NAV_LEFT", button)
+    def setNavLeft(this, button):
+        this.setNavButton("NAV_LEFT", button)
+        
+    def setNavReturn(this, button):
+        this.setNavButton("RETURN", button)
         
     def setMenuOptions(this, menuOptions):
+        
+        if len(menuOptions) > 0:
+            for i in range(len(menuOptions) - 1):
+                menuOptions[i + 1].setNavUp(menuOptions[i])
+                menuOptions[i].setNavDown(menuOptions[i + 1])
+                menuOptions[i].setNavReturn(this)
+            menuOptions[-1].setNavReturn(this)
+            
         this.__menuOptions = menuOptions
     
     # Other
@@ -123,6 +139,11 @@ class Button:
     
     def addMenuOption(this, menuOption = None):
         if menuOption != None:
+            if len(this.getMenuOptions()) > 0:
+                lastMenuOption = this.getMenuOptions()[-1]
+                menuOption.setNavUp(lastMenuOption)
+                lastMenuOption.setNavDown(menuOption)
+            menuOption.setNavReturn(this)
             this.__menuOptions.append(menuOption)
             
     def activate(this):
@@ -133,7 +154,53 @@ class Button:
 class Tile(Button):
     def __init__(
         this,
+        name:str = "new tile",
+        url:str = "",
+        width:int = TILE_WIDTH,
+        height:int = TILE_HEIGHT,
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        menuOptions = [
+            Button(text = TILE_EDIT_NAME_TEXT, callback = this.editName),
+            Button(text = TILE_EDIT_URL_TEXT, callback = this.editURL),
+            Button(text = TILE_EDIT_IMG_TEXT, callback = this.editImg),
+        ],
+        super().__init__(
+            width = width,
+            height = height,
+            menuOptions = menuOptions,
+            *args,
+            **kwargs
+        )
+        
+        this.setName(name)
+        this.setURL(url)
+        
+    ## Getters
+    
+    def getName(this):
+        return this.__name
+    
+    def getURL(this):
+        return this.__url
+    
+    ## Setters
+    
+    def setName(this, name):
+        this.__name = name
+        this.setText(name)
+    
+    def setURL(this, url):
+        this.__url = url
+        
+    ## Other
+    
+    def editName(this):
+        return
+    
+    def editURL(this):
+        return
+    
+    def editImg(this):
+        return
