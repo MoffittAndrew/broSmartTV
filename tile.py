@@ -37,7 +37,9 @@ class Tile(Button):
     ## Setters
     
     def setIndex(this, index):
-        this.__index = int(index)
+        if index != None:
+            index = int(index)
+        this.__index = index
     
     def setName(this, name):
         this.__name = str(name)
