@@ -1,5 +1,5 @@
-from global_conf import MIN_BUTTON_HEIGHT, MIN_BUTTON_WIDTH
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton
+from global_conf import MIN_BUTTON_HEIGHT, MIN_BUTTON_WIDTH, DEFAULT_TILE_WIDTH, DEFAULT_TILE_HEIGHT
+from PyQt5.QtWidgets import *
 
 class Button:
     def __init__(
@@ -32,7 +32,7 @@ class Button:
         
     ## Getters
     
-    def getEnabled(this):
+    def enabled(this):
         return this.__enabled
         
     def getHeight(this):
@@ -40,6 +40,15 @@ class Button:
     
     def getWidth(this):
         return this.__width
+    
+    def getText(this):
+        return this.__text
+            
+    def getImg(this):
+        return this.__img
+    
+    def getCallback(this):
+        return this.__callback
     
     def getAdjButton(this, index: str = "NAV_RIGHT"):
         if index in this.__adjButtons.keys():
@@ -57,7 +66,7 @@ class Button:
     def getAdjLeft(this):
         return this.setAdjButton("NAV_LEFT")
     
-    def getMenuOption(this, index: int = 0):
+    def getMenuOption(this, index):
         return this.__menuOptions[index]
     
     def getMenuOptions(this):
@@ -65,43 +74,43 @@ class Button:
         
     ## Setters
     
-    def setEnabled(this, enabled: bool = True):
+    def setEnabled(this, enabled):
         this.__enabled = enabled
         
-    def setHeight(this, height: int):
+    def setHeight(this, height):
         if height >= MIN_BUTTON_HEIGHT:
             this.__height = height
             
-    def setWidth(this, width: int):
+    def setWidth(this, width):
         if width >= MIN_BUTTON_WIDTH:
             this.__width = width
             
-    def setText(this, text: str = None):
+    def setText(this, text):
         this.__text = text
             
-    def setImg(this, img = None):
+    def setImg(this, img):
         this.__img = img
         
-    def setCallback(this, callback = None):
+    def setCallback(this, callback):
         this.__callback = callback
         
-    def setAdjButton(this, index: str = "NAV_RIGHT", button = None):
+    def setAdjButton(this, index, button):
         if index in this.__adjButtons.keys():
             this.__adjButtons[index] = button
         
-    def setAdjUp(this, button = None):
+    def setAdjUp(this, button):
         this.setAdjButton("NAV_UP", button)
     
-    def setAdjRight(this, button = None):
+    def setAdjRight(this, button):
         this.setAdjButton("NAV_RIGHT", button)
         
-    def setAdjDown(this, button = None):
+    def setAdjDown(this, button):
         this.setAdjButton("NAV_DOWN", button)
         
-    def setAdjLeft(this, button = None):
+    def setAdjLeft(this, button):
         this.setAdjButton("NAV_LEFT", button)
         
-    def setMenuOptions(this, menuOptions: list = []):
+    def setMenuOptions(this, menuOptions):
         this.__menuOptions = menuOptions
     
     # Other
@@ -115,3 +124,16 @@ class Button:
     def addMenuOption(this, menuOption = None):
         if menuOption != None:
             this.__menuOptions.append(menuOption)
+            
+    def activate(this):
+        if this.enabled():
+            callback = this.getCallback()
+            callback()
+
+class Tile(Button):
+    def __init__(
+        this,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
