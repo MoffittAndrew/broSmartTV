@@ -1,3 +1,7 @@
+import os
+
+PATH = os.path.dirname(__file__)
+
 class BUTTON:
     MIN_HEIGHT = 10
     MIN_WIDTH = 10
@@ -6,9 +10,12 @@ class TILE:
     WIDTH = 100
     HEIGHT = 100
     EDIT_NAME_TEXT = "edit url"
-    EDIT_URL_TEXT = "edit url"
     EDIT_IMG_TEXT = "edit image"
-    TOGGLE_SEARCH_TEXT = "search feature?"
+    EDIT_INPUT_TEXT = "edit input channel"
+    EDIT_URL_TEXT = "edit url"
+    TOGGLE_MUSIC_TEXT = "music site?"
+    TOGGLE_SEARCH_TEXT = "has search feature?"
+    TOGGLE_PIRATE_TEXT = "pirate site?"
 
 class REMOTE:
     NAME = "bro-ito"

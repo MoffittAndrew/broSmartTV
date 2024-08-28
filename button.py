@@ -13,7 +13,6 @@ class Button:
         navRight = None,
         navDown = None,
         navLeft = None,
-        navReturn = None,
         menuOptions:list = [],
         isToggle:bool = False,
         toggleVal:bool = True,
@@ -30,7 +29,6 @@ class Button:
         this.setNavRight(navRight)
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
-        this.setNavReturn(navReturn)
         this.setMenuOptions(menuOptions)
         this.setIsToggle(isToggle)
         this.setToggleVal(toggleVal)
@@ -70,9 +68,6 @@ class Button:
         
     def getNavLeft(this):
         return this.setNavButton("NAV_LEFT")
-    
-    def getNavReturn(this):
-        return this.setNavButton("RETURN")
     
     def getMenuOption(this, index):
         return this.__menuOptions[index]
@@ -124,17 +119,12 @@ class Button:
     def setNavLeft(this, button):
         this.setNavButton("NAV_LEFT", button)
         
-    def setNavReturn(this, button):
-        this.setNavButton("RETURN", button)
-        
     def setMenuOptions(this, menuOptions):
         
         if len(menuOptions) > 0:
             for i in range(len(menuOptions) - 1):
                 menuOptions[i + 1].setNavUp(menuOptions[i])
                 menuOptions[i].setNavDown(menuOptions[i + 1])
-                menuOptions[i].setNavReturn(this)
-            menuOptions[-1].setNavReturn(this)
             
         this.__menuOptions = menuOptions
         
@@ -168,3 +158,31 @@ class Button:
             
     def toggle(this):
         this.setToggleVal(not this.getToggleVal())
+        
+
+
+class ToggleButton(Button):
+    def __init__(
+        this,
+        value:bool = True,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        
+        this.setValue(value)
+        
+    ## Getters
+    
+    def getValue(this):
+        return this.__value
+        
+    ## Setters
+        
+    def setValue(this, value = None):
+        this.__value = value
+    
+    # Other
+            
+    def toggle(this):
+        this.setValue(not this.getValue())

@@ -1,12 +1,11 @@
 from globals import TILE
-from button import Button
+from button import Button, ToggleButton
 
 class Tile(Button):
     def __init__(
         this,
         name:str = "new tile",
-        width:int = TILE.WIDTH,
-        height:int = TILE.HEIGHT,
+        filepath:str = "",
         *args,
         **kwargs,
     ):
@@ -15,25 +14,32 @@ class Tile(Button):
             Button(text = TILE.EDIT_IMG_TEXT, callback = this.editImg),
         ]
         super().__init__(
-            width = width,
-            height = height,
+            width = TILE.WIDTH,
+            height = TILE.HEIGHT,
             menuOptions = menuOptions,
             *args,
             **kwargs
         )
         
         this.setName(name)
+        this.setFilepath(filepath)
         
     ## Getters
     
     def getName(this):
         return this.__name
     
+    def getFilepath(this):
+        return this.__filepath
+    
     ## Setters
     
     def setName(this, name):
         this.__name = name
         this.setText(name)
+        
+    def setFilepath(this, filepath):
+        this.__filepath = filepath
         
     ## Callbacks
     
@@ -44,57 +50,6 @@ class Tile(Button):
         return
 
 
-class WebTile(Tile):
-    def __init__(
-        this,
-        url:str = "",
-        hasSearch:bool = False,
-        *args,
-        **kwargs,
-    ):
-        addMenuOptions = [
-            Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
-            Button(text = TILE.TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch, isToggle = True),
-        ]
-        super().__init__(
-            *args,
-            **kwargs
-        )
-        
-        this.setURL(url)
-        this.setHasSearch(hasSearch)
-        
-        for menuOption in addMenuOptions:
-            this.addMenuOption(menuOption)
-        
-    ## Getters
-    
-    def getURL(this):
-        return this.__url
-    
-    def hasSearch(this):
-        return this.__hasSearch
-    
-    ## Setters
-    
-    def setURL(this, url):
-        this.__url = url
-        
-    def setHasSearch(this, hasSearch):
-        this.__hasSearch = hasSearch
-        for menuOption in this.getMenuOptions():
-            if menuOption.getText() == TILE.TOGGLE_SEARCH_TEXT and menuOption.isToggle():
-                menuOption.setToggleVal(hasSearch)
-        
-    ## Callbacks
-    
-    def editURL(this):
-        return
-    
-    def toggleHasSearch(this):
-        this.setHasSearch(not this.hasSearch())
-
-
 class DeviceTile(Tile):
     def __init__(
         this,
@@ -103,7 +58,7 @@ class DeviceTile(Tile):
         **kwargs,
     ):
         addMenuOptions = [
-            Button(text = TILE.EDIT_URL_TEXT, callback = this.editInputChannel),
+            Button(text = TILE.EDIT_INPUT_TEXT, callback = this.editInputChannel),
         ]
         super().__init__(
             *args,
@@ -129,3 +84,82 @@ class DeviceTile(Tile):
     
     def editInputChannel(this):
         return
+
+
+class WebTile(Tile):
+    def __init__(
+        this,
+        url:str = "",
+        isMusic:bool = False,
+        hasSearch:bool = True,
+        isPirate:bool = False,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        
+        addMenuOptions = [
+            Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
+            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, callback = this.toggleIsMusic),
+            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch),
+            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, callback = this.toggleIsPirate),
+        ]
+        
+        this.setURL(url)
+        this.setIsMusic(isMusic)
+        this.setHasSearch(hasSearch)
+        this.setIsPirate(isPirate)
+        
+        for menuOption in addMenuOptions:
+            this.addMenuOption(menuOption)
+        
+    ## Getters
+    
+    def getURL(this):
+        return this.__url
+    
+    def isMusic(this):
+        return this.__isMusic
+    
+    def hasSearch(this):
+        return this.__hasSearch
+    
+    def isPirate(this):
+        return this.__isPirate
+    
+    ## Setters
+    
+    def setURL(this, url):
+        this.__url = url
+        
+    def setIsMusic(this, isMusic):
+        this.__isMusic = isMusic
+        for menuOption in this.getMenuOptions():
+            if menuOption.getText() == TILE.TOGGLE_MUSIC_TEXT and type(menuOption) == ToggleButton:
+                menuOption.setValue(isMusic)
+        
+    def setHasSearch(this, hasSearch):
+        this.__hasSearch = hasSearch
+        for menuOption in this.getMenuOptions():
+            if menuOption.getText() == TILE.TOGGLE_SEARCH_TEXT and type(menuOption) == ToggleButton:
+                menuOption.setValue(hasSearch)
+    
+    def setIsPirate(this, isPirate):
+        this.__isPirate = isPirate
+        for menuOption in this.getMenuOptions():
+            if menuOption.getText() == TILE.TOGGLE_PIRATE_TEXT and type(menuOption) == ToggleButton:
+                menuOption.setValue(isPirate)
+        
+    ## Callbacks
+    
+    def editURL(this):
+        return
+    
+    def toggleIsMusic(this):
+        this.setIsMusic(not this.isMusic())
+    
+    def toggleHasSearch(this):
+        this.setHasSearch(not this.hasSearch())
+    
+    def toggleIsPirate(this):
+        this.setIsPirate(not this.isPirate())
