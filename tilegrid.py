@@ -4,11 +4,12 @@ from tiles import tiles
 from PyQt5.QtWidgets import QWidget, QGridLayout
 
 class TileGrid(QWidget):
-    def __init__(this, columns:int = TILEGRID.COLUMNS, tiles:list = tiles, *args, **kwargs):
+    def __init__(this, columns:int = TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         this.setColumns(columns)
         this.setTiles(tiles)
+        this.setNavBarButton(navBarButton)
         
     ## Getters
     
@@ -17,6 +18,9 @@ class TileGrid(QWidget):
     
     def getTiles(this):
         return this.__tiles
+    
+    def getNavBarButton(this):
+        return this.__navBarButton
     
     ## Setters
     
@@ -64,4 +68,12 @@ class TileGrid(QWidget):
         
         this.setLayout(layout)
         
+    def setNavBarButton(this, navBarButton):
+        this.__navBarButton = navBarButton
+        if navBarButton != None:
+            tiles = this.getTiles()
+            navBarButton.setNavDown(tiles[0][0])
+            for tile in tiles[0]:
+                tile.setNavUp(navBarButton)
+
 tileGrid = TileGrid()

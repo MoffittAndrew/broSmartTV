@@ -17,6 +17,8 @@ _buttons = [
     editButton,
 ]
 
+tileGrid.setNavBarButton(homeButton)
+
 class NavBar(QWidget):
     def __init__(this, buttons:list = _buttons, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,3 +95,6 @@ navBar = NavBar()
 body = HomeBody([tileGrid])
 
 homeScreen = HomeScreen(navBar, body)
+
+for i in range(len(_buttons)):
+    _buttons[i].setCallback(homeScreen.setTab(i))
