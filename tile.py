@@ -22,6 +22,7 @@ class Tile(Button):
         this.setFilepath(filepath)
         this.setIndex(index)
         this.setName(name)
+        this.draw()
         
     ## Getters
     

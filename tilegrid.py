@@ -23,27 +23,28 @@ class TileGrid(QWidget):
     def setColumns(this, columns):
         this.__columns = columns
     
-    def setTiles(this, tiles):
+    def setTiles(this, tiles_list):
         
         this.__tiles = []
         row = []
         counter = 0
-        for i in range(len(tiles)):
-            if counter <= this.getColumns():
-                row.append(tiles[i])
+        for i in range(len(tiles_list)):
+            if counter < this.getColumns():
+                row.append(tiles_list[i])
             else:
                 this.__tiles.append(row)
                 row = []
                 counter = 0
             counter += 1
+        this.__tiles.append(row)
         
         tiles = this.getTiles()
         for i_row in range(len(tiles)):
             if len(tiles[i_row]) > 0:
-                for i_col in range(len(tiles[i_row] - 1)):
+                for i_col in range(len(tiles[i_row]) - 1):
                     tiles[i_row][i_col + 1].setNavLeft(tiles[i_row][i_col])
                     tiles[i_row][i_col].setNavRight(tiles[i_row][i_col + 1])
-                    
+        
         if len(tiles) > 0:
             for i_row in range(len(tiles) - 1):
                 for i_col in range(len(tiles[i_row])):
@@ -62,12 +63,5 @@ class TileGrid(QWidget):
                 layout.addWidget(tile, i_row, i_col)
         
         this.setLayout(layout)
-        
-    ## Other
-    
-    def draw(this):
-        for row in this.getTiles():
-            for tile in row:
-                tile.draw()
         
 tileGrid = TileGrid()

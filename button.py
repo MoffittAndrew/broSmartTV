@@ -28,8 +28,8 @@ class Button(QLabel):
         this.setEnabled(enabled)
         this.setWidth(width)
         this.setHeight(height)
-        this.setText(text)
         this.setImg(img)
+        this.setText(text)
         this.setCallback(callback)
         this.setNavUp(navUp)
         this.setNavRight(navRight)
@@ -37,8 +37,10 @@ class Button(QLabel):
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
         
+        this.__needsDraw = True
         canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
         this.setPixmap(canvas)
+        this.draw()
         
     ## Getters
     
@@ -97,9 +99,13 @@ class Button(QLabel):
             
     def setText(this, text):
         this.__text = str(text)
-            
+        if this.getImg() == None:
+            this.__needsDraw = True
+        
     def setImg(this, img):
         this.__img = img
+        if this.getImg() == None:
+            this.__needsDraw = True
         
     def setCallback(this, callback):
         this.__callback = callback
@@ -151,21 +157,24 @@ class Button(QLabel):
             callback()
             
     def draw(this):
-        painter = QtGui.QPainter(this.pixmap())
+        if this.__needsDraw:
+            painter = QtGui.QPainter(this.pixmap())
 
-        pen = QtGui.QPen()
-        pen.setWidth(1)
-        pen.setColor(QtGui.QColor('green'))
-        painter.setPen(pen)
+            if this.getImg() == None and this.getText() != "":
+                pen = QtGui.QPen()
+                pen.setWidth(1)
+                pen.setColor(QtGui.QColor('white'))
+                painter.setPen(pen)
 
-        font = QtGui.QFont()
-        font.setFamily('Times')
-        font.setBold(True)
-        font.setPointSize(40)
-        painter.setFont(font)
+                font = QtGui.QFont()
+                font.setFamily('Times')
+                font.setPointSize(40)
+                painter.setFont(font)
 
-        painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, this.getText())
-        painter.end()
+                painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, this.getText())
+                
+            painter.end()
+        this.__needsDraw = False
 
 
 

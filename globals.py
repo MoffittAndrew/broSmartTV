@@ -11,8 +11,8 @@ class BUTTON:
     MIN_HEIGHT = 100
 
 class TILE:
-    WIDTH = 500
-    HEIGHT = 500
+    WIDTH = 400
+    HEIGHT = 300
     EDIT_NAME_TEXT = "edit url"
     EDIT_IMG_TEXT = "edit image"
     EDIT_INPUT_TEXT = "edit input channel"
