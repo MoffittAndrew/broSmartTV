@@ -164,7 +164,7 @@ class Button(QLabel):
         font.setPointSize(40)
         painter.setFont(font)
 
-        painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, 'Hello, world!')
+        painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, this.getText())
         painter.end()
 
 

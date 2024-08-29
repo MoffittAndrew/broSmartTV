@@ -34,6 +34,12 @@ class NavBar(QWidget):
     ## Setters
     
     def setButtons(this, buttons):
+        
+        if len(buttons) > 0:
+            for i in range(len(buttons) - 1):
+                buttons[i + 1].setNavLeft(buttons[i])
+                buttons[i].setNavRight(buttons[i + 1])
+                
         this.__buttons = buttons
         
         layout = QHBoxLayout()
@@ -45,5 +51,11 @@ class NavBar(QWidget):
         
     def setCurrentButton(this, button):
         this.__currentButton = button
+    
+    ## Other
+    
+    def draw(this):
+        for button in this.getButtons():
+            button.draw()
         
 navBar = NavBar()

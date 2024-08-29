@@ -7,8 +7,8 @@ class DISPLAY:
     HEIGHT = 1080
 
 class BUTTON:
-    MIN_WIDTH = 10
-    MIN_HEIGHT = 10
+    MIN_WIDTH = 200
+    MIN_HEIGHT = 100
 
 class TILE:
     WIDTH = 500
