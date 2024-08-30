@@ -7,11 +7,4 @@ inputInterface.setSelectedButton(tiles[0])
 
 homeScreen.show()
 
-print(inputInterface.getSelectedButton().getText())
-print(inputInterface.getSelectedButton().getNavDown())
-inputInterface.navRight()
-print(inputInterface.getSelectedButton().getText())
-inputInterface.navRight()
-print(inputInterface.getSelectedButton().getText())
-
 APP.exec_()

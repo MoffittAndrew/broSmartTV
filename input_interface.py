@@ -14,7 +14,9 @@ class InputInterface:
         this.getSelectedButton().activate()
         
     def navigate(this, index:str = INPUT.NAV_RIGHT):
-        this.setSelectedButton(this.getSelectedButton().getNavButton(index))
+        newButton = this.getSelectedButton().getNavButton(index)
+        if newButton != None:
+            this.setSelectedButton(newButton)
         
     def navUp(this):
         this.navigate(INPUT.NAV_UP)

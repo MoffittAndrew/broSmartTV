@@ -111,8 +111,7 @@ class Button(QLabel):
         this.__callback = callback
         
     def setNavButton(this, index, button):
-        if index in this.__navButtons.keys():
-            this.__navButtons[index] = button
+        this.__navButtons[index] = button
         
     def setNavUp(this, button):
         this.setNavButton("NAV_UP", button)
@@ -154,7 +153,8 @@ class Button(QLabel):
     def activate(this):
         if this.enabled():
             callback = this.getCallback()
-            callback()
+            if callback != None:
+                callback()
             
     def draw(this):
         if this.__needsDraw:
@@ -175,6 +175,9 @@ class Button(QLabel):
                 
             painter.end()
         this.__needsDraw = False
+    
+    def __str__(this):
+        return this.getText()
 
 
 
