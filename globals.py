@@ -28,17 +28,17 @@ class REMOTE:
     NAME = "bro-ito"
     SERVICE_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x1849)
     CHARACTERISTIC_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x2BA5)
-    BUTTONS = [
-        "HOME",
-        "POWER",
-        "SELECT",
-        "NAV_UP",
-        "NAV_RIGHT",
-        "NAV_DOWN",
-        "NAV_LEFT",
-        "MENU",
-        "RETURN",
-        "VOL_UP",
-        "VOL_DOWN",
-        "MIC",
-    ]
+    
+class INPUT:
+    HOME = "HOME"
+    POWER = "POWER"
+    SELECT = "SELECT"
+    NAV_UP = "NAV_UP"
+    NAV_RIGHT = "NAV_RIGHT"
+    NAV_DOWN = "NAV_DOWN"
+    NAV_LEFT = "NAV_LEFT"
+    MENU = "MENU"
+    RETURN = "RETURN"
+    VOL_UP = "VOL_UP"
+    VOL_DOWN = "VOL_DOWN"
+    MIC = "MIC"

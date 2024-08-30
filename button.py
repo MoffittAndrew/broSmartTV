@@ -1,4 +1,4 @@
-from globals import BUTTON
+from globals import BUTTON, INPUT
 
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
@@ -62,21 +62,21 @@ class Button(QLabel):
     def getCallback(this):
         return this.__callback
     
-    def getNavButton(this, index: str = "NAV_RIGHT"):
+    def getNavButton(this, index: str = INPUT.NAV_RIGHT):
         if index in this.__navButtons.keys():
             return this.__navButtons[index]
         
     def getNavUp(this):
-        return this.setNavButton("NAV_UP")
+        return this.getNavButton(INPUT.NAV_UP)
     
     def getNavRight(this):
-        return this.setNavButton("NAV_RIGHT")
+        return this.getNavButton(INPUT.NAV_RIGHT)
         
     def getNavDown(this):
-        return this.setNavButton("NAV_DOWN")
+        return this.getNavButton(INPUT.NAV_DOWN)
         
     def getNavLeft(this):
-        return this.setNavButton("NAV_LEFT")
+        return this.getNavButton(INPUT.NAV_LEFT)
     
     def getMenuOption(this, index):
         return this.__menuOptions[index]

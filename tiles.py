@@ -5,6 +5,20 @@ from os import listdir
 from os.path import isfile, join
 
 
+def _sortTiles(tiles):
+    
+    # insertion sort by index
+    for i in range(1, len(tiles)):
+        currentTile = tiles[i]
+        pos = i
+        while pos > 0 and tiles[pos - 1].getIndex() > currentTile.getIndex():
+            tiles[pos] = tiles[pos - 1]
+            pos -= 1
+        tiles[pos] = currentTile
+        
+    return tiles
+
+
 def _getTilesFromPath(path, TileType):
     
     tiles = []
@@ -43,27 +57,22 @@ def _saveTile(tile):
 
 def _readTiles():
     
+    print("Reading tiles...")
+    
     tiles = []
     path = PATH + "tiles\\"
     tiles += _getTilesFromPath(path, Tile)
     tiles += _getTilesFromPath(path + "device\\", DeviceTile)
     tiles += _getTilesFromPath(path + "web\\", WebTile)
     
-    return tiles
+    return _sortTiles(tiles)
 
 
 def saveTiles(tiles):
+    
+    print("Saving tiles...")
     
     for tile in tiles:
         _saveTile(tile)
         
 tiles = _readTiles()
-
-# insertion sort by index
-for i in range(1, len(tiles)):
-    currentTile = tiles[i]
-    pos = i
-    while pos > 0 and tiles[pos - 1].getIndex() > currentTile.getIndex():
-        tiles[pos] = tiles[pos - 1]
-        pos -= 1
-    tiles[pos] = currentTile
