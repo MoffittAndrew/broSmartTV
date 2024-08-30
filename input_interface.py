@@ -10,6 +10,12 @@ class InputInterface:
     def setSelectedButton(this, button):
         this.__selectedButton = button
         
+    def recieve(this, data):
+        if data == INPUT.SELECT:
+            this.select()
+        elif type(data) == str and data.startswith(INPUT.NAV_PREFIX):
+            this.navigate(data)
+        
     def select(this):
         this.getSelectedButton().activate()
         
