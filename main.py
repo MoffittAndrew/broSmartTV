@@ -4,10 +4,19 @@ from input_interface import inputInterface
 from home import homeScreen
 from remote import remote
 
+import asyncio
+
+
+async def main():
+    asyncio.create_task(remote.init())
+    print("Starting GUI...")
+    APP.exec_()
+    remote.setRunning(False)
+   
+
 inputInterface.setSelectedButton(tiles[0])
 
 homeScreen.show()
 remote.setInputInterface(inputInterface)
-remote.init()
 
-APP.exec_()
+asyncio.run(main())

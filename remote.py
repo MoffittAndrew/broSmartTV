@@ -3,6 +3,16 @@ from globals import REMOTE
 import asyncio
 import bleak
 
+try:
+    from bleak.backends.winrt.util import allow_sta
+    # tell Bleak we are using a graphical user interface that has been properly
+    # configured to work with asyncio
+    allow_sta()
+except ImportError:
+    # other OSes and older versions of Bleak will raise ImportError which we
+    # can safely ignore
+    pass
+
 class Remote:
     def __init__(
         this,
@@ -11,12 +21,14 @@ class Remote:
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
         inputInterface = None,
+        running = True,
     ):
         this.__name = name
         this.__serviceUUID = serviceUUID
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
         this.__inputInterface = inputInterface
+        this.__running = running
     
     def getName(this):
         return this.__name
@@ -33,8 +45,14 @@ class Remote:
     def getInputInterface(this):
         return this.__inputInterface
     
+    def isRunning(this):
+        return this.__running
+    
     def setInputInterface(this, inputInterface):
         this.__inputInterface = inputInterface
+        
+    def setRunning(this, running):
+        this.__running = running
     
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
@@ -69,17 +87,19 @@ class Remote:
             while client.is_connected:
                 await asyncio.sleep(this.getCheckAliveInterval())
         
-    async def __main(this):
-        while True:
-            try:
-                await remote.__connect()
-            except Exception as e:
-                print(f"An error occurred: {e}")
-
-    def init(this):
+    async def init(this):
+        
+        print("Initializing remote loop")
         if this.getInputInterface() != None:
-            asyncio.run(this.__main())
+            while this.isRunning():
+                try:
+                    await remote.__connect()
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+                    await asyncio.sleep(this.getCheckAliveInterval())
         else:
             print("Unable to initialize remote object, no input interface is set!")
+        
+        print("Shutting down remote loop...")
 
 remote = Remote()
