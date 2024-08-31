@@ -21,7 +21,7 @@ class Remote:
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
         inputInterface = None,
-        running = True,
+        running = False,
     ):
         this.__name = name
         this.__serviceUUID = serviceUUID
@@ -56,8 +56,11 @@ class Remote:
     
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
-        print(f"Recieved signal {data}")
-        this.getInputInterface().receive(data)
+        print(f"Recieved remote signal {data}")
+        if this.getInputInterface() != None:
+            this.getInputInterface().receive(data)
+        else:
+            print("Remote has no input interface!")
         
     def __disconnected_callback(this, client: bleak.BleakClient):
         print("Disconnected from remote.")
@@ -90,6 +93,7 @@ class Remote:
     async def init(this):
         
         print("Initializing remote loop")
+        this.setRunning(True)
         if this.getInputInterface() != None:
             while this.isRunning():
                 try:

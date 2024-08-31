@@ -155,6 +155,8 @@ class Button(QLabel):
             callback = this.getCallback()
             if callback != None:
                 callback()
+            else:
+                print(f"Button {this.getText()} has no callback!")
             
     def draw(this):
         if this.__needsDraw:

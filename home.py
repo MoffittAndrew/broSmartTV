@@ -1,3 +1,4 @@
+from gui import MAIN_WINDOW
 from button import Button
 from tilegrid import tileGrid
 
@@ -56,24 +57,44 @@ class NavBar(QWidget):
         
     def setTab(this, index):
         this.setCurrentButton(this.getButtons()[index])
+        
+    def setPrimaryButton(this, primaryButton):
+        for button in this.getButtons():
+            button.setNavDown(primaryButton)
 
 class HomeBody(QWidget):
     def __init__(this, widgets:list, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__layout = QStackedLayout()
         
-        for widget in widgets:
+        this.setWidgets(widgets)
+        for widget in this.getWidgets():
             this.__layout.addWidget(widget)
         
         this.setLayout(this.__layout)
     
+    def getPrimaryButton(this):
+        this.__widgets[this.getTab()].getPrimaryButton()
+        
+    def getWidgets(this):
+        return this.__widgets
+    
+    def getTab(this):
+        return this.__tab
+    
+    def setWidgets(this, widgets):
+        this.__widgets = widgets
+    
     def setTab(this, index):
-        this.__layout.setCurrentIndex(index)
+        this.__tab = index
+        this.__layout.setCurrentIndex(this.getTab())
     
 
 class HomeScreen(QWidget):
-    def __init__(this, navBar:NavBar, body:HomeBody, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(this, navBar:NavBar, body:HomeBody, parent:QWidget = MAIN_WINDOW, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
+        
+        parent.setCentralWidget(this)
         
         layout = QVBoxLayout()
         
@@ -86,13 +107,18 @@ class HomeScreen(QWidget):
         for i in range(len(_buttons)):
             if _buttons[i] == homeButton:
                 this.setTab(i)
+                
+    def getPrimaryButton(this):
+        return this.__body.getPrimaryButton()
         
     def setTab(this, index):
         this.__navBar.setTab(index)
         this.__body.setTab(index)
         
+        this.__navBar.setPrimaryButton(this.getPrimaryButton())
+        
 navBar = NavBar()
-body = HomeBody([tileGrid])
+body = HomeBody([None, None, tileGrid, None, None])
 
 homeScreen = HomeScreen(navBar, body)
 

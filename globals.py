@@ -1,4 +1,5 @@
 import os
+from PyQt5.QtCore import Qt
 
 PATH = os.path.dirname(__file__) + "\\..\\"
 
@@ -31,6 +32,7 @@ class REMOTE:
     CHECK_ALIVE_INTERVAL = 5
     
 class INPUT:
+    RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
     HOME = "HOME"
     POWER = "POWER"
@@ -44,3 +46,10 @@ class INPUT:
     VOL_UP = "VOL_UP"
     VOL_DOWN = "VOL_DOWN"
     MIC = "MIC"
+    LOOKUP = {
+        SELECT: Qt.Key_Return,
+        NAV_UP: Qt.Key_Up,
+        NAV_RIGHT: Qt.Key_Right,
+        NAV_DOWN: Qt.Key_Down,
+        NAV_LEFT: Qt.Key_Left,
+    }
