@@ -2,7 +2,11 @@ print("Importing home screen...")
 
 from gui import MAIN_WINDOW
 from button import Button
+from settings_screen import settingsScreen
+from search_screen import searchScreen
 from tilegrid import tileGrid
+from filter_screen import filter_screen
+from edit_screen import edit_screen
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout
 
@@ -19,6 +23,15 @@ _buttons = [
     filterButton,
     editButton,
 ]
+
+_bodyWidgets = [
+    settingsScreen,
+    searchScreen,
+    tileGrid,
+    filterScreen,
+    editScreen,
+]
+
 
 tileGrid.setNavBarButton(homeButton)
 
@@ -65,7 +78,7 @@ class NavBar(QWidget):
             button.setNavDown(primaryButton)
 
 class HomeBody(QWidget):
-    def __init__(this, widgets:list, *args, **kwargs):
+    def __init__(this, widgets:list = _bodyWidgets, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__layout = QStackedLayout()
         
@@ -120,7 +133,7 @@ class HomeScreen(QWidget):
         this.__navBar.setPrimaryButton(this.getPrimaryButton())
         
 navBar = NavBar()
-body = HomeBody([None, None, tileGrid, None, None])
+body = HomeBody()
 
 homeScreen = HomeScreen(navBar, body)
 
