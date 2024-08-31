@@ -1,3 +1,5 @@
+print("Importing tiles...")
+
 from globals import PATH
 from tile import Tile, DeviceTile, WebTile
 
@@ -65,6 +67,8 @@ def _readTiles():
     tiles += _getTilesFromPath(path + "device\\", DeviceTile)
     tiles += _getTilesFromPath(path + "web\\", WebTile)
     
+    print("Successfully read tiles.")
+    
     return _sortTiles(tiles)
 
 
@@ -74,5 +78,7 @@ def saveTiles(tiles):
     
     for tile in tiles:
         _saveTile(tile)
+        
+    print("Successfully saved tiles.")
         
 tiles = _readTiles()

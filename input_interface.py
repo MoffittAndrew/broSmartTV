@@ -1,3 +1,5 @@
+print("Importing input interface...")
+
 from globals import INPUT
 
 class InputInterface:

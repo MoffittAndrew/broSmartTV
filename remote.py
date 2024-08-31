@@ -1,3 +1,5 @@
+print("Importing remote interface...")
+
 from globals import REMOTE
 
 import asyncio

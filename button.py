@@ -1,3 +1,5 @@
+print("Importing button class...")
+
 from globals import BUTTON, INPUT
 
 from PyQt5 import QtGui

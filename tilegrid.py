@@ -1,3 +1,5 @@
+print("Importing tile grid...")
+
 from globals import TILEGRID
 from tiles import tiles
 

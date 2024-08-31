@@ -1,3 +1,5 @@
+print("Importing globals...")
+
 import os
 from PyQt5.QtCore import Qt
 

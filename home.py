@@ -1,3 +1,5 @@
+print("Importing home screen...")
+
 from gui import MAIN_WINDOW
 from button import Button
 from tilegrid import tileGrid

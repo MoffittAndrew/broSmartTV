@@ -1,3 +1,5 @@
+print("Importing keyboard interface...")
+
 from globals import INPUT
 
 class Keyboard:

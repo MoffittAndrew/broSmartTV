@@ -1,3 +1,5 @@
+print("Importing GUI tools...")
+
 from globals import DISPLAY, INPUT
 
 from PyQt5.QtWidgets import QApplication, QMainWindow

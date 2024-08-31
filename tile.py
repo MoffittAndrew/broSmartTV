@@ -1,3 +1,5 @@
+print("Importing tile class...")
+
 from globals import TILE
 from button import Button, ToggleButton
 
