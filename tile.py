@@ -187,7 +187,10 @@ class WebTile(Tile):
     ## Callbacks
     
     def openURL(this):
-        webInterface.openURL(this.getURL())
+        incognito = False
+        if this.isPirate():
+            incognito = True
+        webInterface.openURL(this.getURL(), incognito)
     
     def editURL(this):
         return

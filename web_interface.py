@@ -19,7 +19,7 @@ class WebInterface(QWidget):
         this.__layout = QVBoxLayout(this)
         this.__layout.setContentsMargins(0, 0, 0, 0)
         
-    def openURL(this, url):
+    def openURL(this, url, incognito = False):
         
         this.__url = url
         this.__options = Options()
@@ -27,10 +27,12 @@ class WebInterface(QWidget):
         this.__options.add_experimental_option("excludeSwitches",["enable-automation"])
         this.__options.add_argument("--kiosk")
         this.__options.add_argument(f"--app={this.__url}")
+        if incognito:
+            this.__options.add_argument("--incognito")
+        
         this.__service=Service(ChromeDriverManager().install())
-
         this.__driver = webdriver.Chrome(service=this.__service,options=this.__options)
-        sleep(1)
+        sleep(0.5)
 
         this.__hwnd = 0
         this.__tries = 0
