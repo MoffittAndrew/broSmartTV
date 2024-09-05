@@ -66,6 +66,7 @@ class TileGrid(QWidget):
                     tiles[i_row][i_col].setNavDown(lowerButton)
         
         layout = QGridLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         for i_row in range(len(tiles)):
             for i_col in range(len(tiles[i_row])):
                 tile = tiles[i_row][i_col]

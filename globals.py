@@ -57,4 +57,5 @@ class INPUT:
     }
     
 class WEB:
+    CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
     MAX_GET_WINDOW_TRIES = 30

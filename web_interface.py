@@ -9,13 +9,15 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from time import sleep
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QWindow
 
 class WebInterface(QWidget):
     def __init__(this, parent = MAIN_WINDOW, *args, **kwargs):
         super().__init__(parent = parent, *args, **kwargs)
         this.__max_tries = WEB.MAX_GET_WINDOW_TRIES
+        this.__layout = QVBoxLayout(this)
+        this.__layout.setContentsMargins(0, 0, 0, 0)
         
     def openURL(this, url):
         
@@ -36,7 +38,7 @@ class WebInterface(QWidget):
             try:
                 EnumWindows(this.hwnd_method, None)
                 this.__embed_window = QWindow.fromWinId(this.__hwnd)
-                this.createWindowContainer(this.__embed_window)
+                this.__layout.addWidget(QWidget.createWindowContainer(this.__embed_window))
                 this.__tries += 1
                 break
             except Exception as e:
@@ -47,8 +49,8 @@ class WebInterface(QWidget):
         this.__driver.get(this.__url)
             
     def hwnd_method(this, hwnd, ctx):
-        searchtext = this.__url.split(".")
-        print(searchtext)
+        searchtext = this.__url.split(".")[1]
+        #print(searchtext)
         window_title = GetWindowText(hwnd)
         if searchtext in window_title.lower():
             this.__hwnd = hwnd

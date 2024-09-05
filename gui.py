@@ -11,6 +11,7 @@ class CustomQWindow(QWidget):
         super().__init__(*args, **kwargs)
         
         this.__layout = QStackedLayout()
+        this.__layout.setContentsMargins(0, 0, 0, 0)
         this.setTab(0)
         this.setKeyboard(keyboard)
         

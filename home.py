@@ -61,6 +61,7 @@ class NavBar(QWidget):
         this.__buttons = buttons
         
         layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         
         for button in this.getButtons():
             layout.addWidget(button)
@@ -85,6 +86,7 @@ class HomeBody(QWidget):
     def __init__(this, widgets:list = _bodyWidgets, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__layout = QStackedLayout()
+        this.__layout.setContentsMargins(0, 0, 0, 0)
         
         this.setWidgets(widgets)
         for widget in this.getWidgets():
@@ -123,6 +125,7 @@ class HomeScreen(QWidget):
         #parent.setCentralWidget(this)
         
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         
         this.__navBar = navBar
         this.__body = body
