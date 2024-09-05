@@ -2,6 +2,7 @@ print("Importing tile class...")
 
 from globals import TILE
 from button import Button, ToggleButton
+from web_interface import webInterface
 
 class Tile(Button):
     def __init__(
@@ -120,7 +121,7 @@ class WebTile(Tile):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(callback = this.openURL, *args, **kwargs)
         
         menuOptions = [
             Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
@@ -184,6 +185,9 @@ class WebTile(Tile):
                 menuOption.setValue(this.isPirate())
         
     ## Callbacks
+    
+    def openURL(this):
+        webInterface.openURL(this.getURL())
     
     def editURL(this):
         return

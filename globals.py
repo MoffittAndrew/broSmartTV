@@ -55,3 +55,6 @@ class INPUT:
         NAV_DOWN: Qt.Key_Down,
         NAV_LEFT: Qt.Key_Left,
     }
+    
+class WEB:
+    MAX_GET_WINDOW_TRIES = 30

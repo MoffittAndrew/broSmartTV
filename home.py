@@ -120,7 +120,7 @@ class HomeScreen(QWidget):
     def __init__(this, navBar:NavBar, body:HomeBody, parent:QWidget = MAIN_WINDOW, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
         
-        parent.setCentralWidget(this)
+        #parent.setCentralWidget(this)
         
         layout = QVBoxLayout()
         
