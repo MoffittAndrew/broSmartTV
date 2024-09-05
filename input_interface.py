@@ -35,7 +35,7 @@ class InputInterface(QLabel):
 
     def setHeight(this, height):
         this.__height = height
-        this.setFixedWidth(height)
+        this.setFixedHeight(height)
         
     def setPos(this, pos):
         this.__pos = pos
@@ -91,7 +91,7 @@ class InputInterface(QLabel):
         painter.begin(this)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        painter.setPen(QtGui.QPen(Qt.red,  5, Qt.SolidLine))
+        painter.setPen(QtGui.QPen(Qt.red, 10, Qt.SolidLine))
         painter.drawRect(0, 0, this.getWidth(), this.getHeight())
         
         painter.end()

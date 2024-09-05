@@ -28,7 +28,7 @@ class WebInterface(QWidget):
         this.__options.add_argument("--kiosk")
         this.__options.add_argument(f"--app={this.__url}")
         this.__service=Service(ChromeDriverManager().install())
-        
+
         this.__driver = webdriver.Chrome(service=this.__service,options=this.__options)
         sleep(1)
 
@@ -42,14 +42,14 @@ class WebInterface(QWidget):
                 this.__tries += 1
                 break
             except Exception as e:
-                print(e)
+                print(f"Error: {e}")
                 this.__tries += 1
                 
         this.parent().setTab(1)
         this.__driver.get(this.__url)
             
     def hwnd_method(this, hwnd, ctx):
-        searchtext = this.__url.split(".")[1]
+        searchtext = this.__url.split(".")[1] ## TODO make better
         #print(searchtext)
         window_title = GetWindowText(hwnd)
         if searchtext in window_title.lower():
