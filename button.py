@@ -4,7 +4,7 @@ from globals import BUTTON, INPUT
 
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QPoint
 
 class Button(QLabel):
     def __init__(
@@ -38,6 +38,7 @@ class Button(QLabel):
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
+        this.setParentPos(QPoint(0, 0))
         
         this.__needsDraw = True
         canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
@@ -62,7 +63,7 @@ class Button(QLabel):
         return this.__img
     
     def getCallback(this):
-        return this.__callback
+        return this.__callback, this.__callbackArgs, this.__callbackKwargs
     
     def getNavButton(this, index: str = INPUT.NAV_RIGHT):
         if index in this.__navButtons.keys():
@@ -85,6 +86,12 @@ class Button(QLabel):
     
     def getMenuOptions(this):
         return this.__menuOptions
+    
+    def getParentPos(this):
+        return this.__parentPos
+    
+    def getPos(this):
+        return this.getParentPos() + this.pos()
         
     ## Setters
     
@@ -109,8 +116,10 @@ class Button(QLabel):
         if this.getImg() == None:
             this.__needsDraw = True
         
-    def setCallback(this, callback):
+    def setCallback(this, callback, *args, **kwargs):
         this.__callback = callback
+        this.__callbackArgs = args
+        this.__callbackKwargs = kwargs
         
     def setNavButton(this, index, button):
         this.__navButtons[index] = button
@@ -136,6 +145,9 @@ class Button(QLabel):
             
         this.__menuOptions = menuOptions
     
+    def setParentPos(this, pos):
+        this.__parentPos = pos
+    
     # Other
     
     def enable(this):
@@ -154,9 +166,9 @@ class Button(QLabel):
             
     def activate(this):
         if this.enabled():
-            callback = this.getCallback()
+            callback, args, kwargs = this.getCallback()
             if callback != None:
-                callback()
+                callback(*args, **kwargs)
             else:
                 print(f"Button {this.getText()} has no callback!")
             
@@ -182,6 +194,11 @@ class Button(QLabel):
     
     def __str__(this):
         return this.getText()
+    
+    def equals(this, button):
+        if this.getText() == button.getText():
+            return True
+        return False
 
 
 

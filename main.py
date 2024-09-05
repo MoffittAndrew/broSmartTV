@@ -17,12 +17,14 @@ async def main():
     remote.setRunning(False)
 
 
+inputInterface.setParent(MAIN_WINDOW)
 inputInterface.setSelectedButton(homeScreen.getPrimaryButton())
 keyboard.setInputInterface(inputInterface)
 remote.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboard)
 
 MAIN_WINDOW.show()
+inputInterface.show()
 #homeScreen.show()
 
 print("Running main event loop...")

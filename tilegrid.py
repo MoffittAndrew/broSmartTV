@@ -79,5 +79,10 @@ class TileGrid(QWidget):
             tiles = this.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
+    
+    def updateChildPos(this):
+        for tile in tiles:
+            tile.setParentPos(this.pos())
+            print(tile.getParentPos())
 
 tileGrid = TileGrid()

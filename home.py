@@ -5,8 +5,8 @@ from button import Button
 from settings_screen import settingsScreen
 from search_screen import searchScreen
 from tilegrid import tileGrid
-from filter_screen import filter_screen
-from edit_screen import edit_screen
+from filter_screen import filterScreen
+from edit_screen import editScreen
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout
 
@@ -76,6 +76,10 @@ class NavBar(QWidget):
     def setPrimaryButton(this, primaryButton):
         for button in this.getButtons():
             button.setNavDown(primaryButton)
+            
+    def updateChildPos(this):
+        for button in this.getButtons():
+            button.setParentPos(this.pos())
 
 class HomeBody(QWidget):
     def __init__(this, widgets:list = _bodyWidgets, *args, **kwargs):
@@ -87,9 +91,12 @@ class HomeBody(QWidget):
             this.__layout.addWidget(widget)
         
         this.setLayout(this.__layout)
+        
+        for button in navBar.getButtons():
+            button.setParentPos(navBar.pos())
     
     def getPrimaryButton(this):
-        this.__widgets[this.getTab()].getPrimaryButton()
+        return this.getWidgets()[this.getTab()].getPrimaryButton()
         
     def getWidgets(this):
         return this.__widgets
@@ -103,6 +110,10 @@ class HomeBody(QWidget):
     def setTab(this, index):
         this.__tab = index
         this.__layout.setCurrentIndex(this.getTab())
+        
+    def updateChildPos(this):
+        for widget in this.getWidgets():
+            widget.updateChildPos()
     
 
 class HomeScreen(QWidget):
@@ -115,22 +126,33 @@ class HomeScreen(QWidget):
         
         this.__navBar = navBar
         this.__body = body
-        layout.addWidget(this.__navBar)
-        layout.addWidget(this.__body)
+        layout.addWidget(this.getNavBar())
+        layout.addWidget(this.getBody())
         
         this.setLayout(layout)
         for i in range(len(_buttons)):
-            if _buttons[i] == homeButton:
+            if _buttons[i].equals(homeButton):
                 this.setTab(i)
+        
+    def getNavBar(this):
+        return this.__navBar
+    
+    def getBody(this):
+        return this.__body
                 
     def getPrimaryButton(this):
         return this.__body.getPrimaryButton()
         
     def setTab(this, index):
-        this.__navBar.setTab(index)
-        this.__body.setTab(index)
+        this.getNavBar().setTab(index)
+        this.getBody().setTab(index)
         
-        this.__navBar.setPrimaryButton(this.getPrimaryButton())
+        this.getNavBar().setPrimaryButton(this.getPrimaryButton())
+        
+    def show(this, *args, **kwargs):
+        super().show(*args, **kwargs)
+        this.getNavBar().updateChildPos() 
+        this.getBody().updateChildPos()
         
 navBar = NavBar()
 body = HomeBody()
@@ -138,4 +160,4 @@ body = HomeBody()
 homeScreen = HomeScreen(navBar, body)
 
 for i in range(len(_buttons)):
-    _buttons[i].setCallback(homeScreen.setTab(i))
+    _buttons[i].setCallback(homeScreen.setTab, i)

@@ -24,5 +24,10 @@ class FilterScreen(QWidget):
             tiles = this.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
+    
+    ## Other
+                
+    def updateChildPos(this):
+        pass
 
 filterScreen = FilterScreen()
