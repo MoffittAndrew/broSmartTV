@@ -1,13 +1,11 @@
 print("Importing web interface...")
 
-from globals import WEB
+from globals import WEB, INPUT
 from gui import MAIN_WINDOW
+from input_interface import inputInterface
+from webdriver import WebDriver
 
 from win32gui import EnumWindows, GetWindowText
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
 from time import sleep
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QWindow
@@ -22,16 +20,7 @@ class WebInterface(QWidget):
     def openURL(this, url, incognito = False):
         
         this.__url = url
-        this.__options = Options()
-        this.__options.add_experimental_option("useAutomationExtension", False)
-        this.__options.add_experimental_option("excludeSwitches",["enable-automation"])
-        this.__options.add_argument("--kiosk")
-        this.__options.add_argument(f"--app={this.__url}")
-        if incognito:
-            this.__options.add_argument("--incognito")
-        
-        this.__service=Service(ChromeDriverManager().install())
-        this.__driver = webdriver.Chrome(service=this.__service,options=this.__options)
+        this.__driver = WebDriver(url, incognito)
         sleep(0.5)
 
         this.__hwnd = 0
@@ -47,8 +36,10 @@ class WebInterface(QWidget):
                 print(f"Error: {e}")
                 this.__tries += 1
                 
-        this.parent().setTab(1)
-        this.__driver.get(this.__url)
+        this.parent().setTab(1) ## TODO make this better
+        this.__driver.start()
+        inputInterface.setWebMode(webdriver=this.__driver)
+        inputInterface.setSelectedButton(this.__driver.getDefaultElement())
             
     def hwnd_method(this, hwnd, ctx):
         searchtext = this.__url.split(".")[1] ## TODO make better

@@ -164,7 +164,7 @@ class Button(QLabel):
                 lastMenuOption.setNavDown(menuOption)
             this.__menuOptions.append(menuOption)
             
-    def activate(this):
+    def click(this):
         if this.enabled():
             callback, args, kwargs = this.getCallback()
             if callback != None:
