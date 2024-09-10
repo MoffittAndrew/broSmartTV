@@ -16,7 +16,7 @@ class InputInterface(QLabel):
         this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
         
-        this.setWindowFlags(Qt.FramelessWindowHint)
+        this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
         
     def inWebMode(this):
@@ -62,7 +62,7 @@ class InputInterface(QLabel):
     def setSelectedButton(this, button):
         this.__selectedButton = button
         if button != None:
-            if not this.inWebMode():
+            if isinstance(button, Button):
                 width = button.getWidth()
                 height = button.getHeight()
                 pos = button.getPos()
@@ -76,15 +76,14 @@ class InputInterface(QLabel):
             this.setHeight(height)
             this.setPos(pos)
             print(this.getPos(), this.getWidth(), this.getHeight())
-            
-    def setParent(this, *args, **kwargs):
-        super().setParent(*args, **kwargs)
         
     def receive(this, data):
         if data == INPUT.SELECT:
             this.select()
         elif type(data) == str and data.startswith(INPUT.NAV_PREFIX):
             this.navigate(data)
+        elif data == INPUT.RETURN:
+            this.back()
         
     def select(this):
         selectedButton = this.getSelectedButton()
@@ -134,6 +133,10 @@ class InputInterface(QLabel):
         
     def navLeft(this):
         this.navigate(INPUT.NAV_LEFT)
+        
+    def back(this):
+        if this.inWebMode():
+            this.getWebDriver().quit()
     
     def paintEvent(this, event):
         painter = QtGui.QPainter()

@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.relative_locator import locate_with
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -40,9 +41,22 @@ class WebDriver(webdriver.Chrome):
         try:
             this.find_element(By.ID, element.get_attribute("id"))
         except Exception as e:
-            print("Element not found.")
+            print(f"Element not found: {e}")
             return False
         return True
     
+    def find_element(self, by=By.ID, value: str | None = None) -> WebElement:
+        element = None
+        try:
+            element = super().find_element(by, value)
+        except Exception as e:
+            print(f"Element not found: {e}")
+        return element
+    
     def start(this):
         this.get(this.__url)
+        
+    def quit(this):
+        super().quit()
+        
+        ## TODO go back to home screen

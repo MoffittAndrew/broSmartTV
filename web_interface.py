@@ -1,8 +1,6 @@
 print("Importing web interface...")
 
-from globals import WEB, INPUT
-from gui import MAIN_WINDOW
-from input_interface import inputInterface
+from globals import WEB
 from webdriver import WebDriver
 
 from win32gui import EnumWindows, GetWindowText
@@ -11,8 +9,8 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QWindow
 
 class WebInterface(QWidget):
-    def __init__(this, parent = MAIN_WINDOW, *args, **kwargs):
-        super().__init__(parent = parent, *args, **kwargs)
+    def __init__(this, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         this.__max_tries = WEB.MAX_GET_WINDOW_TRIES
         this.__layout = QVBoxLayout(this)
         this.__layout.setContentsMargins(0, 0, 0, 0)
@@ -36,19 +34,18 @@ class WebInterface(QWidget):
                 print(f"Error: {e}")
                 this.__tries += 1
                 
-        this.parent().setTab(1) ## TODO make this better
         this.__driver.start()
-        inputInterface.setWebMode(webdriver=this.__driver)
-        inputInterface.setSelectedButton(this.__driver.getDefaultElement())
-            
+        this.parent().setTab(this)
+        this.parent().getInputInterface().setWebMode(webdriver=this.__driver)
+
     def hwnd_method(this, hwnd, ctx):
         searchtext = this.__url.split(".")[1] ## TODO make better
         #print(searchtext)
         window_title = GetWindowText(hwnd)
         if searchtext in window_title.lower():
             this.__hwnd = hwnd
-        
-    def close(this):
-        this.__driver.quit()
+    
+    def getPrimaryButton(this):
+        return this.__driver.getDefaultElement()
 
 webInterface = WebInterface()

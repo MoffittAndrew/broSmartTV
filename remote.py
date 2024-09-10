@@ -22,6 +22,7 @@ class Remote:
         serviceUUID = REMOTE.SERVICE_UUID,
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
+        scanTimeout = REMOTE.SCAN_TIMEOUT,
         inputInterface = None,
         running = False,
     ):
@@ -29,6 +30,7 @@ class Remote:
         this.__serviceUUID = serviceUUID
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
+        this.__scanTimeout = scanTimeout
         this.__inputInterface = inputInterface
         this.__running = running
     
@@ -43,6 +45,9 @@ class Remote:
     
     def getCheckAliveInterval(this):
         return this.__checkAliveInterval
+    
+    def getScanTimeout(this):
+        return this.__scanTimeout
     
     def getInputInterface(this):
         return this.__inputInterface
@@ -69,7 +74,7 @@ class Remote:
 
     async def __connect(this):
         print("Scanning for remote...")
-        device = await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=None)
+        device = await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout())
         if not device:
             print("Remote not found")
             return

@@ -1,6 +1,5 @@
 print("Importing home screen...")
 
-from gui import MAIN_WINDOW
 from button import Button
 from settings_screen import settingsScreen
 from search_screen import searchScreen
@@ -98,7 +97,7 @@ class HomeBody(QWidget):
             button.setParentPos(navBar.pos())
     
     def getPrimaryButton(this):
-        return this.getWidgets()[this.getTab()].getPrimaryButton()
+        return this.__layout.currentWidget().getPrimaryButton()
         
     def getWidgets(this):
         return this.__widgets
@@ -119,10 +118,8 @@ class HomeBody(QWidget):
     
 
 class HomeScreen(QWidget):
-    def __init__(this, navBar:NavBar, body:HomeBody, parent:QWidget = MAIN_WINDOW, *args, **kwargs):
-        super().__init__(parent=parent, *args, **kwargs)
-        
-        #parent.setCentralWidget(this)
+    def __init__(this, navBar:NavBar, body:HomeBody, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
