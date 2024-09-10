@@ -9,14 +9,17 @@ from remote import remote
 from keyboard import keyboard
 
 import asyncio
+import qtinter
 print("Completed imports.")
 
-async def main():
-    await remote.init()
-    print("Starting GUI...")
-    APP.exec_()
-    print("App closed.")
-    remote.setRunning(False)
+def main():
+    with qtinter.using_asyncio_from_qt():  # <-- enable asyncio in qt code
+        asyncio.create_task(remote.init())
+        print("Starting GUI...")
+        MAIN_WINDOW.show()
+        APP.exec_()
+        print("App closed.")
+        remote.setRunning(False)
 
 
 MAIN_WINDOW.setInputInterface(inputInterface)
@@ -28,8 +31,7 @@ remote.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboard)
 
 MAIN_WINDOW.setTab(homeScreen)
-MAIN_WINDOW.show()
 
 print("Running main event loop...")
-asyncio.run(main())
+main()
 print("Exiting...")
