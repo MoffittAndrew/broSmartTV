@@ -3,9 +3,10 @@ import socket, cv2, pickle, struct
 # Socket Create
 server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 host_name  = socket.gethostname()
-host_ip = socket.gethostbyname(host_name)
-print('HOST IP:',"0.0.0.0")
-port = 9001
+#host_ip = socket.gethostbyname(host_name)
+host_ip = '0.0.0.0'
+print('HOST IP:',host_ip)
+port = 9559
 socket_address = (host_ip,port)
 data = b""
 payload_size = struct.calcsize("Q")
