@@ -20,8 +20,8 @@
 <br>
 
 <section class="experiment">
-    <section class="hide-after-join" style="text-align: center;">                    
-        <input type="text" id="room-name" placeholder="Enter " style="width: 80%; text-align: center; display: none;">
+    <section class="hide-after-join" style="text-align: center;">
+        <input type="text" id="room-name" placeholder="Enter" style="width: 80%; text-align: center;">
         <button id="share-screen" class="setup">Share Your Screen</button>
     </section>
 
@@ -109,7 +109,7 @@
             }
 
             if(state == 'failed') {
-                text = 'Failed to bypass Firewall rules. It seems that target user did not receive your screen. Please ask him reload the page and try again.';
+                text = 'Failed to bypass Firewall rules. It seems that target user did not receive your screen. Please ask them reload the page and try again.';
                 document.title = text;
                 showErrorMessage(document.title);
             }
@@ -137,7 +137,7 @@
 
     function getDisplayMediaError(error) {
         if (location.protocol === 'http:') {
-            showErrorMessage('Please test this WebRTC experiment on HTTPS.');
+            showErrorMessage('Please use HTTPS.');
         } else {
             showErrorMessage(error.toString());
         }
@@ -226,7 +226,7 @@
         roomName.disabled = true;
         captureUserMedia(function() {
             conferenceUI.createRoom({
-                roomName: (roomName.value || 'Anonymous') + ' shared his screen with you'
+                roomName: (roomName.value || 'Anonymous') + ' shared their screen with you'
             });
         });
         this.disabled = true;
