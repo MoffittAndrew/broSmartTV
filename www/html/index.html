@@ -21,7 +21,6 @@
 
 <section class="experiment">
     <section class="hide-after-join" style="text-align: center;">
-        <input type="text" id="room-name" placeholder="Enter" style="width: 80%; text-align: center;">
         <button id="share-screen" class="setup">Share Your Screen</button>
     </section>
 
@@ -172,8 +171,6 @@
     var videosContainer = document.getElementById("videos-container") || document.body;
 
     document.getElementById('share-screen').onclick = function() {
-        var roomName = document.getElementById('room-name') || { };
-        roomName.disabled = true;
         captureUserMedia(function() {
             conferenceUI.createRoom({
                 roomName: (roomName.value || 'Anonymous') + ' shared their screen with you'
