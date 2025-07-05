@@ -4,7 +4,7 @@ import socket, cv2, pickle, struct
 server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 host_name  = socket.gethostname()
 host_ip = socket.gethostbyname(host_name)
-print('HOST IP:',host_ip)
+print('HOST IP:',"0.0.0.0")
 port = 9001
 socket_address = (host_ip,port)
 data = b""
