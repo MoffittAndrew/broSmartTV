@@ -1,4 +1,15 @@
 import socket, cv2, pickle, struct
+import imgui
+from imgui.integrations.pygame import PygameRenderer
+import pygame
+
+imgui.create_context()
+pygame.init()
+pygame.display.set_caption("test")
+
+pygame.display.set_mode((1920, 1080), pygame.DOUBLEBUF | pygame.OPENGL)
+
+pygame_renderer = PygameRenderer()
 
 # Socket Create
 server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
