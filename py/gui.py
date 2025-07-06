@@ -2,7 +2,7 @@ print("Importing GUI tools...")
 
 from globals import DISPLAY, INPUT
 
-from PyQt5.QtWidgets import QApplication, QWidget, QStackedLayout
+from PyQt5.QtWidgets import QWidget, QStackedLayout
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QKeyEvent
 
