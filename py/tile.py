@@ -2,7 +2,7 @@ print("Importing tile class...")
 
 from globals import TILE
 from button import Button, ToggleButton
-from web_interface import webInterface
+#from web_interface import webInterface
 
 class Tile(Button):
     def __init__(
@@ -111,6 +111,7 @@ class DeviceTile(Tile):
         return
 
 
+"""
 class WebTile(Tile):
     def __init__(
         this,
@@ -203,3 +204,4 @@ class WebTile(Tile):
     
     def toggleIsPirate(this):
         this.setIsPirate(not this.isPirate())
+"""
