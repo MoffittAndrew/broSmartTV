@@ -179,7 +179,7 @@ class Button(QLabel):
             if this.getImg() is None and this.getText() != "":
                 pen = QtGui.QPen()
                 pen.setWidth(1)
-                pen.setColor(Qt.white)
+                pen.setColor(QtGui.QColor('white'))
                 painter.setPen(pen)
                 
                 painter.setBrush(QtGui.QBrush(Qt.white, Qt.SolidPattern))
