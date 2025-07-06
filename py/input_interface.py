@@ -59,6 +59,7 @@ class InputInterface(QLabel):
     def setPos(this, pos):
         this.__pos = pos
         this.move(pos)
+        this.paintEvent()
     
     def setSelectedButton(this, button):
         this.__selectedButton = button
@@ -139,7 +140,7 @@ class InputInterface(QLabel):
         if this.inWebMode():
             this.getWebDriver().quit()
     
-    def paintEvent(this, event):
+    def paintEvent(this, event=None):
         painter = QtGui.QPainter()
         painter.begin(this)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
