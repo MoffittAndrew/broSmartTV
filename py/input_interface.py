@@ -10,6 +10,7 @@ from PyQt5.QtCore import Qt, QPoint
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        this.show()
         this.setWebMode(False)
         this.setWidth(0)
         this.setHeight(0)
@@ -56,7 +57,6 @@ class InputInterface(QLabel):
     def setPos(this, pos):
         this.__pos = pos
         this.move(pos)
-        this.show()
     
     def setSelectedButton(this, button):
         this.__selectedButton = button
