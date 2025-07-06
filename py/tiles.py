@@ -62,10 +62,10 @@ def _readTiles():
     print("Reading tiles...")
     
     tiles = []
-    path = PATH + "tiles\\"
+    path = PATH + "tiles/"
     tiles += _getTilesFromPath(path, Tile)
-    tiles += _getTilesFromPath(path + "device\\", DeviceTile)
-    #tiles += _getTilesFromPath(path + "web\\", WebTile)
+    tiles += _getTilesFromPath(path + "device/", DeviceTile)
+    #tiles += _getTilesFromPath(path + "web/", WebTile)
     
     print("Successfully read tiles.")
     

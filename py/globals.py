@@ -3,7 +3,7 @@ print("Importing globals...")
 import os
 from PyQt5.QtCore import Qt
 
-PATH = os.path.dirname(__file__) + "\\..\\..\\"
+PATH = os.path.dirname(__file__) + "/../../"
 
 class DISPLAY:
     WIDTH = 1920
