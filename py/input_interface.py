@@ -10,7 +10,6 @@ from PyQt5.QtCore import Qt, QPoint
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setWebMode(False)
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
@@ -18,6 +17,8 @@ class InputInterface(QLabel):
         
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
+        
+        this.setWebMode(False)
     
     def inWebMode(this):
         return this.__webMode
@@ -142,7 +143,7 @@ class InputInterface(QLabel):
         painter = QtGui.QPainter()
         painter.begin(this)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        
+
         painter.setPen(QtGui.QPen(Qt.red, 5, Qt.SolidLine))
         painter.drawRect(0, 0, this.getWidth(), this.getHeight())
         
