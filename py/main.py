@@ -3,7 +3,7 @@ print("Starting...")
 print("Starting imports...")
 from gui import APP, MAIN_WINDOW
 from input_interface import inputInterface
-from web_interface import webInterface
+#from web_interface import webInterface
 from home import homeScreen
 from remote import remote
 from keyboard import keyboard
@@ -24,7 +24,7 @@ def main():
 
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
-MAIN_WINDOW.addWidget(webInterface)
+#MAIN_WINDOW.addWidget(webInterface)
 
 keyboard.setInputInterface(inputInterface)
 remote.setInputInterface(inputInterface)
