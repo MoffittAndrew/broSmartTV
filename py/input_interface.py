@@ -138,12 +138,15 @@ class InputInterface(QLabel):
             this.getWebDriver().quit()
     
     def paintEvent(this, event=None):
-        painter = QtGui.QPainter(this)
+        painter = QtGui.QPainter()
+        painter.begin(this)
+        painter.save()
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
         painter.setPen(QtGui.QPen(Qt.red, 5, Qt.SolidLine))
         painter.drawRect(0, 0, this.getWidth(), this.getHeight())
         
+        painter.restore()
         painter.end()
 
 inputInterface = InputInterface()
