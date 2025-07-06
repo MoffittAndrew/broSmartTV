@@ -69,3 +69,8 @@ class CustomQWindow(QWidget):
 MAIN_WINDOW = CustomQWindow()
 MAIN_WINDOW.setWindowTitle("bro is literally a smart tv")
 MAIN_WINDOW.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
+
+MAIN_WINDOW.setAutoFillBackground(True)
+p = MAIN_WINDOW.palette()
+p.setColor(MAIN_WINDOW.backgroundRole(), Qt.black)
+MAIN_WINDOW.setPalette(p)
