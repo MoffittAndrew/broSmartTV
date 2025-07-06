@@ -179,11 +179,14 @@ class Button(QLabel):
             if this.getImg() is None and this.getText() != "":
                 pen = QtGui.QPen()
                 pen.setWidth(1)
-                pen.setColor(QtGui.QColor('black'))
+                pen.setColor(QtGui.QColor('white'))
                 painter.setPen(pen)
                 
                 painter.setBrush(QtGui.QBrush(Qt.white, Qt.SolidPattern))
                 painter.drawRect(0, 0, this.getWidth(), this.getHeight())
+                
+                painter.setBrush(QtGui.QBrush(Qt.black, Qt.SolidPattern))
+                painter.drawRect(5, 5, this.getWidth() - 5, this.getHeight() - 5)
 
                 font = QtGui.QFont()
                 font.setFamily('Times')
