@@ -15,7 +15,7 @@ class InputInterface(QLabel):
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
-        this.show()
+        #this.show()
         
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
