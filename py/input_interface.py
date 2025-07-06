@@ -10,12 +10,12 @@ from PyQt5.QtCore import Qt, QPoint
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.show()
         this.setWebMode(False)
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
+        this.show()
         
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
