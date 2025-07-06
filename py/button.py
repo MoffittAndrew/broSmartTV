@@ -186,7 +186,7 @@ class Button(QLabel):
                 painter.drawRect(0, 0, this.getWidth(), this.getHeight())
                 
                 painter.setBrush(QtGui.QBrush(Qt.black, Qt.SolidPattern))
-                painter.drawRect(5, 5, this.getWidth() - 5, this.getHeight() - 5)
+                painter.drawRect(2, 2, this.getWidth() - 4, this.getHeight() - 4)
 
                 font = QtGui.QFont()
                 font.setFamily('Times')
