@@ -59,6 +59,7 @@ class InputInterface(QLabel):
     def setPos(this, pos):
         this.__pos = pos
         this.move(pos)
+        this.drawFrame()
     
     def setSelectedButton(this, button):
         this.__selectedButton = button
