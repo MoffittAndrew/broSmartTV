@@ -140,7 +140,6 @@ class InputInterface(QLabel):
             this.getWebDriver().quit()
     
     def paintEvent(this, event=None):
-        super.paintEvent(event)
         painter = QtGui.QPainter()
         painter.begin(this)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
