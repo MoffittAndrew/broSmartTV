@@ -17,7 +17,7 @@ def _sortTiles(tiles):
             tiles[pos] = tiles[pos - 1]
             pos -= 1
         tiles[pos] = currentTile
-        
+    
     return tiles
 
 
@@ -41,7 +41,7 @@ def _getTilesFromPath(path, TileType):
         
         tile = TileType(**kwargs)
         tiles.append(tile)
-        
+    
     return tiles
 
 
@@ -51,7 +51,7 @@ def _saveTile(tile):
     tileAttrs = tile.getAllAttrs()
     for key in tileAttrs:
         lines.append(f"{key}={tileAttrs[key]}")
-        
+    
     tileFile = open(tile.getFilepath(), 'w')
     tileFile.write('\n'.join(lines))
     tileFile.close()
@@ -78,7 +78,7 @@ def saveTiles(tiles):
     
     for tile in tiles:
         _saveTile(tile)
-        
+    
     print("Successfully saved tiles.")
-        
+
 tiles = _readTiles()

@@ -3,7 +3,7 @@ print("Importing globals...")
 import os
 from PyQt5.QtCore import Qt
 
-PATH = os.path.dirname(__file__) + "\\..\\"
+PATH = os.path.dirname(__file__) + "\\..\\..\\"
 
 class DISPLAY:
     WIDTH = 1920
@@ -23,7 +23,7 @@ class TILE:
     TOGGLE_MUSIC_TEXT = "music site?"
     TOGGLE_SEARCH_TEXT = "has search feature?"
     TOGGLE_PIRATE_TEXT = "pirate site?"
-    
+
 class TILEGRID:
     COLUMNS = 5
 
@@ -33,7 +33,7 @@ class REMOTE:
     CHARACTERISTIC_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x2BA5)
     CHECK_ALIVE_INTERVAL = 5
     SCAN_TIMEOUT = 30
-    
+
 class INPUT:
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
@@ -56,7 +56,7 @@ class INPUT:
         NAV_DOWN: Qt.Key_Down,
         NAV_LEFT: Qt.Key_Left,
     }
-    
+
 class WEB:
     CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
     MAX_GET_WINDOW_TRIES = 30
