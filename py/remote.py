@@ -64,7 +64,7 @@ class Remote:
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
         print(f"Recieved remote signal {data}")
-        if this.getInputInterface() != None:
+        if this.getInputInterface() is not None:
             this.getInputInterface().receive(data)
         else:
             print("Remote has no input interface!")
@@ -101,7 +101,7 @@ class Remote:
         
         print("Initializing remote loop")
         this.setRunning(True)
-        if this.getInputInterface() != None:
+        if this.getInputInterface() is not None:
             while this.isRunning():
                 try:
                     await remote.__connect()
