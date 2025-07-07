@@ -1,16 +1,18 @@
 print("Importing input interface...")
 
-from globals import INPUT
+from globals import INPUT, projectorInterface
 from button import Button
 
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint
 
+### TODO: impl. projector mode
+
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setWebMode(False)
+        this.setMode("gui")
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
@@ -19,8 +21,17 @@ class InputInterface(QLabel):
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
     
+    def inGUIMode(this):
+        return this.getMode() == "gui"
+    
+    def inProjectorMode(this):
+        return this.getMode() == "projector"
+    
     def inWebMode(this):
-        return this.__webMode
+        return this.getMode() == "web"
+    
+    def getMode(this):
+        return this.__mode
 
     def getWebDriver(this):
         return this.__webdriver
@@ -37,10 +48,8 @@ class InputInterface(QLabel):
     def getSelectedButton(this):
         return this.__selectedButton
     
-    def setWebMode(this, webMode = True, webdriver = None):
-        this.__webMode = webMode
-        if not this.inWebMode() or webdriver is not None:
-            this.setWebDriver(webdriver)
+    def setMode(this, mode = "gui"):
+        this.__mode = mode
     
     def setWebDriver(this, webdriver):
         this.__webdriver = webdriver
