@@ -7,8 +7,6 @@ from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint
 
-### TODO: impl. projector mode
-
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,41 +91,54 @@ class InputInterface(QLabel):
             this.back()
     
     def select(this):
-        selectedButton = this.getSelectedButton()
-        if selectedButton is not None:
-            selectedButton.click()
-            if this.inWebMode() and not isinstance(selectedButton, Button):
-                driver = this.getWebDriver()
-                if not driver.elementExists(selectedButton):
-                    this.setSelectedButton(driver.getDefaultElement())
+        if this.inProjectorMode():
+            projectorInterface.select()
         else:
-            print("No initial selected button set.")
+            selectedButton = this.getSelectedButton()
+            if selectedButton is not None:
+                selectedButton.click()
+                if this.inWebMode() and not isinstance(selectedButton, Button):
+                    driver = this.getWebDriver()
+                    if not driver.elementExists(selectedButton):
+                        this.setSelectedButton(driver.getDefaultElement())
+            else:
+                print("No initial selected button set.")
     
     def navigate(this, index:str = INPUT.NAV_RIGHT):
-        selectedButton = this.getSelectedButton()
-        if selectedButton is not None:
-            if not this.inWebMode():
-                newButton = selectedButton.getNavButton(index)
-            
-            else:
-                driver = this.getWebDriver()
-                if driver is not None:
-                    if index == INPUT.NAV_UP:
-                        newButtonLocator = driver.getElementAbove(selectedButton)
-                    elif index == INPUT.NAV_RIGHT:
-                        newButtonLocator = driver.getElementRight(selectedButton)
-                    elif index == INPUT.NAV_DOWN:
-                        newButtonLocator = driver.getElementBelow(selectedButton)
-                    elif index == INPUT.NAV_LEFT:
-                        newButtonLocator = driver.getElementLeft(selectedButton)
-                    newButton = driver.find_element(newButtonLocator)
-                else:
-                    print("No webdriver set!")
-            
-            if newButton is not None:
-                this.setSelectedButton(newButton)
+        if this.inProjectorMode():
+            if index == INPUT.NAV_UP:
+                projectorInterface.navUp()
+            elif index == INPUT.NAV_RIGHT:
+                projectorInterface.navRight()
+            elif index == INPUT.NAV_DOWN:
+                projectorInterface.navDown()
+            elif index == INPUT.NAV_LEFT:
+                projectorInterface.navLeft()
         else:
-            print("No initial selected button set.")
+            selectedButton = this.getSelectedButton()
+            if selectedButton is not None:
+                if not this.inWebMode():
+                    newButton = selectedButton.getNavButton(index)
+                
+                else:
+                    driver = this.getWebDriver()
+                    if driver is not None:
+                        if index == INPUT.NAV_UP:
+                            newButtonLocator = driver.getElementAbove(selectedButton)
+                        elif index == INPUT.NAV_RIGHT:
+                            newButtonLocator = driver.getElementRight(selectedButton)
+                        elif index == INPUT.NAV_DOWN:
+                            newButtonLocator = driver.getElementBelow(selectedButton)
+                        elif index == INPUT.NAV_LEFT:
+                            newButtonLocator = driver.getElementLeft(selectedButton)
+                        newButton = driver.find_element(newButtonLocator)
+                    else:
+                        print("No webdriver set!")
+                
+                if newButton is not None:
+                    this.setSelectedButton(newButton)
+            else:
+                print("No initial selected button set.")
     
     def navUp(this):
         this.navigate(INPUT.NAV_UP)
@@ -142,7 +153,9 @@ class InputInterface(QLabel):
         this.navigate(INPUT.NAV_LEFT)
     
     def back(this):
-        if this.inWebMode():
+        if this.inProjectorMode():
+            projectorInterface.back()
+        elif this.inWebMode():
             this.getWebDriver().quit()
     
     def paintEvent(this, event=None):
