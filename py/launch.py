@@ -51,6 +51,7 @@ async def update():
     except Exception as e:
         print("The following error occured when attempting to run the update script:")
         print(e)
+        print("Skipping update check...")
     finally:
         launch()
 
