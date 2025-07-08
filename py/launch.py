@@ -66,6 +66,7 @@ async def update():
     finally:
         print("Reloading imported modules...")
         sys.modules.pop('projector_interface')
+        sys.modules.pop('ir')
         print("Reloaded modules.")
         
         launch()
