@@ -34,7 +34,12 @@ class REMOTE:
     CHECK_ALIVE_INTERVAL = 5
     SCAN_TIMEOUT = 30
 
+class INPUT_MODE:
+    GUI = 0
+    PROJECTOR = 1
+    WEB = 2
 class INPUT:
+    MODES = INPUT_MODE
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
     HOME = "HOME"

@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, QPoint
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setMode("gui")
+        this.setMode(INPUT.MODES.GUI)
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
@@ -21,13 +21,13 @@ class InputInterface(QLabel):
         this.setAttribute(Qt.WA_TranslucentBackground)
     
     def inGUIMode(this):
-        return this.getMode() == "gui"
+        return this.getMode() == INPUT.MODES.GUI
     
     def inProjectorMode(this):
-        return this.getMode() == "projector"
+        return this.getMode() == INPUT.MODES.PROJECTOR
     
     def inWebMode(this):
-        return this.getMode() == "web"
+        return this.getMode() == INPUT.MODES.WEB
     
     def getMode(this):
         return this.__mode
