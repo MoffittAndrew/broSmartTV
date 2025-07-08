@@ -6,6 +6,12 @@ class ProjectorInterface:
     def __init__(this, *args, **kwargs):
         ...
     
+    def on(this):
+        ir.send(...)
+    
+    def off(this):
+        ir.send(...)
+    
     def select(this):
         ir.send(...)
     

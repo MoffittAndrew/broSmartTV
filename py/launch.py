@@ -1,5 +1,8 @@
+print("Starting launch.py...")
+
 import asyncio
 import qtinter
+import sys
 
 # PyQt imports
 from PyQt5.QtWidgets import QApplication, QWidget
@@ -30,6 +33,12 @@ waiting_circ = QtWaitingSpinner()
 waiting_circ.setParent(LAUNCH_FRAME)
 waiting_circ.start()
 
+def projector_on():
+    
+    print("Switching projector on...")
+    from projector_interface import projectorInterface
+    projectorInterface.on()
+
 def launch():
     
     print("Launching main program...")
@@ -48,15 +57,24 @@ async def update():
         proc = await asyncio.create_subprocess_exec("update")
         await proc.communicate()
         print("Finished running update script.")
+        
     except Exception as e:
         print("The following error occured when attempting to run the update script:")
         print(e)
-        print("Skipping update check...")
+        print("Skipping update check.")
+        
     finally:
+        print("Reloading imported modules...")
+        sys.modules.pop('projector_interface')
+        print("Reloaded modules.")
+        
         launch()
 
 def main():
     with qtinter.using_asyncio_from_qt():
+        
+        projector_on()
+        
         print("Starting launch screen...")
         LAUNCH_FRAME.show()
         asyncio.create_task(update())
