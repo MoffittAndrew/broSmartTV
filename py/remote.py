@@ -23,6 +23,7 @@ class Remote:
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
         scanTimeout = REMOTE.SCAN_TIMEOUT,
+        callbackOnConnect = None,
         inputInterface = None,
         running = False,
     ):
@@ -31,8 +32,10 @@ class Remote:
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
         this.__scanTimeout = scanTimeout
-        this.__inputInterface = inputInterface
-        this.__running = running
+        this.setCallbackOnConnect(callbackOnConnect)
+        this.setInputInterface(inputInterface)
+        this.setRunning(running)
+        this.setConnected(False)
     
     def getName(this):
         return this.__name
@@ -52,14 +55,26 @@ class Remote:
     def getInputInterface(this):
         return this.__inputInterface
     
+    def getCallbackOnConnect(this):
+        return this.__callbackOnConnect
+    
     def isRunning(this):
         return this.__running
     
+    def isConnected(this):
+        return this.__connected
+    
+    def setCallbackOnConnect(this, callback):
+        this.__callbackOnConnect = callback
+    
     def setInputInterface(this, inputInterface):
         this.__inputInterface = inputInterface
-        
+    
     def setRunning(this, running):
         this.__running = running
+    
+    def setConnected(this, connected):
+        this.__connected = connected
     
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
@@ -67,10 +82,11 @@ class Remote:
         if this.getInputInterface() is not None:
             this.getInputInterface().receive(data)
         else:
-            print("Remote has no input interface!")
-        
+            print("Cannot handle incoming remote input, remote has no input interface!")
+    
     def __disconnected_callback(this, client: bleak.BleakClient):
         print("Disconnected from remote.")
+        this.setConnected(False)
 
     async def __connect(this):
         print("Scanning for remote...")
@@ -93,24 +109,36 @@ class Remote:
                 return
 
             print("Connected")
+            this.setConnected(True)
+            if this.getCallbackOnConnect() is not None:
+                callback = this.getCallbackOnConnect()
+                this.setCallbackOnConnect(None)
+                asyncio.create_task(callback())
+            
             await client.start_notify(characteristic, this.__callback)
             while client.is_connected:
                 await asyncio.sleep(this.getCheckAliveInterval())
+    
+    async def init(this, callbackOnConnect = None):
         
-    async def init(this):
-        
-        print("Initializing remote loop")
+        print("Initializing remote scan...")
         this.setRunning(True)
-        if this.getInputInterface() is not None:
-            while this.isRunning():
-                try:
-                    await remote.__connect()
-                except Exception as e:
-                    print(f"An error occurred: {e}")
-                    await asyncio.sleep(this.getCheckAliveInterval())
-        else:
-            print("Unable to initialize remote object, no input interface is set!")
+        this.setConnected(False)
         
-        print("Shutting down remote loop...")
+        if callbackOnConnect is not None:
+            this.setCallbackOnConnect(callbackOnConnect)
+        
+        while this.isRunning():
+            try:
+                await remote.__connect()
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                await asyncio.sleep(this.getCheckAliveInterval())
+    
+    async def await_power_on(this):
+        
+        asyncio.create_task(this.init())
+        while this.isRunning() and not this.isConnected():
+            await asyncio.sleep(this.getCheckAliveInterval())
 
 remote = Remote()
