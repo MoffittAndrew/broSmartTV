@@ -1,9 +1,9 @@
 print("Importing GUI tools...")
 
-from globals import DISPLAY, INPUT
+from globals import DISPLAY, INPUT, GUI
 
 from PyQt5.QtWidgets import QWidget, QStackedLayout
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QKeyEvent
 
 class CustomQWindow(QWidget):
@@ -15,7 +15,7 @@ class CustomQWindow(QWidget):
         this.__layout.setStackingMode(QStackedLayout.StackAll)
         this.setKeyboard(keyboard)
         this.setInputInterface(inputInterface)
-        
+    
     def getKeyboard(this):
         return this.__keyboard
 
@@ -24,32 +24,32 @@ class CustomQWindow(QWidget):
     
     def getInputInterface(this):
         return this.__inputInterface
-        
+    
     def setKeyboard(this, keyboard):
         this.__keyboard = keyboard
-        
+    
     def setTab(this, tab):
         if isinstance(tab, QWidget):
             this.__layout.setCurrentWidget(tab)
         else:
             this.__tab = tab
             this.__layout.setCurrentIndex(this.getTab())
-            
+        
         inputInterface = this.getInputInterface()
         if inputInterface is not None:
             inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())
             this.__layout.setCurrentWidget(inputInterface)
-        
+    
     def setInputInterface(this, inputInterface):
         this.__inputInterface = inputInterface
         if inputInterface is not None:
             this.addWidget(inputInterface)
-        
+    
     def addWidget(this, widget):
         widget.setParent(this)
         this.__layout.addWidget(widget)
         this.setLayout(this.__layout)
-    
+
     def keyPressEvent(this, event, *args, **kwargs):
         if this.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
@@ -72,5 +72,5 @@ MAIN_WINDOW.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
 
 MAIN_WINDOW.setAutoFillBackground(True)
 p = MAIN_WINDOW.palette()
-p.setColor(MAIN_WINDOW.backgroundRole(), Qt.black)
+p.setColor(MAIN_WINDOW.backgroundRole(), GUI.BG_COLOR)
 MAIN_WINDOW.setPalette(p)

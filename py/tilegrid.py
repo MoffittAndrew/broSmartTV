@@ -12,7 +12,7 @@ class TileGrid(QWidget):
         this.setColumns(columns)
         this.setTiles(tiles)
         this.setNavBarButton(navBarButton)
-        
+    
     ## Getters
     
     def getColumns(this):
@@ -76,10 +76,10 @@ class TileGrid(QWidget):
                 layout.addWidget(tile, i_row, i_col)
         
         this.setLayout(layout)
-        
+    
     def setNavBarButton(this, navBarButton):
         this.__navBarButton = navBarButton
-        if navBarButton != None:
+        if navBarButton is not None:
             tiles = this.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)

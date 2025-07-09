@@ -9,6 +9,11 @@ class DISPLAY:
     WIDTH = 1920
     HEIGHT = 1080
 
+class GUI:
+    BG_COLOR = Qt.black
+    BUTTON_COLOR = Qt.white
+    INPUT_INTERFACE_COLOR = Qt.red
+
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
@@ -38,6 +43,7 @@ class INPUT_MODES:
     GUI = 0
     PROJECTOR = 1
     WEB = 2
+
 class INPUT:
     MODES = INPUT_MODES
     RELEASED_PREFIX = "RELEASED_"

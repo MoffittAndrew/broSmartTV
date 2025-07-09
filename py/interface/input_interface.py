@@ -1,6 +1,6 @@
 print("Importing input interface...")
 
-from globals import INPUT
+from globals import INPUT, GUI
 from button import Button
 
 from PyQt5 import QtGui
@@ -176,7 +176,7 @@ class InputInterface(QLabel):
         painter.save()
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        painter.setPen(QtGui.QPen(Qt.red, 5, Qt.SolidLine))
+        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, 5, Qt.SolidLine))
         painter.drawRect(0, 0, this.getWidth(), this.getHeight())
         
         painter.restore()
