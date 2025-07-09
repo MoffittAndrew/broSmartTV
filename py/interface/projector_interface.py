@@ -1,7 +1,7 @@
 print("Importing projector interface...")
 
 # Normally shouldn't cross-import interfaces, but making an exception here for code simplicity
-from ir_interface import irInterface
+from interface.ir_interface import irInterface
 
 class ProjectorInterface:
     def __init__(this, irInterface = None, *args, **kwargs):

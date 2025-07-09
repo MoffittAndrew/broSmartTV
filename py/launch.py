@@ -8,7 +8,6 @@ reload_modules = [
     "interface.projector_interface",
     "interface.ir_interface",
     "interface.remote_interface",
-    
 ]
 
 def init_qt():
