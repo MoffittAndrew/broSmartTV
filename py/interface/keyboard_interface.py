@@ -2,7 +2,7 @@ print("Importing keyboard interface...")
 
 from globals import INPUT
 
-class Keyboard:
+class KeyboardInterface:
     def __init__(this, inputInterface = None):
         this.setInputInterface(inputInterface)
     
@@ -18,16 +18,15 @@ class Keyboard:
         for key_lookup in INPUT.LOOKUP:
             if key == INPUT.LOOKUP[key_lookup]:
                 keyStr = key_lookup
-                
-        if keyStr != None:
-            if released_prefix != None:
+        
+        if keyStr is not None:
+            if released_prefix is not None:
                 keyStr = released_prefix + keyStr
             
             print(f"Recieved keyboard signal {keyStr}")
-            if this.getInputInterface() != None:
+            if this.getInputInterface() is not None:
                 this.getInputInterface().receive(keyStr)
             else:
                 print("Keyboard has no input interface!")
 
-
-keyboard = Keyboard()
+keyboardInterface = KeyboardInterface()

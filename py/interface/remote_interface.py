@@ -15,7 +15,7 @@ except ImportError:
     # can safely ignore
     pass
 
-class Remote:
+class RemoteInterface:
     def __init__(
         this,
         name = REMOTE.NAME,
@@ -130,7 +130,7 @@ class Remote:
         
         while this.isRunning():
             try:
-                await remote.__connect()
+                await this.__connect()
             except Exception as e:
                 print(f"An error occurred: {e}")
                 await asyncio.sleep(this.getCheckAliveInterval())
@@ -141,4 +141,4 @@ class Remote:
         while this.isRunning() and not this.isConnected():
             await asyncio.sleep(this.getCheckAliveInterval())
 
-remote = Remote()
+remoteInterface = RemoteInterface()

@@ -1,13 +1,13 @@
 import asyncio
 import qtinter
 
-from remote import remote
+from interface.remote_interface import remoteInterface
 
 reload_modules = [
     "globals",
-    "projector_interface",
-    "ir",
-    "remote",
+    "interface.projector_interface",
+    "interface.ir_interface",
+    "interface.remote_interface",
     
 ]
 
@@ -46,7 +46,7 @@ def init_qt():
 def projector_on():
     
     print("Switching projector on...")
-    from projector_interface import projectorInterface
+    from interface.projector_interface import projectorInterface
     projectorInterface.on()
 
 def launch_app():
@@ -94,8 +94,8 @@ async def main():
     
     print("Starting launch.py...")
     with qtinter.using_qt_from_asyncio():
-        await remote.await_power_on()
-        if remote.isRunning():
+        await remoteInterface.await_power_on()
+        if remoteInterface.isRunning():
             launch()
     
     print("Exiting launch.py...")

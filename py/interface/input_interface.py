@@ -1,7 +1,6 @@
 print("Importing input interface...")
 
 from globals import INPUT
-from projector_interface import projectorInterface
 from button import Button
 
 from PyQt5 import QtGui
@@ -9,13 +8,14 @@ from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint
 
 class InputInterface(QLabel):
-    def __init__(this, selectedButton = None, *args, **kwargs):
+    def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.setMode(INPUT.MODES.GUI)
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
+        this.setProjectorInterface(projectorInterface)
         
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
@@ -24,7 +24,9 @@ class InputInterface(QLabel):
         return this.getMode() == INPUT.MODES.GUI
     
     def inProjectorMode(this):
-        return this.getMode() == INPUT.MODES.PROJECTOR
+        if this.getMode() == INPUT.MODES.PROJECTOR and this.getProjectorInterface() is not None:
+            return True
+        return False
     
     def inWebMode(this):
         return this.getMode() == INPUT.MODES.WEB
@@ -46,9 +48,15 @@ class InputInterface(QLabel):
     
     def getSelectedButton(this):
         return this.__selectedButton
+
+    def getProjectorInterface(this):
+        return this.__projectorInterface
     
-    def setMode(this, mode = "gui"):
-        this.__mode = mode
+    def setMode(this, mode = INPUT.MODES.GUI):
+        if mode and this.getProjectorInterface() is None:
+            print("Cannot set input interface to projector mode, no projector interface has been set!")
+        else:
+            this.__mode = mode
     
     def setWebDriver(this, webdriver):
         this.__webdriver = webdriver
@@ -83,6 +91,9 @@ class InputInterface(QLabel):
             this.setPos(pos)
             print(this.getPos(), this.getWidth(), this.getHeight())
     
+    def setProjectorInterface(this, projectorInterface):
+        this.__projectorInterface = projectorInterface
+    
     def receive(this, data):
         if data == INPUT.SELECT:
             this.select()
@@ -93,7 +104,7 @@ class InputInterface(QLabel):
     
     def select(this):
         if this.inProjectorMode():
-            projectorInterface.select()
+            this.getProjectorInterface().select()
         else:
             selectedButton = this.getSelectedButton()
             if selectedButton is not None:
@@ -108,13 +119,13 @@ class InputInterface(QLabel):
     def navigate(this, index:str = INPUT.NAV_RIGHT):
         if this.inProjectorMode():
             if index == INPUT.NAV_UP:
-                projectorInterface.navUp()
+                this.getProjectorInterface().navUp()
             elif index == INPUT.NAV_RIGHT:
-                projectorInterface.navRight()
+                this.getProjectorInterface().navRight()
             elif index == INPUT.NAV_DOWN:
-                projectorInterface.navDown()
+                this.getProjectorInterface().navDown()
             elif index == INPUT.NAV_LEFT:
-                projectorInterface.navLeft()
+                this.getProjectorInterface().navLeft()
         else:
             selectedButton = this.getSelectedButton()
             if selectedButton is not None:
@@ -155,7 +166,7 @@ class InputInterface(QLabel):
     
     def back(this):
         if this.inProjectorMode():
-            projectorInterface.back()
+            this.getProjectorInterface().back()
         elif this.inWebMode():
             this.getWebDriver().quit()
     
