@@ -1,0 +1,191 @@
+<style>
+    html, body {
+        margin: 0!important;
+        padding: 0!important;
+        text-align: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        font-size: 1em;
+    }
+
+    video {
+        width: 30%;
+        border-radius: 5px;
+        border: 1px solid black;
+    }
+</style>
+
+<title>bro.</title>
+<h1>Screen Sharing test</h1>
+
+<br>
+
+<section class="experiment">
+    <section class="hide-after-join" style="text-align: center;">
+        <button id="share-screen" class="setup">Share Your Screen</button>
+    </section>
+
+    <!-- local/remote videos container -->
+    <div id="videos-container"></div>
+
+    <section id="unique-token" style="display: none; text-align: center; padding: 20px;"></section>
+</section>
+
+<hr>
+<video controls autoplay playsinline></video>
+
+<script>
+    // Muaz Khan     - https://github.com/muaz-khan
+    // MIT License   - https://www.webrtc-experiment.com/licence/
+    // Documentation - https://github.com/muaz-khan/WebRTC-Experiment/tree/master/Pluginfree-Screen-Sharing
+
+    var config = {
+        // via: https://github.com/muaz-khan/WebRTC-Experiment/tree/master/socketio-over-nodejs
+        openSocket: function(config) {
+            var SIGNALING_SERVER = 'https://bro:9001/';
+
+            config.channel = config.channel || location.href.replace(/\/|:|#|%|\.|\[|\]/g, '');
+            var sender = Math.round(Math.random() * 999999999) + 999999999;
+
+            io.connect(SIGNALING_SERVER).emit('new-channel', {
+                channel: config.channel,
+                sender: sender
+            });
+
+            var socket = io.connect(SIGNALING_SERVER + config.channel);
+            socket.channel = config.channel;
+            socket.on('connect', function () {
+                if (config.callback) config.callback(socket);
+            });
+
+            socket.send = function (message) {
+                socket.emit('message', {
+                    sender: sender,
+                    data: message
+                });
+            };
+
+            socket.on('message', config.onmessage);
+        },
+        onRemoteStream: function(media) {
+            if(isbroadcaster) return;
+
+            var video = media.video;
+            videosContainer.insertBefore(video, videosContainer.firstChild);
+            rotateVideo(video);
+
+            document.querySelector('.hide-after-join').style.display = 'none';
+        },
+    };
+
+    function showErrorMessage(error, color) {
+        var errorMessage = document.querySelector('#logs-message');
+        errorMessage.style.color = color || 'red';
+        errorMessage.innerHTML = error;
+        errorMessage.style.display = 'block';
+    }
+
+    function getDisplayMediaError(error) {
+        if (location.protocol === 'http:') {
+            showErrorMessage('Please use HTTPS.');
+        } else {
+            showErrorMessage(error.toString());
+        }
+    }
+
+    function captureUserMedia(callback) {
+        var video = document.createElement('video');
+        video.muted = true;
+        video.volume = 0;
+        try {
+            video.setAttributeNode(document.createAttribute('autoplay'));
+            video.setAttributeNode(document.createAttribute('playsinline'));
+            video.setAttributeNode(document.createAttribute('controls'));
+        } catch (e) {
+            video.setAttribute('autoplay', true);
+            video.setAttribute('playsinline', true);
+            video.setAttribute('controls', true);
+        }
+
+        if(navigator.getDisplayMedia || navigator.mediaDevices.getDisplayMedia) {
+            function onGettingSteam(stream) {
+                video.srcObject = stream;
+                videosContainer.insertBefore(video, videosContainer.firstChild);
+
+                addStreamStopListener(stream, function() {
+                    location.reload();
+                });
+
+                config.attachStream = stream;
+                callback && callback();
+                rotateVideo(video);
+
+                addStreamStopListener(stream, function() {
+                    location.reload();
+                });
+
+                showPrivateLink();
+
+                document.querySelector('.hide-after-join').style.display = 'none';
+            }
+
+            if(navigator.mediaDevices.getDisplayMedia) {
+                navigator.mediaDevices.getDisplayMedia({video: true}).then(stream => {
+                    onGettingSteam(stream);
+                }, getDisplayMediaError).catch(getDisplayMediaError);
+            }
+            else if(navigator.getDisplayMedia) {
+                navigator.getDisplayMedia({video: true}).then(stream => {
+                    onGettingSteam(stream);
+                }, getDisplayMediaError).catch(getDisplayMediaError);
+            }
+        }
+        else {
+            if (DetectRTC.browser.name === 'Chrome') {
+                if (DetectRTC.browser.version == 71) {
+                    showErrorMessage('Please enable "Experimental WebPlatform" flag via chrome://flags.');
+                } else if (DetectRTC.browser.version < 71) {
+                    showErrorMessage('Please upgrade your Chrome browser.');
+                } else {
+                    showErrorMessage('Please make sure that you are not using Chrome on iOS.');
+                }
+            }
+
+            if (DetectRTC.browser.name === 'Firefox') {
+                showErrorMessage('Please upgrade your Firefox browser.');
+            }
+
+            if (DetectRTC.browser.name === 'Edge') {
+                showErrorMessage('Please upgrade your Edge browser.');
+            }
+
+            if (DetectRTC.browser.name === 'Safari') {
+                showErrorMessage('Safari does NOT supports getDisplayMedia API yet.');
+            }
+        }
+    }
+
+    /* on page load: get public rooms */
+    var conferenceUI = conference(config);
+
+    /* UI specific */
+    var videosContainer = document.getElementById("videos-container") || document.body;
+
+    document.getElementById('share-screen').onclick = function() {
+        captureUserMedia(function() {
+            conferenceUI.createRoom({
+                roomName: (roomName.value || 'Anonymous') + ' shared their screen with you'
+            });
+        });
+        this.disabled = true;
+    };
+
+    function rotateVideo(video) {
+        video.style[navigator.mozGetUserMedia ? 'transform' : '-webkit-transform'] = 'rotate(0deg)';
+        setTimeout(function() {
+            video.style[navigator.mozGetUserMedia ? 'transform' : '-webkit-transform'] = 'rotate(360deg)';
+        }, 1000);
+    }
+
+</script>
+
+<br><br>

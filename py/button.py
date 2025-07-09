@@ -44,12 +44,12 @@ class Button(QLabel):
         canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
         this.setPixmap(canvas)
         this.draw()
-        
+    
     ## Getters
     
     def enabled(this):
         return this.__enabled
-        
+    
     def getHeight(this):
         return this.__height
     
@@ -58,7 +58,7 @@ class Button(QLabel):
     
     def getText(this):
         return this.__text
-            
+    
     def getImg(this):
         return this.__img
     
@@ -68,19 +68,19 @@ class Button(QLabel):
     def getNavButton(this, index: str = INPUT.NAV_RIGHT):
         if index in this.__navButtons.keys():
             return this.__navButtons[index]
-        
+    
     def getNavUp(this):
         return this.getNavButton(INPUT.NAV_UP)
     
     def getNavRight(this):
         return this.getNavButton(INPUT.NAV_RIGHT)
-        
+    
     def getNavDown(this):
         return this.getNavButton(INPUT.NAV_DOWN)
-        
+    
     def getNavLeft(this):
         return this.getNavButton(INPUT.NAV_LEFT)
-    
+
     def getMenuOption(this, index):
         return this.__menuOptions[index]
     
@@ -92,57 +92,57 @@ class Button(QLabel):
     
     def getPos(this):
         return this.getParentPos() + this.pos()
-        
+    
     ## Setters
     
     def setEnabled(this, enabled):
         this.__enabled = bool(enabled)
-        
+    
     def setHeight(this, height):
         if height >= BUTTON.MIN_HEIGHT:
             this.__height = int(height)
-            
+    
     def setWidth(this, width):
         if width >= BUTTON.MIN_WIDTH:
             this.__width = int(width)
-            
+    
     def setText(this, text):
         this.__text = str(text)
-        if this.getImg() == None:
+        if this.getImg() is None:
             this.__needsDraw = True
-        
+    
     def setImg(this, img):
         this.__img = img
-        if this.getImg() == None:
+        if this.getImg() is None:
             this.__needsDraw = True
-        
+    
     def setCallback(this, callback, *args, **kwargs):
         this.__callback = callback
         this.__callbackArgs = args
         this.__callbackKwargs = kwargs
-        
+    
     def setNavButton(this, index, button):
         this.__navButtons[index] = button
-        
+    
     def setNavUp(this, button):
         this.setNavButton("NAV_UP", button)
     
     def setNavRight(this, button):
         this.setNavButton("NAV_RIGHT", button)
-        
+    
     def setNavDown(this, button):
         this.setNavButton("NAV_DOWN", button)
-        
+    
     def setNavLeft(this, button):
         this.setNavButton("NAV_LEFT", button)
-        
+    
     def setMenuOptions(this, menuOptions):
         
         if len(menuOptions) > 0:
             for i in range(len(menuOptions) - 1):
                 menuOptions[i + 1].setNavUp(menuOptions[i])
                 menuOptions[i].setNavDown(menuOptions[i + 1])
-            
+        
         this.__menuOptions = menuOptions
     
     def setParentPos(this, pos):
@@ -152,38 +152,41 @@ class Button(QLabel):
     
     def enable(this):
         this.setEnabled(True)
-        
+    
     def disable(this):
         this.setEnabled(False)
     
     def addMenuOption(this, menuOption = None):
-        if menuOption != None:
+        if menuOption is not None:
             if len(this.getMenuOptions()) > 0:
                 lastMenuOption = this.getMenuOptions()[-1]
                 menuOption.setNavUp(lastMenuOption)
                 lastMenuOption.setNavDown(menuOption)
             this.__menuOptions.append(menuOption)
-            
+    
     def click(this):
         if this.enabled():
             callback, args, kwargs = this.getCallback()
-            if callback != None:
+            if callback is not None:
                 callback(*args, **kwargs)
             else:
                 print(f"Button {this.getText()} has no callback!")
-            
+    
     def draw(this):
         if this.__needsDraw:
             painter = QtGui.QPainter(this.pixmap())
 
-            if this.getImg() == None and this.getText() != "":
+            if this.getImg() is None and this.getText() != "":
                 pen = QtGui.QPen()
                 pen.setWidth(1)
                 pen.setColor(QtGui.QColor('white'))
                 painter.setPen(pen)
                 
-                painter.setBrush(QtGui.QBrush(Qt.black, Qt.SolidPattern))
+                painter.setBrush(QtGui.QBrush(Qt.white, Qt.SolidPattern))
                 painter.drawRect(0, 0, this.getWidth(), this.getHeight())
+                
+                painter.setBrush(QtGui.QBrush(Qt.black, Qt.SolidPattern))
+                painter.drawRect(2, 2, this.getWidth() - 4, this.getHeight() - 4)
 
                 font = QtGui.QFont()
                 font.setFamily('Times')
@@ -191,7 +194,7 @@ class Button(QLabel):
                 painter.setFont(font)
 
                 painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, this.getText())
-                
+            
             painter.end()
         this.__needsDraw = False
     

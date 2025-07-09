@@ -25,7 +25,10 @@ class TileGrid(QWidget):
         return this.__navBarButton
     
     def getPrimaryButton(this):
-        return this.getTiles()[0][0]
+        if len(this.getTiles()[0]) > 0:
+            return this.getTiles()[0][0]
+        else:
+            return None
     
     ## Setters
     

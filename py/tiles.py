@@ -1,7 +1,7 @@
 print("Importing tiles...")
 
 from globals import PATH
-from tile import Tile, DeviceTile, WebTile
+from tile import Tile, DeviceTile#, WebTile
 
 from os import listdir
 from os.path import isfile, join
@@ -17,7 +17,7 @@ def _sortTiles(tiles):
             tiles[pos] = tiles[pos - 1]
             pos -= 1
         tiles[pos] = currentTile
-        
+    
     return tiles
 
 
@@ -41,7 +41,7 @@ def _getTilesFromPath(path, TileType):
         
         tile = TileType(**kwargs)
         tiles.append(tile)
-        
+    
     return tiles
 
 
@@ -51,7 +51,7 @@ def _saveTile(tile):
     tileAttrs = tile.getAllAttrs()
     for key in tileAttrs:
         lines.append(f"{key}={tileAttrs[key]}")
-        
+    
     tileFile = open(tile.getFilepath(), 'w')
     tileFile.write('\n'.join(lines))
     tileFile.close()
@@ -62,10 +62,10 @@ def _readTiles():
     print("Reading tiles...")
     
     tiles = []
-    path = PATH + "tiles\\"
+    path = PATH + "tiles/"
     tiles += _getTilesFromPath(path, Tile)
-    tiles += _getTilesFromPath(path + "device\\", DeviceTile)
-    tiles += _getTilesFromPath(path + "web\\", WebTile)
+    tiles += _getTilesFromPath(path + "device/", DeviceTile)
+    #tiles += _getTilesFromPath(path + "web/", WebTile)
     
     print("Successfully read tiles.")
     
@@ -78,7 +78,7 @@ def saveTiles(tiles):
     
     for tile in tiles:
         _saveTile(tile)
-        
+    
     print("Successfully saved tiles.")
-        
+
 tiles = _readTiles()
