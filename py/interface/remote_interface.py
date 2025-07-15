@@ -95,7 +95,7 @@ class RemoteInterface:
             print("Remote not found")
             return
         else:
-            print("Connecting...")
+            print("Connecting to remote...")
 
         async with bleak.BleakClient(device, disconnected_callback=this.__disconnected_callback) as client:
             service = client.services.get_service(this.getServiceUUID())

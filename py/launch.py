@@ -44,8 +44,8 @@ def init_qt():
 
 def projector_on():
     
-    print("Switching projector on...")
     from interface.projector_interface import projectorInterface
+    print("Switching projector on...")
     projectorInterface.on()
 
 def launch_app():
@@ -79,7 +79,7 @@ async def update_then_launch():
     
     launch_app()
 
-async def launch():
+def launch():
     
     init_qt()
     projector_on()
@@ -94,8 +94,10 @@ async def main():
     print("Starting launch.py...")
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.await_power_on()
-        if remoteInterface.isRunning():
-            await launch()
+    
+    if remoteInterface.isRunning():
+        with qtinter.using_asyncio_from_qt():
+            launch()
     
     print("Exiting launch.py...")
 
