@@ -108,7 +108,7 @@ class RemoteInterface:
                 print("Characteristic not found")
                 return
 
-            print("Connected")
+            print("Remote connected")
             this.setConnected(True)
             if this.getCallbackOnConnect() is not None:
                 callback = this.getCallbackOnConnect()
@@ -139,10 +139,7 @@ class RemoteInterface:
         
         asyncio.create_task(this.init())
         await asyncio.sleep(this.getCheckAliveInterval())
-        print(this.isRunning(), this.isConnected())
         while this.isRunning() and not this.isConnected():
             await asyncio.sleep(this.getCheckAliveInterval())
-            print("Waiting...")
-        print("Done")
 
 remoteInterface = RemoteInterface()
