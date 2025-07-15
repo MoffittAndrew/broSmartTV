@@ -140,7 +140,7 @@ class RemoteInterface:
         asyncio.create_task(this.init())
         while this.isRunning() and not this.isConnected():
             await asyncio.sleep(this.getCheckAliveInterval())
-            
+            print("Waiting...")
         print("Done")
 
 remoteInterface = RemoteInterface()
