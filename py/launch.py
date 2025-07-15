@@ -79,7 +79,7 @@ async def update_then_launch():
     
     launch_app()
 
-def launch():
+async def launch():
     
     init_qt()
     projector_on()
@@ -95,7 +95,7 @@ async def main():
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.await_power_on()
         if remoteInterface.isRunning():
-            launch()
+            await launch()
     
     print("Exiting launch.py...")
 
