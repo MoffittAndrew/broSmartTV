@@ -49,7 +49,7 @@ class Tile(Button):
     ## Setters
     
     def setIndex(this, index):
-        if index != None:
+        if index is not None:
             index = int(index)
         this.__index = index
     

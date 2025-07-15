@@ -147,6 +147,7 @@ class Button(QLabel):
     
     def setParentPos(this, pos):
         this.__parentPos = pos
+        print("set parent pos to ", pos)
     
     # Other
     

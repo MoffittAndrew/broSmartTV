@@ -81,4 +81,4 @@ def saveTiles(tiles):
     
     print("Successfully saved tiles.")
 
-tiles = _readTiles()
+tiles: list[Tile] = _readTiles()

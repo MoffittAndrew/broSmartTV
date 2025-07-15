@@ -28,6 +28,7 @@ def main():
 
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
+homeScreen.setPos((500, 500))
 #MAIN_WINDOW.addWidget(webInterface)
 
 inputInterface.setProjectorInterface(projectorInterface)

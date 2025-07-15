@@ -4,7 +4,7 @@ class IRInterface:
     def __init__(this, *args, **kwargs):
         ...
     
-    def send(data):
+    def send(this, data):
         ...
 
 irInterface = IRInterface()
