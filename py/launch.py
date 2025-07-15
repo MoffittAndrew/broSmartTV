@@ -89,17 +89,19 @@ def launch():
     asyncio.create_task(update_then_launch())
     APP.exec_()
 
-async def main():
+async def wait_for_remote():
     
-    print("Starting launch.py...")
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.await_power_on()
+
+def main():
     
     if remoteInterface.isRunning():
         with qtinter.using_asyncio_from_qt():
             launch()
-    
-    print("Exiting launch.py...")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("Starting launch.py...")
+    asyncio.run(wait_for_remote())
+    main()
+    print("Exiting launch.py...")
