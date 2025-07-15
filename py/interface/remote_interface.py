@@ -138,6 +138,7 @@ class RemoteInterface:
     async def await_power_on(this):
         
         asyncio.create_task(this.init())
+        await asyncio.sleep(this.getCheckAliveInterval())
         print(this.isRunning(), this.isConnected())
         while this.isRunning() and not this.isConnected():
             await asyncio.sleep(this.getCheckAliveInterval())
