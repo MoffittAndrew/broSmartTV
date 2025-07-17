@@ -33,8 +33,8 @@ class TILEGRID:
     COLUMNS = 5
 
 class IR_CODES:
-    ON = "KEY_POWER_ON"
-    OFF = "KEY_POWER_ON"
+    ON = "KEY_POWER"
+    OFF = "KEY_POWER_OFF"
 
 class REMOTE:
     NAME = "bro-ito"
