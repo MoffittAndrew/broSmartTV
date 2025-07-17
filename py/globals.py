@@ -32,6 +32,10 @@ class TILE:
 class TILEGRID:
     COLUMNS = 5
 
+class IR_CODES:
+    ON = "KEY_POWER_ON"
+    OFF = "KEY_POWER_ON"
+
 class REMOTE:
     NAME = "bro-ito"
     SERVICE_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x1849)

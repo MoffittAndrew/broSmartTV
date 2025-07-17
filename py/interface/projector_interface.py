@@ -2,6 +2,7 @@ print("Importing projector interface...")
 
 # Normally shouldn't cross-import interfaces, but making an exception here for code simplicity
 from interface.ir_interface import irInterface
+from globals import IR_CODES
 
 class ProjectorInterface:
     def __init__(this, irInterface = None, *args, **kwargs):
@@ -20,10 +21,10 @@ class ProjectorInterface:
             print("Cannot send IR data, no IR interface has been set!")
     
     def on(this):
-        this.send(...)
+        this.send(IR_CODES.ON)
     
     def off(this):
-        this.send(...)
+        this.send(IR_CODES.OFF)
     
     def select(this):
         this.send(...)
