@@ -22,6 +22,8 @@ class ProjectorInterface:
     
     def on(this):
         this.send(IR_CODES.ON)
+        # Just in case projector is already on
+        this.send(IR_CODES.RETURN)
     
     def off(this):
         this.send(IR_CODES.OFF)
