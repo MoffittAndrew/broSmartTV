@@ -22,7 +22,6 @@ class RemoteInterface:
         serviceUUID = REMOTE.SERVICE_UUID,
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
-        checkConnectedInterval = REMOTE.CHECK_CONNECTED_INTERVAL,
         scanTimeout = REMOTE.SCAN_TIMEOUT,
         callbackOnConnect = None,
         inputInterface = None,
@@ -32,7 +31,6 @@ class RemoteInterface:
         this.__serviceUUID = serviceUUID
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
-        this.__checkConnectedInterval = checkConnectedInterval
         this.__scanTimeout = scanTimeout
         this.setCallbackOnConnect(callbackOnConnect)
         this.setInputInterface(inputInterface)
@@ -50,9 +48,6 @@ class RemoteInterface:
     
     def getCheckAliveInterval(this):
         return this.__checkAliveInterval
-
-    def getCheckConnectedInterval(this):
-        return this.__checkConnectedInterval
     
     def getScanTimeout(this):
         return this.__scanTimeout
@@ -81,6 +76,9 @@ class RemoteInterface:
     def setConnected(this, connected):
         this.__connected = connected
     
+    async def __scanAndConnect(this):
+        return bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout())
+    
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
         print(f"Recieved remote signal {data}")
@@ -95,7 +93,7 @@ class RemoteInterface:
 
     async def __connect(this):
         print("Scanning for remote...")
-        device = await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout())
+        device = await this.__scanAndConnect()
         if not device:
             print("Remote not found")
             return
@@ -142,9 +140,13 @@ class RemoteInterface:
     
     async def await_power_on(this):
         
-        asyncio.create_task(this.init())
-        await asyncio.sleep(this.getCheckConnectedInterval())
-        while this.isRunning() and not this.isConnected():
-            await asyncio.sleep(this.getCheckConnectedInterval())
+        while True:
+            device = await this.__scanAndConnect()
+            if not device:
+                print("Remote not found")
+            else:
+                print("Remote found!")
+                return
+            
 
 remoteInterface = RemoteInterface()
