@@ -21,10 +21,10 @@ class ProjectorInterface:
         else:
             print("Cannot send IR data, no IR interface has been set!")
     
-    def on(this):
+    async def on(this):
         this.send(IR_CODES.ON)
         # Just in case projector is already on
-        sleep(0.2)
+        await sleep(0.2)
         this.send(IR_CODES.RETURN)
     
     def off(this):

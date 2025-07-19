@@ -40,11 +40,11 @@ def init_qt():
     waiting_circ.setParent(LAUNCH_FRAME)
     waiting_circ.start()
 
-def projector_on():
+async def projector_on():
     
     from interface.projector_interface import projectorInterface
     print("Switching projector on...")
-    projectorInterface.on()
+    await projectorInterface.on()
 
 def launch_app():
     
@@ -80,10 +80,10 @@ async def update_then_launch():
     
     launch_app()
 
-def launch():
+async def launch():
     
     init_qt()
-    projector_on()
+    await projector_on()
     
     print("Starting launch screen...")
     LAUNCH_FRAME.show()
