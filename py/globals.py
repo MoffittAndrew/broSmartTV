@@ -59,7 +59,7 @@ class INPUT_MODES:
     WEB = 2
 
 class INPUT:
-    DELAY = 0.1
+    DELAY = 0.2
     MODES = INPUT_MODES
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
