@@ -2,7 +2,7 @@ print("Importing projector interface...")
 
 # Normally shouldn't cross-import interfaces, but making an exception here for code simplicity
 from interface.ir_interface import irInterface
-from globals import IR_CODES
+from globals import IR_CODES, INPUT
 
 from asyncio import sleep
 
@@ -25,7 +25,7 @@ class ProjectorInterface:
     async def on(this):
         this.send(IR_CODES.ON)
         # Just in case projector is already on
-        await sleep(0.2)
+        await sleep(INPUT.DELAY)
         this.send(IR_CODES.RETURN)
     
     def off(this):

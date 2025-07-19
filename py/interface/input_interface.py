@@ -192,7 +192,7 @@ class InputInterface(QLabel):
     def home(this):
         this.setMode(INPUT.MODES.GUI)
         this.getProjectorInterface().menu()
-        sleep(0.2)
+        sleep(INPUT.DELAY)
         this.getProjectorInterface().back()
     
     def openProjectorMenu(this):
