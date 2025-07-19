@@ -85,7 +85,7 @@ class RemoteInterface:
         data = None if not data else data.decode()
         print(f"Recieved remote signal {data}")
         if this.getInputInterface() is not None:
-            this.getInputInterface().receive(data)
+            asyncio.create_task(this.getInputInterface().receive(data))
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
     

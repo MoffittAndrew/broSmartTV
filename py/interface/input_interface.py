@@ -93,7 +93,7 @@ class InputInterface(QLabel):
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
     
-    def receive(this, data):
+    async def receive(this, data):
         if data == INPUT.POWER:
             this.powerOff()
         elif data == INPUT.SELECT:
@@ -107,7 +107,7 @@ class InputInterface(QLabel):
         elif data == INPUT.VOL_DOWN:
             this.volDown()
         elif data == INPUT.HOME:
-            this.home()
+            await this.home()
     
     def powerOff(this):
         this.getProjectorInterface().off()
@@ -189,10 +189,10 @@ class InputInterface(QLabel):
     def volDown(this):
         this.getProjectorInterface().volDown()
     
-    def home(this):
+    async def home(this):
         this.setMode(INPUT.MODES.GUI)
         this.getProjectorInterface().menu()
-        sleep(INPUT.DELAY)
+        await sleep(INPUT.DELAY)
         this.getProjectorInterface().back()
     
     def openProjectorMenu(this):
