@@ -97,6 +97,7 @@ def main():
             LAUNCH_FRAME.show()
             asyncio.create_task(updateThenLaunch())
             APP.exec_()
+            print("App closed.")
 
     except KeyboardInterrupt:
         print()
