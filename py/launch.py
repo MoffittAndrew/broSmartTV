@@ -107,10 +107,11 @@ def main():
             launch()
 
 if __name__ == "__main__":
+    print("Starting launch.py...")
     try:
-        print("Starting launch.py...")
         asyncio.run(wait_for_remote())
         main()
-        print("Exiting launch.py...")
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as e:
+        print("An exception occurred:", e)
         exit(130)
+    print("Exiting launch.py...")
