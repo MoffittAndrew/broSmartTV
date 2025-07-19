@@ -7,6 +7,8 @@ from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint, QCoreApplication
 
+from asyncio import sleep
+
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -190,6 +192,7 @@ class InputInterface(QLabel):
     def home(this):
         this.setMode(INPUT.MODES.GUI)
         this.getProjectorInterface().menu()
+        sleep(0.2)
         this.getProjectorInterface().back()
     
     def openProjectorMenu(this):

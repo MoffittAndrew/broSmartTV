@@ -3,6 +3,7 @@ print("Importing projector interface...")
 # Normally shouldn't cross-import interfaces, but making an exception here for code simplicity
 from interface.ir_interface import irInterface
 from globals import IR_CODES
+
 from asyncio import sleep
 
 class ProjectorInterface:
