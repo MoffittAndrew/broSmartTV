@@ -91,7 +91,9 @@ def launch():
     APP.exec_()
     
     from interface.remote_interface import remoteInterface
+    from globals import REMOTE
     remoteInterface.setRunning(False)
+    asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL))
 
 async def wait_for_remote():
     
