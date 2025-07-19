@@ -22,6 +22,7 @@ class RemoteInterface:
         serviceUUID = REMOTE.SERVICE_UUID,
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
+        checkConnectedInterval = REMOTE.CHECK_CONNECTED_INTERVAL,
         scanTimeout = REMOTE.SCAN_TIMEOUT,
         callbackOnConnect = None,
         inputInterface = None,
@@ -31,6 +32,7 @@ class RemoteInterface:
         this.__serviceUUID = serviceUUID
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
+        this.__checkConnectedInterval = checkConnectedInterval
         this.__scanTimeout = scanTimeout
         this.setCallbackOnConnect(callbackOnConnect)
         this.setInputInterface(inputInterface)
@@ -48,6 +50,9 @@ class RemoteInterface:
     
     def getCheckAliveInterval(this):
         return this.__checkAliveInterval
+
+    def getCheckConnectedInterval(this):
+        return this.__checkConnectedInterval
     
     def getScanTimeout(this):
         return this.__scanTimeout
@@ -140,6 +145,6 @@ class RemoteInterface:
         asyncio.create_task(this.init())
         await asyncio.sleep(this.getCheckAliveInterval())
         while this.isRunning() and not this.isConnected():
-            await asyncio.sleep(this.getCheckAliveInterval())
+            await asyncio.sleep(this.getCheckConnectedInterval())
 
 remoteInterface = RemoteInterface()
