@@ -5,7 +5,7 @@ from button import Button
 
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt, QPoint, QCoreApplication
 
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
@@ -92,7 +92,9 @@ class InputInterface(QLabel):
         this.__projectorInterface = projectorInterface
     
     def receive(this, data):
-        if data == INPUT.SELECT:
+        if data == INPUT.POWER:
+            this.powerOff()
+        elif data == INPUT.SELECT:
             this.select()
         elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
             this.navigate(data)
@@ -104,6 +106,10 @@ class InputInterface(QLabel):
             this.volDown()
         elif data == INPUT.HOME:
             this.home()
+    
+    def powerOff(this):
+        this.getProjectorInterface().off()
+        QCoreApplication.quit()
     
     def select(this):
         if this.inProjectorMode():
