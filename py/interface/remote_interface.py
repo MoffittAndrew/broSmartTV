@@ -15,13 +15,14 @@ except ImportError:
     # can safely ignore
     pass
 
-class Remote:
+class RemoteInterface:
     def __init__(
         this,
         name = REMOTE.NAME,
         serviceUUID = REMOTE.SERVICE_UUID,
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
         checkAliveInterval = REMOTE.CHECK_ALIVE_INTERVAL,
+        checkConnectedInterval = REMOTE.CHECK_CONNECTED_INTERVAL,
         scanTimeout = REMOTE.SCAN_TIMEOUT,
         callbackOnConnect = None,
         inputInterface = None,
@@ -31,6 +32,7 @@ class Remote:
         this.__serviceUUID = serviceUUID
         this.__characteristicUUID = characteristicUUID
         this.__checkAliveInterval = checkAliveInterval
+        this.__checkConnectedInterval = checkConnectedInterval
         this.__scanTimeout = scanTimeout
         this.setCallbackOnConnect(callbackOnConnect)
         this.setInputInterface(inputInterface)
@@ -48,6 +50,9 @@ class Remote:
     
     def getCheckAliveInterval(this):
         return this.__checkAliveInterval
+
+    def getCheckConnectedInterval(this):
+        return this.__checkConnectedInterval
     
     def getScanTimeout(this):
         return this.__scanTimeout
@@ -80,7 +85,7 @@ class Remote:
         data = None if not data else data.decode()
         print(f"Recieved remote signal {data}")
         if this.getInputInterface() is not None:
-            this.getInputInterface().receive(data)
+            asyncio.create_task(this.getInputInterface().receive(data))
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
     
@@ -95,7 +100,7 @@ class Remote:
             print("Remote not found")
             return
         else:
-            print("Connecting...")
+            print("Connecting to remote...")
 
         async with bleak.BleakClient(device, disconnected_callback=this.__disconnected_callback) as client:
             service = client.services.get_service(this.getServiceUUID())
@@ -108,7 +113,7 @@ class Remote:
                 print("Characteristic not found")
                 return
 
-            print("Connected")
+            print("Remote connected")
             this.setConnected(True)
             if this.getCallbackOnConnect() is not None:
                 callback = this.getCallbackOnConnect()
@@ -130,7 +135,7 @@ class Remote:
         
         while this.isRunning():
             try:
-                await remote.__connect()
+                await this.__connect()
             except Exception as e:
                 print(f"An error occurred: {e}")
                 await asyncio.sleep(this.getCheckAliveInterval())
@@ -138,7 +143,8 @@ class Remote:
     async def await_power_on(this):
         
         asyncio.create_task(this.init())
+        await asyncio.sleep(this.getCheckConnectedInterval())
         while this.isRunning() and not this.isConnected():
-            await asyncio.sleep(this.getCheckAliveInterval())
+            await asyncio.sleep(this.getCheckConnectedInterval())
 
-remote = Remote()
+remoteInterface = RemoteInterface()

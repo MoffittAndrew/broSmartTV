@@ -3,11 +3,16 @@ print("Importing globals...")
 import os
 from PyQt5.QtCore import Qt
 
-PATH = os.path.dirname(__file__) + "/../../"
+PATH = os.path.dirname(__file__) + "/../"
 
 class DISPLAY:
     WIDTH = 1920
     HEIGHT = 1080
+
+class GUI:
+    BG_COLOR = Qt.black
+    BUTTON_COLOR = Qt.white
+    INPUT_INTERFACE_COLOR = Qt.red
 
 class BUTTON:
     MIN_WIDTH = 200
@@ -27,18 +32,34 @@ class TILE:
 class TILEGRID:
     COLUMNS = 5
 
+class IR_CODES:
+    ON = "KEY_POWER"
+    OFF = "KEY_POWER_OFF"
+    SELECT = "KEY_ENTER"
+    NAV_UP = "KEY_UP"
+    NAV_RIGHT = "KEY_RIGHT"
+    NAV_DOWN = "KEY_DOWN"
+    NAV_LEFT = "KEY_LEFT"
+    MENU = "KEY_MENU"
+    RETURN = "KEY_ESC"
+    VOL_UP = "KEY_VOLUMEUP"
+    VOL_DOWN = "KEY_VOLUMEDOWN"
+
 class REMOTE:
     NAME = "bro-ito"
     SERVICE_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x1849)
     CHARACTERISTIC_UUID = "0000{0:x}-0000-1000-8000-00805f9b34fb".format(0x2BA5)
-    CHECK_ALIVE_INTERVAL = 5
+    CHECK_ALIVE_INTERVAL = 10
+    CHECK_CONNECTED_INTERVAL = 1
     SCAN_TIMEOUT = 300
 
 class INPUT_MODES:
     GUI = 0
     PROJECTOR = 1
     WEB = 2
+
 class INPUT:
+    DELAY = 0.2
     MODES = INPUT_MODES
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"

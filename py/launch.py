@@ -1,14 +1,11 @@
 import asyncio
 import qtinter
 
-from remote import remote
-
 reload_modules = [
     "globals",
-    "projector_interface",
-    "ir",
-    "remote",
-    
+    "interface.projector_interface",
+    "interface.ir_interface",
+    "interface.remote_interface",
 ]
 
 def init_qt():
@@ -43,13 +40,16 @@ def init_qt():
     waiting_circ.setParent(LAUNCH_FRAME)
     waiting_circ.start()
 
-def projector_on():
+async def projector_on():
     
+    from interface.projector_interface import projectorInterface
     print("Switching projector on...")
-    from projector_interface import projectorInterface
-    projectorInterface.on()
+    await projectorInterface.on()
 
 def launch_app():
+    
+    from interface.remote_interface import remoteInterface
+    asyncio.create_task(remoteInterface.init())
     
     print("Launching main program...")
     from main import MAIN_WINDOW
@@ -83,22 +83,31 @@ async def update_then_launch():
 def launch():
     
     init_qt()
-    projector_on()
+    asyncio.create_task(projector_on())
     
     print("Starting launch screen...")
     LAUNCH_FRAME.show()
     asyncio.create_task(update_then_launch())
     APP.exec_()
+    
+    from interface.remote_interface import remoteInterface
+    remoteInterface.setRunning(False)
 
-async def main():
+async def wait_for_remote():
     
-    print("Starting launch.py...")
+    from interface.remote_interface import remoteInterface
     with qtinter.using_qt_from_asyncio():
-        await remote.await_power_on()
-        if remote.isRunning():
-            launch()
+        await remoteInterface.await_power_on()
+
+def main():
     
-    print("Exiting launch.py...")
+    from interface.remote_interface import remoteInterface
+    if remoteInterface.isRunning():
+        with qtinter.using_asyncio_from_qt():
+            launch()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("Starting launch.py...")
+    asyncio.run(wait_for_remote())
+    main()
+    print("Exiting launch.py...")

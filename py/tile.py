@@ -2,6 +2,7 @@ print("Importing tile class...")
 
 from globals import TILE
 from button import Button, ToggleButton
+from interface.input_interface import inputInterface
 #from web_interface import webInterface
 
 class Tile(Button):
@@ -49,7 +50,7 @@ class Tile(Button):
     ## Setters
     
     def setIndex(this, index):
-        if index != None:
+        if index is not None:
             index = int(index)
         this.__index = index
     
@@ -69,6 +70,22 @@ class Tile(Button):
     
     def editImg(this):
         return
+
+
+class ProjectorTile(Tile):
+    def __init__(
+        this,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        
+        menuOptions = [
+        ]
+        for menuOption in menuOptions:
+            this.addMenuOption(menuOption)
+        
+        this.setCallback(inputInterface.openProjectorMenu)
 
 
 class DeviceTile(Tile):
