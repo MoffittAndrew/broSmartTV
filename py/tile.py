@@ -81,25 +81,11 @@ class ProjectorTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_INPUT_TEXT, callback = this.openMenu),
         ]
         for menuOption in menuOptions:
             this.addMenuOption(menuOption)
         
-        this.setMenuCallback(inputInterface.openProjectorMenu)
-    
-    ## Setters
-    
-    def setMenuCallback(this, callback):
-        this.__menuCallback = callback
-        
-    ## Callbacks
-    
-    def openMenu(this):
-        if this.__menuCallback is not None:
-            this.__menuCallback()
-        else:
-            print("Cannot open projector menu, no menu callback has been set!")
+        this.setCallback(inputInterface.openProjectorMenu)
 
 
 class DeviceTile(Tile):
