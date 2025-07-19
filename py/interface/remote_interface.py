@@ -141,13 +141,14 @@ class RemoteInterface:
     
     async def await_power_on(this):
         
-        while True:
+        waiting = True
+        while waiting:
             device = await this.__scanAndConnect()
             if not device:
                 print("Remote not found")
             else:
                 print("Remote found!")
-                return
+                waiting = False
             
 
 remoteInterface = RemoteInterface()
