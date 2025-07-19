@@ -111,7 +111,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(wait_for_remote())
         main()
-    except KeyboardInterrupt as e:
-        print("An exception occurred:", e)
+    except KeyboardInterrupt:
+        print("Launch script manually cancelled by user")
         exit(130)
     print("Exiting launch.py...")
