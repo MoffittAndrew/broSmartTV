@@ -89,11 +89,6 @@ def launch():
     LAUNCH_FRAME.show()
     asyncio.create_task(update_then_launch())
     APP.exec_()
-    
-    from interface.remote_interface import remoteInterface
-    from globals import REMOTE
-    remoteInterface.setRunning(False)
-    asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL))
 
 async def wait_for_remote():
     
@@ -113,6 +108,13 @@ if __name__ == "__main__":
     try:
         asyncio.run(wait_for_remote())
         main()
+        
+        print("Waiting for remote loop to shut down...")
+        from interface.remote_interface import remoteInterface
+        from globals import REMOTE
+        remoteInterface.setRunning(False)
+        asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL))
+        
     except KeyboardInterrupt:
         print("Launch script manually cancelled by user")
         exit(130)
