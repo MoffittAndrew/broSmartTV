@@ -194,6 +194,7 @@ class InputInterface(QLabel):
         this.getProjectorInterface().back()
     
     def openProjectorMenu(this):
+        this.setMode(INPUT.MODES.PROJECTOR)
         this.getProjectorInterface().menu()
     
     def paintEvent(this, event=None):
