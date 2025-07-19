@@ -1,11 +1,13 @@
 import asyncio
 import qtinter
 
+from interface.remote_interface import remoteInterface
+
 reload_modules = [
     "globals",
     "interface.projector_interface",
     "interface.ir_interface",
-    "interface.remote_interface",
+    #"interface.remote_interface",
 ]
 
 def init_qt():
@@ -48,9 +50,6 @@ async def projector_on():
 
 def launch_app():
     
-    from interface.remote_interface import remoteInterface
-    asyncio.create_task(remoteInterface.init())
-    
     print("Launching main program...")
     from main import MAIN_WINDOW
     MAIN_WINDOW.show()
@@ -82,7 +81,6 @@ async def update_then_launch():
 
 async def wait_for_remote():
     
-    from interface.remote_interface import remoteInterface
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.await_power_on()
 
@@ -90,6 +88,7 @@ def main():
     
     with qtinter.using_asyncio_from_qt():
         asyncio.create_task(projector_on())
+        asyncio.create_task(remoteInterface.transfer_connection())
         init_qt()
         
         print("Starting launch screen...")
@@ -104,9 +103,9 @@ if __name__ == "__main__":
         main()
         
         print("Waiting for remote loop to shut down...")
-        from interface.remote_interface import remoteInterface
-        from globals import REMOTE
         remoteInterface.setRunning(False)
+        
+        from globals import REMOTE
         asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL + 1))
         
     except KeyboardInterrupt:
