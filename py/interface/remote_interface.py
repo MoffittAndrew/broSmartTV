@@ -137,6 +137,7 @@ class RemoteInterface:
         if callbackOnConnect is not None:
             this.setCallbackOnConnect(callbackOnConnect)
         
+        this.setRunning(True)
         while this.isRunning():
             try:
                 if not this.getDevice():
