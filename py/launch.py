@@ -80,16 +80,6 @@ async def update_then_launch():
     
     launch_app()
 
-def launch():
-    
-    init_qt()
-    asyncio.create_task(projector_on())
-    
-    print("Starting launch screen...")
-    LAUNCH_FRAME.show()
-    asyncio.create_task(update_then_launch())
-    APP.exec_()
-
 async def wait_for_remote():
     
     from interface.remote_interface import remoteInterface
@@ -99,7 +89,13 @@ async def wait_for_remote():
 def main():
     
     with qtinter.using_asyncio_from_qt():
-        launch()
+        asyncio.create_task(projector_on())
+        init_qt()
+        
+        print("Starting launch screen...")
+        LAUNCH_FRAME.show()
+        asyncio.create_task(update_then_launch())
+        APP.exec_()
 
 if __name__ == "__main__":
     print("Starting launch.py...")
