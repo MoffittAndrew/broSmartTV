@@ -1,7 +1,7 @@
 print("Importing tiles...")
 
 from globals import PATH
-from tile import Tile, DeviceTile#, WebTile
+from tile import Tile, ProjectorTile, DeviceTile#, WebTile
 
 from os import listdir
 from os.path import isfile, join
@@ -63,7 +63,7 @@ def _readTiles():
     
     tiles = []
     path = PATH + "tiles/"
-    tiles += _getTilesFromPath(path, Tile)
+    tiles += _getTilesFromPath(path, ProjectorTile)
     tiles += _getTilesFromPath(path + "device/", DeviceTile)
     #tiles += _getTilesFromPath(path + "web/", WebTile)
     

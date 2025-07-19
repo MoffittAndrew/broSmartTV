@@ -2,6 +2,7 @@ print("Importing tile class...")
 
 from globals import TILE
 from button import Button, ToggleButton
+from interface.input_interface import inputInterface
 #from web_interface import webInterface
 
 class Tile(Button):
@@ -69,6 +70,36 @@ class Tile(Button):
     
     def editImg(this):
         return
+
+
+class ProjectorTile(Tile):
+    def __init__(
+        this,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        
+        menuOptions = [
+            Button(text = TILE.EDIT_INPUT_TEXT, callback = this.openMenu),
+        ]
+        for menuOption in menuOptions:
+            this.addMenuOption(menuOption)
+        
+        this.setMenuCallback(inputInterface.openProjectorMenu)
+    
+    ## Setters
+    
+    def setMenuCallback(this, callback):
+        this.__menuCallback = callback
+        
+    ## Callbacks
+    
+    def openMenu(this):
+        if this.__menuCallback is not None:
+            this.__menuCallback()
+        else:
+            print("Cannot open projector menu, no menu callback has been set!")
 
 
 class DeviceTile(Tile):
