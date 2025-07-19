@@ -164,6 +164,7 @@ class RemoteInterface:
                 waiting = False
     
     async def disconnect(this):
+        print("Disconnecting from remote...")
         this.setRunning(False)
         if this.getClient() is not None:
             this.getClient().disconnect()
