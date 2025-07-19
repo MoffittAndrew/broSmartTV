@@ -35,6 +35,15 @@ class TILEGRID:
 class IR_CODES:
     ON = "KEY_POWER"
     OFF = "KEY_POWER_OFF"
+    SELECT = "KEY_ENTER"
+    NAV_UP = "KEY_UP"
+    NAV_RIGHT = "KEY_RIGHT"
+    NAV_DOWN = "KEY_DOWN"
+    NAV_LEFT = "KEY_LEFT"
+    MENU = "KEY_MENU"
+    RETURN = "KEY_ESC"
+    VOL_UP = "KEY_VOLUMEUP"
+    VOL_DOWN = "KEY_VOLUMEDOWN"
 
 class REMOTE:
     NAME = "bro-ito"
