@@ -24,7 +24,6 @@ def main():
         MAIN_WINDOW.show()
         APP.exec_()
         print("App closed.")
-        asyncio.run(remoteInterface.disconnect())
 
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)

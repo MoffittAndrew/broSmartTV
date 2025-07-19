@@ -1,6 +1,6 @@
 print("Importing remote interface...")
 
-from globals import REMOTE
+from globals import REMOTE, INPUT
 
 import asyncio
 import bleak
@@ -99,6 +99,8 @@ class RemoteInterface:
         print(f"Recieved remote signal {data}")
         if this.getInputInterface() is not None:
             asyncio.create_task(this.getInputInterface().receive(data))
+            if data == INPUT.POWER:
+                asyncio.create_task(this.disconnect())
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
     

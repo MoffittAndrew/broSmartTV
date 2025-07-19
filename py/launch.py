@@ -97,8 +97,7 @@ def main():
             LAUNCH_FRAME.show()
             asyncio.create_task(update_then_launch())
             APP.exec_()
-        
-        asyncio.run(remoteInterface.disconnect())
+    
     except KeyboardInterrupt:
         print()
         print("Launch script manually cancelled by user")
