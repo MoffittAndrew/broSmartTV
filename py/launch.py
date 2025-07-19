@@ -101,14 +101,10 @@ if __name__ == "__main__":
     try:
         asyncio.run(wait_for_remote())
         main()
-        
-        print("Waiting for remote loop to shut down...")
-        remoteInterface.setRunning(False)
-        
-        from globals import REMOTE
-        asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL + 1))
+        asyncio.run(remoteInterface.disconnect())
         
     except KeyboardInterrupt:
+        print()
         print("Launch script manually cancelled by user")
         exit(130)
     

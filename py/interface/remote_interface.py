@@ -37,6 +37,7 @@ class RemoteInterface:
         this.setRunning(running)
         this.setConnected(False)
         this.setDevice(None)
+        this.setClient(None)
     
     def getName(this):
         return this.__name
@@ -61,6 +62,9 @@ class RemoteInterface:
     
     def getDevice(this):
         return this.__device
+
+    def getClient(this):
+        return this.__client
     
     def isRunning(this):
         return this.__running
@@ -83,7 +87,10 @@ class RemoteInterface:
     def setDevice(this, device):
         this.__device = device
     
-    async def __scanAndConnect(this):
+    def setClient(this, client):
+        this.__client = client
+    
+    async def __findRemote(this):
         print("Scanning for remote...")
         this.setDevice(await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout()))
     
@@ -99,8 +106,9 @@ class RemoteInterface:
         print("Disconnected from remote.")
         this.setConnected(False)
 
-    async def __processConnection(this):
+    async def __connectToRemote(this):
         async with bleak.BleakClient(this.getDevice(), disconnected_callback=this.__disconnected_callback) as client:
+            this.setClient(client)
             service = client.services.get_service(this.getServiceUUID())
             if service is None:
                 print("Service not found")
@@ -131,10 +139,10 @@ class RemoteInterface:
             try:
                 if not this.getDevice():
                     print("Remote not found, scanning again...")
-                    await this.__scanAndConnect()
+                    await this.__findRemote()
                 else:
                     print("Connecting to remote...")
-                    await this.__processConnection()
+                    await this.__connectToRemote()
             
             except Exception as e:
                 print(f"An error occurred: {e}")
@@ -148,12 +156,19 @@ class RemoteInterface:
         
         waiting = True
         while waiting:
-            await this.__scanAndConnect()
+            await this.__findRemote()
             if not this.getDevice():
                 print("Remote not found")
             else:
                 print("Remote found!")
                 waiting = False
-            
+    
+    async def disconnect(this):
+        this.setRunning(False)
+        if this.getClient() is not None:
+            this.getClient().disconnect()
+            asyncio.sleep(this.getCheckAliveInterval())
+        else:
+            print("Cannot disconnect from remote, as there is no remote connected!")
 
 remoteInterface = RemoteInterface()
