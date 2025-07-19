@@ -1,8 +1,8 @@
 print("Importing GUI tools...")
 
-from globals import DISPLAY, INPUT
+from globals import DISPLAY, INPUT, GUI
 
-from PyQt5.QtWidgets import QApplication, QWidget, QStackedLayout
+from PyQt5.QtWidgets import QWidget, QStackedLayout
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QKeyEvent
 
@@ -15,7 +15,7 @@ class CustomQWindow(QWidget):
         this.__layout.setStackingMode(QStackedLayout.StackAll)
         this.setKeyboard(keyboard)
         this.setInputInterface(inputInterface)
-        
+    
     def getKeyboard(this):
         return this.__keyboard
 
@@ -24,34 +24,34 @@ class CustomQWindow(QWidget):
     
     def getInputInterface(this):
         return this.__inputInterface
-        
+    
     def setKeyboard(this, keyboard):
         this.__keyboard = keyboard
-        
+    
     def setTab(this, tab):
         if isinstance(tab, QWidget):
             this.__layout.setCurrentWidget(tab)
         else:
             this.__tab = tab
             this.__layout.setCurrentIndex(this.getTab())
-            
+        
         inputInterface = this.getInputInterface()
-        if inputInterface != None:
+        if inputInterface is not None:
             inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())
             this.__layout.setCurrentWidget(inputInterface)
-        
+    
     def setInputInterface(this, inputInterface):
         this.__inputInterface = inputInterface
-        if inputInterface != None:
+        if inputInterface is not None:
             this.addWidget(inputInterface)
-        
+    
     def addWidget(this, widget):
         widget.setParent(this)
         this.__layout.addWidget(widget)
         this.setLayout(this.__layout)
-    
+
     def keyPressEvent(this, event, *args, **kwargs):
-        if this.getKeyboard() != None:
+        if this.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
                 key = event.key()
                 this.getKeyboard().receive(key)
@@ -59,17 +59,18 @@ class CustomQWindow(QWidget):
             return super().keyPressEvent(event, *args, **kwargs)
     
     def keyReleaseEvent(this, event, *args, **kwargs):
-        if this.getKeyboard() != None:
+        if this.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
                 key = event.key()
                 this.getKeyboard().receive(key, INPUT.RELEASED_PREFIX)
         else:
             return super().keyReleaseEvent(event, *args, **kwargs)
-        
-    
-
-APP = QApplication([])
 
 MAIN_WINDOW = CustomQWindow()
 MAIN_WINDOW.setWindowTitle("bro is literally a smart tv")
 MAIN_WINDOW.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
+
+MAIN_WINDOW.setAutoFillBackground(True)
+p = MAIN_WINDOW.palette()
+p.setColor(MAIN_WINDOW.backgroundRole(), GUI.BG_COLOR)
+MAIN_WINDOW.setPalette(p)
