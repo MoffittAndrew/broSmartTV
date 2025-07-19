@@ -29,7 +29,9 @@ class ProjectorInterface:
         this.send(IR_CODES.RETURN)
     
     def off(this):
-        this.send(IR_CODES.OFF)
+        # for now
+        #this.send(IR_CODES.OFF)
+        ...
     
     def select(this):
         this.send(IR_CODES.SELECT)
