@@ -132,7 +132,7 @@ class RemoteInterface:
             while client.is_connected:
                 await asyncio.sleep(this.getCheckAliveInterval())
     
-    async def transfer_connection(this, callbackOnConnect = None):
+    async def connect(this, callbackOnConnect = None):
         
         if callbackOnConnect is not None:
             this.setCallbackOnConnect(callbackOnConnect)
@@ -150,7 +150,7 @@ class RemoteInterface:
                 print(f"An error occurred: {e}")
                 await asyncio.sleep(this.getCheckAliveInterval())
     
-    async def await_power_on(this):
+    async def awaitFindRemote(this):
         
         print("Initializing remote scan...")
         this.setRunning(True)

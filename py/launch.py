@@ -79,25 +79,25 @@ async def update_then_launch():
     
     launch_app()
 
-async def wait_for_remote():
+async def awaitFindRemote():
     
     with qtinter.using_qt_from_asyncio():
-        await remoteInterface.await_power_on()
+        await remoteInterface.awaitFindRemote()
 
 def main():
     
     try:
-        asyncio.run(wait_for_remote())
+        asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
             asyncio.create_task(projector_on())
-            asyncio.create_task(remoteInterface.transfer_connection())
+            asyncio.create_task(remoteInterface.connect())
             init_qt()
             
             print("Starting launch screen...")
             LAUNCH_FRAME.show()
             asyncio.create_task(update_then_launch())
             APP.exec_()
-    
+
     except KeyboardInterrupt:
         print()
         print("Launch script manually cancelled by user")

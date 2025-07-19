@@ -19,7 +19,7 @@ print("Completed imports.")
 
 def main():
     with qtinter.using_asyncio_from_qt():  # <-- enable asyncio in qt code
-        asyncio.create_task(remoteInterface.init())
+        asyncio.create_task(remoteInterface.connect())
         print("Starting GUI...")
         MAIN_WINDOW.show()
         APP.exec_()
