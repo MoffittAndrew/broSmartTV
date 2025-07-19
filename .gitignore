@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project-specific
+# We want to manage the projector and device tiles, but not the others
+tiles/web/
+tiles/imgs/
