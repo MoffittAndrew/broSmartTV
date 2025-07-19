@@ -86,26 +86,25 @@ async def wait_for_remote():
 
 def main():
     
-    with qtinter.using_asyncio_from_qt():
-        asyncio.create_task(projector_on())
-        asyncio.create_task(remoteInterface.transfer_connection())
-        init_qt()
-        
-        print("Starting launch screen...")
-        LAUNCH_FRAME.show()
-        asyncio.create_task(update_then_launch())
-        APP.exec_()
-
-if __name__ == "__main__":
-    print("Starting launch.py...")
     try:
         asyncio.run(wait_for_remote())
-        main()
-        asyncio.run(remoteInterface.disconnect())
+        with qtinter.using_asyncio_from_qt():
+            asyncio.create_task(projector_on())
+            asyncio.create_task(remoteInterface.transfer_connection())
+            init_qt()
+            
+            print("Starting launch screen...")
+            LAUNCH_FRAME.show()
+            asyncio.create_task(update_then_launch())
+            APP.exec_()
         
+        asyncio.run(remoteInterface.disconnect())
     except KeyboardInterrupt:
         print()
         print("Launch script manually cancelled by user")
         exit(130)
-    
+
+if __name__ == "__main__":
+    print("Starting launch.py...")
+    main()
     print("Exiting launch.py...")
