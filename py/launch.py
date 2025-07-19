@@ -1,8 +1,6 @@
 import asyncio
 import qtinter
 
-from interface.remote_interface import remoteInterface
-
 reload_modules = [
     "globals",
     "interface.projector_interface",
@@ -50,6 +48,9 @@ def projector_on():
 
 def launch_app():
     
+    from interface.remote_interface import remoteInterface
+    asyncio.create_task(remoteInterface.init())
+    
     print("Launching main program...")
     from main import MAIN_WINDOW
     MAIN_WINDOW.show()
@@ -91,11 +92,13 @@ def launch():
 
 async def wait_for_remote():
     
+    from interface.remote_interface import remoteInterface
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.await_power_on()
 
 def main():
     
+    from interface.remote_interface import remoteInterface
     if remoteInterface.isRunning():
         with qtinter.using_asyncio_from_qt():
             launch()
