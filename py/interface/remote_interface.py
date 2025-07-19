@@ -77,7 +77,8 @@ class RemoteInterface:
         this.__connected = connected
     
     async def __scanAndConnect(this):
-        return bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout())
+        device = await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout())
+        return device
     
     def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
