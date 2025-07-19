@@ -101,7 +101,7 @@ def main():
     from interface.remote_interface import remoteInterface
     if remoteInterface.isRunning():
         with qtinter.using_asyncio_from_qt():
-            launch()
+            asyncio.run(launch())
 
 if __name__ == "__main__":
     print("Starting launch.py...")
