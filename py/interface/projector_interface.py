@@ -27,21 +27,30 @@ class ProjectorInterface:
         this.send(IR_CODES.OFF)
     
     def select(this):
-        this.send(...)
+        this.send(IR_CODES.SELECT)
     
     def navUp(this):
-        this.send(...)
+        this.send(IR_CODES.NAV_UP)
     
     def navRight(this):
-        this.send(...)
+        this.send(IR_CODES.NAV_RIGHT)
     
     def navDown(this):
-        this.send(...)
+        this.send(IR_CODES.NAV_DOWN)
     
     def navLeft(this):
-        this.send(...)
+        this.send(IR_CODES.NAV_LEFT)
     
     def back(this):
-        this.send(...)
+        this.send(IR_CODES.RETURN)
+    
+    def menu(this):
+        this.send(IR_CODES.MENU)
+    
+    def volUp(this):
+        this.send(IR_CODES.VOL_UP)
+    
+    def volDown(this):
+        this.send(IR_CODES.VOL_DOWN)
 
 projectorInterface = ProjectorInterface(irInterface=irInterface)

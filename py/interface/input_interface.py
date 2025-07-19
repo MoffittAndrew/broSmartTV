@@ -98,6 +98,12 @@ class InputInterface(QLabel):
             this.navigate(data)
         elif data == INPUT.RETURN:
             this.back()
+        elif data == INPUT.VOL_UP:
+            this.volUp()
+        elif data == INPUT.VOL_DOWN:
+            this.volDown()
+        elif data == INPUT.HOME:
+            this.home()
     
     def select(this):
         if this.inProjectorMode():
@@ -114,58 +120,75 @@ class InputInterface(QLabel):
                 print("No initial selected button set.")
     
     def navigate(this, index:str = INPUT.NAV_RIGHT):
-        if this.inProjectorMode():
-            if index == INPUT.NAV_UP:
-                this.getProjectorInterface().navUp()
-            elif index == INPUT.NAV_RIGHT:
-                this.getProjectorInterface().navRight()
-            elif index == INPUT.NAV_DOWN:
-                this.getProjectorInterface().navDown()
-            elif index == INPUT.NAV_LEFT:
-                this.getProjectorInterface().navLeft()
-        else:
-            selectedButton = this.getSelectedButton()
-            if selectedButton is not None:
-                if not this.inWebMode():
-                    newButton = selectedButton.getNavButton(index)
-                
-                else:
-                    driver = this.getWebDriver()
-                    if driver is not None:
-                        if index == INPUT.NAV_UP:
-                            newButtonLocator = driver.getElementAbove(selectedButton)
-                        elif index == INPUT.NAV_RIGHT:
-                            newButtonLocator = driver.getElementRight(selectedButton)
-                        elif index == INPUT.NAV_DOWN:
-                            newButtonLocator = driver.getElementBelow(selectedButton)
-                        elif index == INPUT.NAV_LEFT:
-                            newButtonLocator = driver.getElementLeft(selectedButton)
-                        newButton = driver.find_element(newButtonLocator)
-                    else:
-                        print("No webdriver set!")
-                
-                if newButton is not None:
-                    this.setSelectedButton(newButton)
+        selectedButton = this.getSelectedButton()
+        if selectedButton is not None:
+            if not this.inWebMode():
+                newButton = selectedButton.getNavButton(index)
+            
             else:
-                print("No initial selected button set.")
+                driver = this.getWebDriver()
+                if driver is not None:
+                    if index == INPUT.NAV_UP:
+                        newButtonLocator = driver.getElementAbove(selectedButton)
+                    elif index == INPUT.NAV_RIGHT:
+                        newButtonLocator = driver.getElementRight(selectedButton)
+                    elif index == INPUT.NAV_DOWN:
+                        newButtonLocator = driver.getElementBelow(selectedButton)
+                    elif index == INPUT.NAV_LEFT:
+                        newButtonLocator = driver.getElementLeft(selectedButton)
+                    newButton = driver.find_element(newButtonLocator)
+                else:
+                    print("No webdriver set!")
+            
+            if newButton is not None:
+                this.setSelectedButton(newButton)
+        else:
+            print("No initial selected button set.")
     
     def navUp(this):
-        this.navigate(INPUT.NAV_UP)
+        if this.inProjectorMode():
+            this.getProjectorInterface().navUp()
+        else:
+            this.navigate(INPUT.NAV_UP)
     
     def navRight(this):
-        this.navigate(INPUT.NAV_RIGHT)
+        if this.inProjectorMode():
+            this.getProjectorInterface().navUp()
+        else:
+            this.navigate(INPUT.NAV_RIGHT)
     
     def navDown(this):
-        this.navigate(INPUT.NAV_DOWN)
+        if this.inProjectorMode():
+            this.getProjectorInterface().navUp()
+        else:
+            this.navigate(INPUT.NAV_DOWN)
     
     def navLeft(this):
-        this.navigate(INPUT.NAV_LEFT)
+        if this.inProjectorMode():
+            this.getProjectorInterface().navUp()
+        else:
+            this.navigate(INPUT.NAV_LEFT)
     
     def back(this):
         if this.inProjectorMode():
             this.getProjectorInterface().back()
         elif this.inWebMode():
             this.getWebDriver().quit()
+    
+    def volUp(this):
+        this.getProjectorInterface().volUp()
+    
+    def volDown(this):
+        this.getProjectorInterface().volDown()
+    
+    def home(this):
+        this.setMode(INPUT.MODES.GUI)
+        this.getProjectorInterface().menu()
+        this.getProjectorInterface().back()
+    
+    def openProjectorMenu(this):
+        this.setMode(INPUT.MODES.PROJECTOR)
+        this.getProjectorInterface().menu()
     
     def paintEvent(this, event=None):
         painter = QtGui.QPainter()

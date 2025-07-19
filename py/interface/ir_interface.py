@@ -7,6 +7,6 @@ class IRInterface:
         ...
     
     def send(this, data):
-        os.system(f"sudo irsend SEND_ONCE projector {data}")
+        os.system(f"sudo irsend SEND_ONCE Projector {data}")
 
 irInterface = IRInterface()
