@@ -167,8 +167,8 @@ class RemoteInterface:
         print("Disconnecting from remote...")
         this.setRunning(False)
         if this.getClient() is not None:
-            this.getClient().disconnect()
-            asyncio.sleep(this.getCheckAliveInterval())
+            await this.getClient().disconnect()
+            await asyncio.sleep(this.getCheckAliveInterval())
         else:
             print("Cannot disconnect from remote, as there is no remote connected!")
 
