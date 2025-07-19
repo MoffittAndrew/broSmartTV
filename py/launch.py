@@ -48,7 +48,7 @@ async def projector_on():
     print("Switching projector on...")
     await projectorInterface.on()
 
-def launch_app():
+def launch():
     
     print("Launching main program...")
     from main import MAIN_WINDOW
@@ -57,7 +57,7 @@ def launch_app():
     waiting_circ.stop()
     LAUNCH_FRAME.hide()
 
-async def update_then_launch():
+async def updateThenLaunch():
     
     print("Running update script...")
     try:
@@ -77,7 +77,7 @@ async def update_then_launch():
             sys.modules.pop(mod)
         print("Reloaded modules.")
     
-    launch_app()
+    launch()
 
 async def awaitFindRemote():
     
@@ -95,7 +95,7 @@ def main():
             
             print("Starting launch screen...")
             LAUNCH_FRAME.show()
-            asyncio.create_task(update_then_launch())
+            asyncio.create_task(updateThenLaunch())
             APP.exec_()
 
     except KeyboardInterrupt:
