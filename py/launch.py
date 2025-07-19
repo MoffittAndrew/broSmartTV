@@ -89,6 +89,9 @@ def launch():
     LAUNCH_FRAME.show()
     asyncio.create_task(update_then_launch())
     APP.exec_()
+    
+    from interface.remote_interface import remoteInterface
+    remoteInterface.setRunning(False)
 
 async def wait_for_remote():
     
