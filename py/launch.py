@@ -107,9 +107,10 @@ if __name__ == "__main__":
         from interface.remote_interface import remoteInterface
         from globals import REMOTE
         remoteInterface.setRunning(False)
-        asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL))
+        asyncio.run(asyncio.sleep(REMOTE.CHECK_ALIVE_INTERVAL + 1))
         
     except KeyboardInterrupt:
         print("Launch script manually cancelled by user")
         exit(130)
+    
     print("Exiting launch.py...")
