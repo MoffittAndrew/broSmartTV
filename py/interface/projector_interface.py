@@ -59,5 +59,15 @@ class ProjectorInterface:
     
     def volDown(this):
         this.send(IR_CODES.VOL_DOWN)
+    
+    async def switchInputChannel(this, inputChannel):
+        if inputChannel == INPUT.CHANNELS.VGA:
+            this.send(IR_CODES.SRC_ + inputChannel)
+        elif inputChannel == INPUT.CHANNELS.COMPONENT:
+            ...
+        else: # Default to HDMI
+            this.send(IR_CODES.SRC_ + INPUT.CHANNELS.VGA)
+            await sleep(INPUT.DELAY)
+            this.send(IR_CODES.SRC_ + INPUT.CHANNELS.SEARCH)
 
 projectorInterface = ProjectorInterface(irInterface=irInterface)

@@ -18,6 +18,7 @@ class InputInterface(QLabel):
         this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
         this.setProjectorInterface(projectorInterface)
+        this.__backlog = []
         
         this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         this.setAttribute(Qt.WA_TranslucentBackground)
@@ -30,6 +31,9 @@ class InputInterface(QLabel):
 
     def inWebMode(this):
         return this.getMode() == INPUT.MODES.WEB
+
+    def inOtherMode(this):
+        return this.getMode() == INPUT.MODES.OTHER
     
     def getMode(this):
         return this.__mode
@@ -94,20 +98,37 @@ class InputInterface(QLabel):
         this.__projectorInterface = projectorInterface
     
     async def receive(this, data):
-        if data == INPUT.POWER:
-            this.powerOff()
-        elif data == INPUT.SELECT:
-            this.select()
-        elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
-            this.navigate(data)
-        elif data == INPUT.RETURN:
-            this.back()
-        elif data == INPUT.VOL_UP:
-            this.volUp()
-        elif data == INPUT.VOL_DOWN:
-            this.volDown()
-        elif data == INPUT.HOME:
-            await this.home()
+        this.addToBacklog(data)
+        await this.processBacklog()
+    
+    def getNextFromBacklog(this):
+        next = this.__backlog[0]
+        del this.__backlog[0]
+        return next
+    
+    def addToBacklog(this, data):
+        this.__backlog.append(data)
+    
+    async def processBacklog(this):
+        while len(this.__backlog) > 0:
+            
+            data = this.getNextFromBacklog()
+            if data == INPUT.POWER:
+                this.powerOff()
+            elif data == INPUT.SELECT:
+                this.select()
+            elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
+                this.navigate(data)
+            elif data == INPUT.RETURN:
+                this.back()
+            elif data == INPUT.VOL_UP:
+                this.volUp()
+            elif data == INPUT.VOL_DOWN:
+                this.volDown()
+            elif data == INPUT.HOME:
+                await this.home()
+            
+            await sleep(INPUT.DELAY)
     
     def powerOff(this):
         this.getProjectorInterface().off()
@@ -137,7 +158,7 @@ class InputInterface(QLabel):
                 this.getProjectorInterface().navDown()
             elif index == INPUT.NAV_LEFT:
                 this.getProjectorInterface().navLeft()
-        else:
+        elif not this.inOtherMode():
             selectedButton = this.getSelectedButton()
             if selectedButton is not None:
                 if not this.inWebMode():
@@ -188,6 +209,8 @@ class InputInterface(QLabel):
         this.getProjectorInterface().volDown()
     
     async def home(this):
+        if this.inOtherMode():
+            await this.switchProjectorInputChannel(INPUT.CHANNELS.HDMI)
         this.setMode(INPUT.MODES.GUI)
         this.getProjectorInterface().menu()
         await sleep(INPUT.DELAY)
@@ -196,6 +219,11 @@ class InputInterface(QLabel):
     def openProjectorMenu(this):
         this.setMode(INPUT.MODES.PROJECTOR)
         this.getProjectorInterface().menu()
+    
+    async def switchProjectorInputChannel(this, inputChannel):
+        if inputChannel != INPUT.CHANNELS.HDMI:
+            this.setMode(INPUT.MODES.OTHER)
+        await this.getProjectorInterface().switchInputChannel(inputChannel)
     
     def paintEvent(this, event=None):
         painter = QtGui.QPainter()

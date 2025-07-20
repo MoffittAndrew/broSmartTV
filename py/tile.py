@@ -104,6 +104,7 @@ class DeviceTile(Tile):
             this.addMenuOption(menuOption)
         
         this.setInputChannel(inputChannel)
+        this.setCallback(this.switchInputChannel)
         
     ## Getters
     
@@ -124,6 +125,9 @@ class DeviceTile(Tile):
         
     ## Callbacks
     
+    def switchInputChannel(this):
+        inputInterface.switchProjectorInputChannel(this.getInputChannel())
+    
     def editInputChannel(this):
         return
 
@@ -139,7 +143,7 @@ class WebTile(Tile):
         *args,
         **kwargs,
     ):
-        super().__init__(callback = this.openURL, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         
         menuOptions = [
             Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
@@ -154,6 +158,7 @@ class WebTile(Tile):
         this.setIsMusic(isMusic)
         this.setHasSearch(hasSearch)
         this.setIsPirate(isPirate)
+        this.setCallback(this.openURL)
         
     ## Getters
     

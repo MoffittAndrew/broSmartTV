@@ -44,6 +44,7 @@ class IR_CODES:
     RETURN = "KEY_ESC"
     VOL_UP = "KEY_VOLUMEUP"
     VOL_DOWN = "KEY_VOLUMEDOWN"
+    SRC_ = "KEY_SRC_"
 
 class REMOTE:
     NAME = "bro-ito"
@@ -56,10 +57,17 @@ class INPUT_MODES:
     GUI = 0
     PROJECTOR = 1
     WEB = 2
+    OTHER = 3
+
+class INPUT_CHANNELS:
+    HDMI = "HDMI"
+    VGA = "VGA"
+    COMPONENT = "COMPONENT"
 
 class INPUT:
     DELAY = 0.2
     MODES = INPUT_MODES
+    CHANNELS = INPUT_CHANNELS
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
     HOME = "HOME"
