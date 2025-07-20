@@ -60,6 +60,7 @@ class INPUT_MODES:
     OTHER = 3
 
 class INPUT_CHANNELS:
+    SEARCH = "SEARCH"
     HDMI = "HDMI"
     VGA = "VGA"
     COMPONENT = "COMPONENT"
