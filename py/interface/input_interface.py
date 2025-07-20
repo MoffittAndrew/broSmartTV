@@ -207,9 +207,13 @@ class InputInterface(QLabel):
     
     async def volUp(this):
         await this.getProjectorInterface().volUp()
+        if this.inProjectorMode():
+            this.setMode(INPUT.MODES.GUI)
     
     async def volDown(this):
         await this.getProjectorInterface().volDown()
+        if this.inProjectorMode():
+            this.setMode(INPUT.MODES.GUI)
     
     async def home(this):
         if this.inOtherMode():
