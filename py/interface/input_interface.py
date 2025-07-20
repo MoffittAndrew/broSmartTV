@@ -13,6 +13,7 @@ class InputInterface(QLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.setMode(INPUT.MODES.GUI)
+        this.setOldMode(INPUT.MODES.GUI)
         this.setWidth(0)
         this.setHeight(0)
         this.setPos(QPoint(0, 0))
@@ -39,6 +40,9 @@ class InputInterface(QLabel):
     def getMode(this):
         return this.__mode
 
+    def getOldMode(this):
+        return this.__oldMode
+
     def getWebDriver(this):
         return this.__webdriver
     
@@ -61,7 +65,11 @@ class InputInterface(QLabel):
         if mode == INPUT.MODES.PROJECTOR and this.getProjectorInterface() is None:
             print("Cannot set input interface to projector mode, no projector interface has been set!")
         else:
+            this.setOldMode(this.getMode())
             this.__mode = mode
+    
+    def setOldMode(this, oldMode):
+        this.__oldMode = oldMode
     
     def setWebDriver(this, webdriver):
         this.__webdriver = webdriver
@@ -208,12 +216,12 @@ class InputInterface(QLabel):
     async def volUp(this):
         await this.getProjectorInterface().volUp()
         if this.inProjectorMode():
-            this.setMode(INPUT.MODES.GUI)
+            this.setMode(this.getOldMode())
     
     async def volDown(this):
         await this.getProjectorInterface().volDown()
         if this.inProjectorMode():
-            this.setMode(INPUT.MODES.GUI)
+            this.setMode(this.getOldMode())
     
     async def home(this):
         if this.inOtherMode():
