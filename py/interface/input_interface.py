@@ -7,6 +7,8 @@ from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint, QCoreApplication
 
+import asyncio
+
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -96,10 +98,10 @@ class InputInterface(QLabel):
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
     
-    async def receive(this, data):
+    def receive(this, data):
         this.addToBacklog(data)
         if not this.__isProcessingBacklog:
-            await this.processBacklog()
+            asyncio.create_task(this.processBacklog())
     
     def getNextFromBacklog(this):
         next = this.__backlog[0]

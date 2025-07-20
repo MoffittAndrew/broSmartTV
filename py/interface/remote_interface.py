@@ -100,7 +100,7 @@ class RemoteInterface:
         if this.getInputInterface() is not None:
             asyncio.create_task(this.getInputInterface().receive(data))
             if data == INPUT.POWER:
-                asyncio.create_task(this.disconnect())
+                this.disconnect()
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
     
