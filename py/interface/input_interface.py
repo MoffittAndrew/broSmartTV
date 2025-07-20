@@ -65,7 +65,8 @@ class InputInterface(QLabel):
         if mode == INPUT.MODES.PROJECTOR and this.getProjectorInterface() is None:
             print("Cannot set input interface to projector mode, no projector interface has been set!")
         else:
-            this.setOldMode(this.getMode())
+            if this.getMode() != mode:
+                this.setOldMode(this.getMode())
             this.__mode = mode
     
     def setOldMode(this, oldMode):
