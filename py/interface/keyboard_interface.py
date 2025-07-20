@@ -2,6 +2,8 @@ print("Importing keyboard interface...")
 
 from globals import INPUT
 
+import asyncio
+
 class KeyboardInterface:
     def __init__(this, inputInterface = None):
         this.setInputInterface(inputInterface)
@@ -25,7 +27,7 @@ class KeyboardInterface:
             
             print(f"Recieved keyboard signal {keyStr}")
             if this.getInputInterface() is not None:
-                this.getInputInterface().receive(keyStr)
+                asyncio.create_task(this.getInputInterface().receive(keyStr))
             else:
                 print("Keyboard has no input interface!")
 

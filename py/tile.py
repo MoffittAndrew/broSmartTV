@@ -125,8 +125,8 @@ class DeviceTile(Tile):
         
     ## Callbacks
     
-    def switchInputChannel(this):
-        inputInterface.switchProjectorInputChannel(this.getInputChannel())
+    async def switchInputChannel(this):
+        await inputInterface.switchProjectorInputChannel(this.getInputChannel())
     
     def editInputChannel(this):
         return
