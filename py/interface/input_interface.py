@@ -1,6 +1,6 @@
 print("Importing input interface...")
 
-from globals import INPUT, GUI
+from globals import INPUT, GUI, PROJECTOR
 from button import Button
 
 from PyQt5 import QtGui
@@ -213,7 +213,7 @@ class InputInterface(QLabel):
     
     async def home(this):
         if this.inOtherMode():
-            await this.switchProjectorInputChannel(INPUT.CHANNELS.HDMI)
+            await this.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
         this.setMode(INPUT.MODES.GUI)
         await this.getProjectorInterface().menu()
         await this.getProjectorInterface().back()
@@ -223,7 +223,7 @@ class InputInterface(QLabel):
         await this.getProjectorInterface().menu()
     
     async def switchProjectorInputChannel(this, inputChannel):
-        if inputChannel != INPUT.CHANNELS.HDMI:
+        if inputChannel != PROJECTOR.CHANNELS.HDMI:
             this.setMode(INPUT.MODES.OTHER)
         await this.getProjectorInterface().switchInputChannel(inputChannel)
     
