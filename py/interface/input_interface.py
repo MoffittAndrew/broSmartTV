@@ -215,7 +215,8 @@ class InputInterface(QLabel):
         if this.inOtherMode():
             await this.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
         this.setMode(INPUT.MODES.GUI)
-        await this.getProjectorInterface().menu()
+        if this.inProjectorMode():
+            await this.getProjectorInterface().menu()
         await this.getProjectorInterface().back()
     
     async def openProjectorMenu(this):
