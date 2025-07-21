@@ -12,7 +12,7 @@ import asyncio
 class InputInterface(QLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setMode(INPUT.MODES.GUI)
+        this.__mode = INPUT.MODES.GUI
         this.setOldMode(INPUT.MODES.GUI)
         this.setWidth(0)
         this.setHeight(0)
