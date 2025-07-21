@@ -96,7 +96,7 @@ class INPUT:
         NAV_DOWN: Qt.Key_Down,
         NAV_LEFT: Qt.Key_Left,
         MENU: Qt.Key_Space,
-        RETURN: Qt.Key_Esc,
+        RETURN: Qt.Key_Escape,
     }
 
 class WEB:
