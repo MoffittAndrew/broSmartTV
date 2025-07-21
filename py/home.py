@@ -1,19 +1,21 @@
 print("Importing home screen...")
 
-from button import Button
+from globals import GUI, DISPLAY
+from button import NavBarButton
+from gui import CustomQWidget
 from tilegrid import tileGrid
 from settings_screen import settingsScreen
 from search_screen import searchScreen
 from filter_screen import filterScreen
 from edit_screen import editScreen
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
 
-settingsButton = Button(text = "settings")
-searchButton = Button(text = "search")
-homeButton = Button(text = "home")
-filterButton = Button(text = "filter")
-editButton = Button(text = "edit")
+settingsButton = NavBarButton(text = "settings")
+searchButton = NavBarButton(text = "search")
+homeButton = NavBarButton(text = "home")
+filterButton = NavBarButton(text = "filter")
+editButton = NavBarButton(text = "edit")
 
 _buttons = [
     settingsButton,
@@ -34,7 +36,7 @@ _bodyWidgets = [
 
 tileGrid.setNavBarButton(homeButton)
 
-class NavBar(QWidget):
+class NavBar(CustomQWidget):
     def __init__(this, buttons:list = _buttons, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -50,7 +52,7 @@ class NavBar(QWidget):
     
     ## Setters
     
-    def setButtons(this, buttons: list[Button]):
+    def setButtons(this, buttons: list[NavBarButton]):
         
         if len(buttons) > 0:
             for i in range(len(buttons) - 1):
@@ -65,8 +67,9 @@ class NavBar(QWidget):
         for button in this.getButtons():
             layout.addWidget(button)
         
+        this.setFixedWidth(len(buttons) * GUI.NAVBAR.BUTTON_WIDTH)
+        this.setFixedHeight(GUI.NAVBAR.BUTTON_HEIGHT)
         this.setLayout(layout)
-        this.updateChildPos()
     
     def setCurrentButton(this, button):
         this.__currentButton = button
@@ -77,27 +80,14 @@ class NavBar(QWidget):
     def setPrimaryButton(this, primaryButton):
         for button in this.getButtons():
             button.setNavDown(primaryButton)
-    
-    def updateChildPos(this):
-        for button in this.getButtons():
-            button.setParentPos(this.pos())
-            print(this.pos())
-            print(button.getParentPos())
 
-class HomeBody(QWidget):
+class HomeBody(CustomQWidget):
     def __init__(this, widgets:list = _bodyWidgets, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__layout = QStackedLayout()
         this.__layout.setContentsMargins(0, 0, 0, 0)
         
         this.setWidgets(widgets)
-        for widget in this.getWidgets():
-            this.__layout.addWidget(widget)
-        
-        this.setLayout(this.__layout)
-        
-        for button in navBar.getButtons():
-            button.setParentPos(navBar.pos())
     
     def getPrimaryButton(this):
         return this.__layout.currentWidget().getPrimaryButton()
@@ -110,68 +100,61 @@ class HomeBody(QWidget):
     
     def setWidgets(this, widgets):
         this.__widgets = widgets
-        this.updateChildPos()
+        for widget in this.getWidgets():
+            this.__layout.addWidget(widget)
+        
+        this.setFixedWidth(DISPLAY.WIDTH)
+        this.setLayout(this.__layout)
     
     def setTab(this, index):
         this.__tab = index
         this.__layout.setCurrentIndex(this.getTab())
-    
-    def updateChildPos(this):
-        for widget in this.getWidgets():
-            widget.updateChildPos()
 
 
-class HomeScreen(QWidget):
+class HomeScreen(CustomQWidget):
     def __init__(this, navBar:NavBar, body:HomeBody, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        this.__navBar = navBar
+        this.__body = body
+
+        this.__body.setFixedHeight(DISPLAY.HEIGHT - this.__navBar.height())
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(this.__navBar)
+        layout.addWidget(this.__body)
         
-        this.setNavBar(navBar)
-        this.setBody(body)
-        layout.addWidget(this.getNavBar())
-        layout.addWidget(this.getBody())
-        
+        this.setFixedHeight(DISPLAY.HEIGHT)
+        this.setFixedWidth(DISPLAY.WIDTH)
         this.setLayout(layout)
+        
         for i in range(len(_buttons)):
             if _buttons[i].equals(homeButton):
-                this.setTab(i)
-    
-    def getNavBar(this):
-        return this.__navBar
-    
-    def getBody(this):
-        return this.__body
+                this.setDefaultTab(i)
+        
+        this.setTab()
     
     def getPrimaryButton(this):
-        return this.getBody().getPrimaryButton()
+        return this.__body.getPrimaryButton()
     
-    def setNavBar(this, navBar):
-        this.__navBar = navBar
-        this.getNavBar().updateChildPos() 
+    def getDefaultTab(this):
+        return this.__defaultTab
     
-    def setBody(this, body):
-        this.__body = body
-        this.getBody().updateChildPos()
+    def setDefaultTab(this, tab):
+        this.__defaultTab = tab
     
-    def setTab(this, index):
-        this.getNavBar().setTab(index)
-        this.getBody().setTab(index)
+    def setTab(this, index=None):
+        if index is None:
+            index = this.getDefaultTab()
         
-        this.getNavBar().setPrimaryButton(this.getPrimaryButton())
+        this.__navBar.setTab(index)
+        this.__body.setTab(index)
+        
+        this.__navBar.setPrimaryButton(this.getPrimaryButton())
     
-    def setPos(this, pos1, pos2 = None):
-        if pos2 is not None:
-            this.move(pos1, pos2)
-        else:
-            this.move(pos1[0], pos1[1])
-        this.updateChildPos()
-        print("HOME POS:", this.pos())
-    
-    def updateChildPos(this):
-        this.getNavBar().updateChildPos()
-        this.getBody().updateChildPos()
+    async def asyncSetTab(this, index=None):
+        this.setTab(index)
 
 navBar = NavBar()
 body = HomeBody()
@@ -179,4 +162,4 @@ body = HomeBody()
 homeScreen = HomeScreen(navBar, body)
 
 for i in range(len(_buttons)):
-    _buttons[i].setCallback(homeScreen.setTab, i)
+    _buttons[i].setCallback(homeScreen.asyncSetTab, i)

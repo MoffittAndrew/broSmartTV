@@ -1,8 +1,8 @@
 print("Importing search screen...")
 
-from PyQt5.QtWidgets import QWidget
+from gui import CustomQWidget
 
-class SearchScreen(QWidget):
+class SearchScreen(CustomQWidget):
     def __init__(this, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -20,14 +20,9 @@ class SearchScreen(QWidget):
         
     def setNavBarButton(this, navBarButton):
         this.__navBarButton = navBarButton
-        if navBarButton != None:
+        if navBarButton is not None:
             tiles = this.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
-    
-    ## Other
-                
-    def updateChildPos(this):
-        pass
 
 searchScreen = SearchScreen()

@@ -1,17 +1,17 @@
 print("Importing button class...")
 
-from globals import BUTTON, INPUT, GUI
+from globals import INPUT, GUI
+from gui import CustomQLabel
 
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt
 
-class Button(QLabel):
+class Button(CustomQLabel):
     def __init__(
         this,
         enabled:bool = True,
-        width:int = BUTTON.MIN_WIDTH,
-        height:int = BUTTON.MIN_HEIGHT,
+        width:int = GUI.BUTTON.MIN_WIDTH,
+        height:int = GUI.BUTTON.MIN_HEIGHT,
         text:str = "",
         img = None,
         callback = None,
@@ -38,7 +38,6 @@ class Button(QLabel):
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
-        this.setParentPos(QPoint(0, 0))
         
         this.__needsDraw = True
         canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
@@ -87,23 +86,17 @@ class Button(QLabel):
     def getMenuOptions(this):
         return this.__menuOptions
     
-    def getParentPos(this):
-        return this.__parentPos
-    
-    def getPos(this):
-        return this.getParentPos() + this.pos()
-    
     ## Setters
     
     def setEnabled(this, enabled):
         this.__enabled = bool(enabled)
     
     def setHeight(this, height):
-        if height >= BUTTON.MIN_HEIGHT:
+        if height >= GUI.BUTTON.MIN_HEIGHT:
             this.__height = int(height)
     
     def setWidth(this, width):
-        if width >= BUTTON.MIN_WIDTH:
+        if width >= GUI.BUTTON.MIN_WIDTH:
             this.__width = int(width)
     
     def setText(this, text):
@@ -144,10 +137,6 @@ class Button(QLabel):
                 menuOptions[i].setNavDown(menuOptions[i + 1])
         
         this.__menuOptions = menuOptions
-    
-    def setParentPos(this, pos):
-        this.__parentPos = pos
-        print("set parent pos to ", pos)
     
     # Other
     
@@ -231,6 +220,16 @@ class ToggleButton(Button):
         this.__value = bool(value)
     
     # Other
-            
+    
     def toggle(this):
         this.setValue(not this.getValue())
+
+
+
+class NavBarButton(Button):
+    def __init__(
+        this,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(width=GUI.NAVBAR.BUTTON_WIDTH, height=GUI.NAVBAR.BUTTON_HEIGHT, *args, **kwargs)

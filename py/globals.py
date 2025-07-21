@@ -9,14 +9,13 @@ class DISPLAY:
     WIDTH = 1920
     HEIGHT = 1080
 
-class GUI:
-    BG_COLOR = Qt.black
-    BUTTON_COLOR = Qt.white
-    INPUT_INTERFACE_COLOR = Qt.red
-
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
+
+class NAVBAR:
+    BUTTON_WIDTH = 300
+    BUTTON_HEIGHT = 100
 
 class TILE:
     WIDTH = 400
@@ -31,6 +30,15 @@ class TILE:
 
 class TILEGRID:
     COLUMNS = 5
+
+class GUI:
+    BG_COLOR = Qt.black
+    BUTTON_COLOR = Qt.white
+    INPUT_INTERFACE_COLOR = Qt.red
+    BUTTON = BUTTON
+    NAVBAR = NAVBAR
+    TILE = TILE
+    TILEGRID = TILEGRID
 
 class IR_CODES:
     ON = "KEY_POWER"
@@ -88,11 +96,15 @@ class INPUT:
     VOL_DOWN = "VOL_DOWN"
     MIC = "MIC"
     LOOKUP = {
+        POWER: Qt.Key_Q,
+        HOME: Qt.Key_Space,
         SELECT: Qt.Key_Return,
         NAV_UP: Qt.Key_Up,
         NAV_RIGHT: Qt.Key_Right,
         NAV_DOWN: Qt.Key_Down,
         NAV_LEFT: Qt.Key_Left,
+        MENU: Qt.Key_Tab,
+        RETURN: Qt.Key_Escape,
     }
 
 class WEB:

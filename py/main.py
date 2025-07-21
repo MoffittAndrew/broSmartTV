@@ -27,7 +27,6 @@ def main():
 
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
-homeScreen.setPos((500, 500))
 #MAIN_WINDOW.addWidget(webInterface)
 
 inputInterface.setProjectorInterface(projectorInterface)
@@ -35,7 +34,7 @@ keyboardInterface.setInputInterface(inputInterface)
 remoteInterface.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboardInterface)
 
-MAIN_WINDOW.setTab(homeScreen)
+MAIN_WINDOW.setDefaultTab(homeScreen)
 
 if __name__ == "__main__":
     print("Running main event loop...")
