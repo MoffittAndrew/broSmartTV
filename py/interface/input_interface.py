@@ -2,6 +2,7 @@ print("Importing input interface...")
 
 from globals import INPUT, GUI, PROJECTOR
 from button import Button
+from gui import MAIN_WINDOW
 
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
@@ -90,7 +91,7 @@ class InputInterface(QLabel):
             if isinstance(button, Button):
                 width = button.getWidth()
                 height = button.getHeight()
-                pos = button.getPos()
+                pos = button.getAbsolutePos()
             else:
                 rect = button.rect
                 width = rect["width"]
@@ -100,8 +101,6 @@ class InputInterface(QLabel):
             this.setWidth(width)
             this.setHeight(height)
             this.setPos(pos)
-            print(button.getPos(), button.pos(), button.getParentPos())
-            print(this.getPos(), this.getWidth(), this.getHeight())
     
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
@@ -224,6 +223,7 @@ class InputInterface(QLabel):
             this.setMode(this.getOldMode())
     
     async def home(this):
+        MAIN_WINDOW.setTab()
         if this.inOtherMode():
             await this.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
         this.setMode(INPUT.MODES.GUI)

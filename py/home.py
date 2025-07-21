@@ -1,13 +1,15 @@
 print("Importing home screen...")
 
 from button import Button
+from gui import CustomQWidget
 from tilegrid import tileGrid
 from settings_screen import settingsScreen
 from search_screen import searchScreen
 from filter_screen import filterScreen
 from edit_screen import editScreen
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
+from PyQt5.QtCore import Qt
 
 settingsButton = Button(text = "settings")
 searchButton = Button(text = "search")
@@ -34,7 +36,7 @@ _bodyWidgets = [
 
 tileGrid.setNavBarButton(homeButton)
 
-class NavBar(QWidget):
+class NavBar(CustomQWidget):
     def __init__(this, buttons:list = _buttons, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -66,7 +68,6 @@ class NavBar(QWidget):
             layout.addWidget(button)
         
         this.setLayout(layout)
-        this.updateChildPos()
     
     def setCurrentButton(this, button):
         this.__currentButton = button
@@ -77,27 +78,14 @@ class NavBar(QWidget):
     def setPrimaryButton(this, primaryButton):
         for button in this.getButtons():
             button.setNavDown(primaryButton)
-    
-    def updateChildPos(this):
-        for button in this.getButtons():
-            button.setParentPos(this.pos())
-            print(this.pos())
-            print(button.getParentPos())
 
-class HomeBody(QWidget):
+class HomeBody(CustomQWidget):
     def __init__(this, widgets:list = _bodyWidgets, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__layout = QStackedLayout()
         this.__layout.setContentsMargins(0, 0, 0, 0)
         
         this.setWidgets(widgets)
-        for widget in this.getWidgets():
-            this.__layout.addWidget(widget)
-        
-        this.setLayout(this.__layout)
-        
-        for button in navBar.getButtons():
-            button.setParentPos(navBar.pos())
     
     def getPrimaryButton(this):
         return this.__layout.currentWidget().getPrimaryButton()
@@ -110,73 +98,48 @@ class HomeBody(QWidget):
     
     def setWidgets(this, widgets):
         this.__widgets = widgets
-        this.updateChildPos()
+        for widget in this.getWidgets():
+            this.__layout.addWidget(widget)
+        this.setLayout(this.__layout)
     
     def setTab(this, index):
         this.__tab = index
         this.__layout.setCurrentIndex(this.getTab())
-    
-    def updateChildPos(this):
-        for widget in this.getWidgets():
-            widget.updateChildPos()
 
 
-class HomeScreen(QWidget):
+class HomeScreen(CustomQWidget):
     def __init__(this, navBar:NavBar, body:HomeBody, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        this.__navBar = navBar
+        this.__body = body
+        widgets = [this.__navBar, this.__body]
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        
-        this.setNavBar(navBar)
-        this.setBody(body)
-        layout.addWidget(this.getNavBar())
-        layout.addWidget(this.getBody())
-        
+        for widget in widgets:
+            layout.addWidget(widget)
         this.setLayout(layout)
+        
         for i in range(len(_buttons)):
             if _buttons[i].equals(homeButton):
                 this.setTab(i)
     
-    def getNavBar(this):
-        return this.__navBar
-    
-    def getBody(this):
-        return this.__body
-    
     def getPrimaryButton(this):
-        return this.getBody().getPrimaryButton()
-    
-    def setNavBar(this, navBar):
-        this.__navBar = navBar
-        this.getNavBar().updateChildPos() 
-    
-    def setBody(this, body):
-        this.__body = body
-        this.getBody().updateChildPos()
+        return this.__body.getPrimaryButton()
     
     def setTab(this, index):
-        this.getNavBar().setTab(index)
-        this.getBody().setTab(index)
+        this.__navBar.setTab(index)
+        this.__body.setTab(index)
         
-        this.getNavBar().setPrimaryButton(this.getPrimaryButton())
-    
-    def setPos(this, pos1, pos2 = None):
-        if pos2 is not None:
-            this.move(pos1, pos2)
-        else:
-            this.move(pos1[0], pos1[1])
-        this.updateChildPos()
-        print("HOME POS:", this.pos())
-    
-    def updateChildPos(this):
-        this.getNavBar().updateChildPos()
-        this.getBody().updateChildPos()
+        this.__navBar.setPrimaryButton(this.getPrimaryButton())
 
 navBar = NavBar()
 body = HomeBody()
 
 homeScreen = HomeScreen(navBar, body)
+
+print("BODY POS:",body.pos())
 
 for i in range(len(_buttons)):
     _buttons[i].setCallback(homeScreen.setTab, i)

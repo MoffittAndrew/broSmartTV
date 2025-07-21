@@ -2,17 +2,18 @@ print("Importing tile grid...")
 
 from globals import TILEGRID
 from tiles import tiles
+from gui import CustomQWidget
 
-from PyQt5.QtWidgets import QWidget, QGridLayout
+from PyQt5.QtWidgets import QGridLayout
+from PyQt5.QtCore import Qt
 
-class TileGrid(QWidget):
+class TileGrid(CustomQWidget):
     def __init__(this, columns:int = TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         this.setColumns(columns)
         this.setTiles(tiles)
         this.setNavBarButton(navBarButton)
-        print("POS:", this.pos())
     
     ## Getters
     
@@ -36,14 +37,15 @@ class TileGrid(QWidget):
     def setColumns(this, columns):
         this.__columns = columns
     
-    def setTiles(this, tiles_list: list):
+    def setTiles(this, tilesList: list):
         
+        this.__tilesList = tilesList
         this.__tiles = []
         row = []
         counter = 0
-        for i in range(len(tiles_list)):
+        for i in range(len(this.__tilesList)):
             if counter < this.getColumns():
-                row.append(tiles_list[i])
+                row.append(this.__tilesList[i])
             else:
                 this.__tiles.append(row)
                 row = []
@@ -70,6 +72,8 @@ class TileGrid(QWidget):
                     tiles[i_row][i_col].setNavDown(lowerButton)
         
         layout = QGridLayout()
+        layout.setOriginCorner(Qt.TopLeftCorner)
+        layout.setColumnStretch(0, 0)
         layout.setContentsMargins(0, 0, 0, 0)
         for i_row in range(len(tiles)):
             for i_col in range(len(tiles[i_row])):
@@ -77,7 +81,6 @@ class TileGrid(QWidget):
                 layout.addWidget(tile, i_row, i_col)
         
         this.setLayout(layout)
-        this.updateChildPos()
     
     def setNavBarButton(this, navBarButton):
         this.__navBarButton = navBarButton
@@ -85,10 +88,5 @@ class TileGrid(QWidget):
             tiles = this.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
-    
-    def updateChildPos(this):
-        for tile in tiles:
-            tile.setParentPos(this.pos())
-            print(tile.getParentPos())
 
 tileGrid = TileGrid()

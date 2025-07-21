@@ -1,12 +1,12 @@
 print("Importing button class...")
 
 from globals import BUTTON, INPUT, GUI
+from gui import CustomQLabel
 
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt
 
-class Button(QLabel):
+class Button(CustomQLabel):
     def __init__(
         this,
         enabled:bool = True,
@@ -38,7 +38,6 @@ class Button(QLabel):
         this.setNavDown(navDown)
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
-        this.setParentPos(QPoint(0, 0))
         
         this.__needsDraw = True
         canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
@@ -86,12 +85,6 @@ class Button(QLabel):
     
     def getMenuOptions(this):
         return this.__menuOptions
-    
-    def getParentPos(this):
-        return this.__parentPos
-    
-    def getPos(this):
-        return this.getParentPos() + this.pos()
     
     ## Setters
     
@@ -144,10 +137,6 @@ class Button(QLabel):
                 menuOptions[i].setNavDown(menuOptions[i + 1])
         
         this.__menuOptions = menuOptions
-    
-    def setParentPos(this, pos):
-        this.__parentPos = pos
-        print("set parent pos to ", pos)
     
     # Other
     

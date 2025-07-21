@@ -2,13 +2,33 @@ print("Importing GUI tools...")
 
 from globals import DISPLAY, INPUT, GUI
 
-from PyQt5.QtWidgets import QWidget, QStackedLayout
+from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QKeyEvent
 
+class CustomQLabel(QLabel):
+    def __init__(this, *args, **kwargs):
+        super(CustomQLabel, this).__init__(*args, **kwargs)
+    
+    def getAbsolutePos(this):
+        if this.parent() is not None:
+            return this.parent().getAbsolutePos() + this.pos()
+        else:
+            return this.pos()
+
+class CustomQWidget(QWidget):
+    def __init__(this, *args, **kwargs):
+        super(CustomQWidget, this).__init__(*args, **kwargs)
+    
+    def getAbsolutePos(this):
+        if this.parent() is not None:
+            return this.parent().getAbsolutePos() + this.pos()
+        else:
+            return this.pos()
+
 class CustomQWindow(QWidget):
     def __init__(this, keyboard = None, inputInterface = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(CustomQWindow, this).__init__(*args, **kwargs)
         
         this.__layout = QStackedLayout()
         this.__layout.setContentsMargins(0, 0, 0, 0)
@@ -18,17 +38,29 @@ class CustomQWindow(QWidget):
     
     def getKeyboard(this):
         return this.__keyboard
+    
+    def getDefaultTab(this):
+        return this.__defaultTab
 
     def getTab(this):
         return this.__tab
     
     def getInputInterface(this):
         return this.__inputInterface
+
+    def getAbsolutePos(this):
+        return this.pos()
     
     def setKeyboard(this, keyboard):
         this.__keyboard = keyboard
     
-    def setTab(this, tab):
+    def setDefaultTab(this, tab):
+        this.__defaultTab = tab
+    
+    def setTab(this, tab=None):
+        if tab is None:
+            tab = this.getDefaultTab()
+        
         if isinstance(tab, QWidget):
             this.__layout.setCurrentWidget(tab)
         else:
@@ -36,7 +68,7 @@ class CustomQWindow(QWidget):
             this.__layout.setCurrentIndex(this.getTab())
         
         inputInterface = this.getInputInterface()
-        if inputInterface is not None:
+        if inputInterface is not None and inputInterface.getSelectedButton() is None:
             inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())
             this.__layout.setCurrentWidget(inputInterface)
     
@@ -71,6 +103,6 @@ MAIN_WINDOW.setWindowTitle("bro is literally a smart tv")
 MAIN_WINDOW.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
 
 MAIN_WINDOW.setAutoFillBackground(True)
-p = MAIN_WINDOW.palette()
-p.setColor(MAIN_WINDOW.backgroundRole(), GUI.BG_COLOR)
-MAIN_WINDOW.setPalette(p)
+palette = MAIN_WINDOW.palette()
+palette.setColor(MAIN_WINDOW.backgroundRole(), GUI.BG_COLOR)
+MAIN_WINDOW.setPalette(palette)
