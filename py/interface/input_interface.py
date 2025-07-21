@@ -2,15 +2,14 @@ print("Importing input interface...")
 
 from globals import INPUT, GUI, PROJECTOR
 from button import Button
-from gui import MAIN_WINDOW
+from gui import MAIN_WINDOW, CustomQLabel
 
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QPoint, QCoreApplication
 
 import asyncio
 
-class InputInterface(QLabel):
+class InputInterface(CustomQLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         this.__mode = INPUT.MODES.GUI
@@ -101,6 +100,7 @@ class InputInterface(QLabel):
             this.setWidth(width)
             this.setHeight(height)
             this.setPos(pos)
+            print(this.__pos)
     
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
@@ -123,7 +123,7 @@ class InputInterface(QLabel):
         while len(this.__backlog) > 0:
             
             data = this.getNextFromBacklog()
-            if data == INPUT.POWER:
+            if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
                 await this.powerOff()
             elif data == INPUT.SELECT:
                 await this.select()
@@ -226,10 +226,10 @@ class InputInterface(QLabel):
         MAIN_WINDOW.setTab()
         if this.inOtherMode():
             await this.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
-        this.setMode(INPUT.MODES.GUI)
         if this.inProjectorMode():
             await this.getProjectorInterface().menu()
         await this.getProjectorInterface().back()
+        this.setMode(INPUT.MODES.GUI)
     
     async def openProjectorMenu(this):
         this.setMode(INPUT.MODES.PROJECTOR)
@@ -246,7 +246,7 @@ class InputInterface(QLabel):
         painter.save()
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, 5, Qt.SolidLine))
+        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, 6, Qt.SolidLine))
         painter.drawRect(0, 0, this.getWidth(), this.getHeight())
         
         painter.restore()

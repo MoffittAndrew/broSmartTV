@@ -1,6 +1,6 @@
 print("Importing tile grid...")
 
-from globals import TILEGRID
+from globals import GUI
 from tiles import tiles
 from gui import CustomQWidget
 
@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QGridLayout
 from PyQt5.QtCore import Qt
 
 class TileGrid(CustomQWidget):
-    def __init__(this, columns:int = TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
+    def __init__(this, columns:int = GUI.TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         this.setColumns(columns)
@@ -73,13 +73,14 @@ class TileGrid(CustomQWidget):
         
         layout = QGridLayout()
         layout.setOriginCorner(Qt.TopLeftCorner)
-        layout.setColumnStretch(0, 0)
         layout.setContentsMargins(0, 0, 0, 0)
         for i_row in range(len(tiles)):
             for i_col in range(len(tiles[i_row])):
                 tile = tiles[i_row][i_col]
                 layout.addWidget(tile, i_row, i_col)
         
+        this.setFixedWidth(len(this.getTiles()[0]) * GUI.TILE.WIDTH)
+        this.setFixedHeight(len(this.getTiles()) * GUI.TILE.HEIGHT)
         this.setLayout(layout)
     
     def setNavBarButton(this, navBarButton):

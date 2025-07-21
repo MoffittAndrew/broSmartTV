@@ -3,12 +3,13 @@ print("Importing GUI tools...")
 from globals import DISPLAY, INPUT, GUI
 
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, QPoint
 from PyQt5.QtGui import QKeyEvent
 
 class CustomQLabel(QLabel):
     def __init__(this, *args, **kwargs):
-        super(CustomQLabel, this).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+        this.setContentsMargins(0, 0, 0, 0)
     
     def getAbsolutePos(this):
         if this.parent() is not None:
@@ -18,7 +19,8 @@ class CustomQLabel(QLabel):
 
 class CustomQWidget(QWidget):
     def __init__(this, *args, **kwargs):
-        super(CustomQWidget, this).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+        this.setContentsMargins(0, 0, 0, 0)
     
     def getAbsolutePos(this):
         if this.parent() is not None:
@@ -28,8 +30,9 @@ class CustomQWidget(QWidget):
 
 class CustomQWindow(QWidget):
     def __init__(this, keyboard = None, inputInterface = None, *args, **kwargs):
-        super(CustomQWindow, this).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
+        this.setContentsMargins(0, 0, 0, 0)
         this.__layout = QStackedLayout()
         this.__layout.setContentsMargins(0, 0, 0, 0)
         this.__layout.setStackingMode(QStackedLayout.StackAll)
@@ -49,7 +52,7 @@ class CustomQWindow(QWidget):
         return this.__inputInterface
 
     def getAbsolutePos(this):
-        return this.pos()
+        return QPoint(0, 0)
     
     def setKeyboard(this, keyboard):
         this.__keyboard = keyboard
@@ -68,7 +71,7 @@ class CustomQWindow(QWidget):
             this.__layout.setCurrentIndex(this.getTab())
         
         inputInterface = this.getInputInterface()
-        if inputInterface is not None and inputInterface.getSelectedButton() is None:
+        if inputInterface is not None:
             inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())
             this.__layout.setCurrentWidget(inputInterface)
     

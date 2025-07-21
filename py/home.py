@@ -1,6 +1,7 @@
 print("Importing home screen...")
 
-from button import Button
+from globals import GUI, DISPLAY
+from button import NavBarButton
 from gui import CustomQWidget
 from tilegrid import tileGrid
 from settings_screen import settingsScreen
@@ -9,13 +10,12 @@ from filter_screen import filterScreen
 from edit_screen import editScreen
 
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
-from PyQt5.QtCore import Qt
 
-settingsButton = Button(text = "settings")
-searchButton = Button(text = "search")
-homeButton = Button(text = "home")
-filterButton = Button(text = "filter")
-editButton = Button(text = "edit")
+settingsButton = NavBarButton(text = "settings")
+searchButton = NavBarButton(text = "search")
+homeButton = NavBarButton(text = "home")
+filterButton = NavBarButton(text = "filter")
+editButton = NavBarButton(text = "edit")
 
 _buttons = [
     settingsButton,
@@ -52,7 +52,7 @@ class NavBar(CustomQWidget):
     
     ## Setters
     
-    def setButtons(this, buttons: list[Button]):
+    def setButtons(this, buttons: list[NavBarButton]):
         
         if len(buttons) > 0:
             for i in range(len(buttons) - 1):
@@ -67,6 +67,8 @@ class NavBar(CustomQWidget):
         for button in this.getButtons():
             layout.addWidget(button)
         
+        this.setFixedWidth(len(buttons) * GUI.NAVBAR.BUTTON_WIDTH)
+        this.setFixedHeight(GUI.NAVBAR.BUTTON_HEIGHT)
         this.setLayout(layout)
     
     def setCurrentButton(this, button):
@@ -100,6 +102,8 @@ class HomeBody(CustomQWidget):
         this.__widgets = widgets
         for widget in this.getWidgets():
             this.__layout.addWidget(widget)
+        
+        this.setFixedWidth(DISPLAY.WIDTH)
         this.setLayout(this.__layout)
     
     def setTab(this, index):
@@ -113,12 +117,16 @@ class HomeScreen(CustomQWidget):
         
         this.__navBar = navBar
         this.__body = body
-        widgets = [this.__navBar, this.__body]
+
+        this.__body.setFixedHeight(DISPLAY.HEIGHT - this.__navBar.height())
         
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        for widget in widgets:
-            layout.addWidget(widget)
+        layout.addWidget(this.__navBar)
+        layout.addWidget(this.__body)
+        
+        this.setFixedHeight(DISPLAY.HEIGHT)
+        this.setFixedWidth(DISPLAY.WIDTH)
         this.setLayout(layout)
         
         for i in range(len(_buttons)):
@@ -133,13 +141,14 @@ class HomeScreen(CustomQWidget):
         this.__body.setTab(index)
         
         this.__navBar.setPrimaryButton(this.getPrimaryButton())
+    
+    async def asyncSetTab(this, index):
+        this.setTab(index)
 
 navBar = NavBar()
 body = HomeBody()
 
 homeScreen = HomeScreen(navBar, body)
 
-print("BODY POS:",body.pos())
-
 for i in range(len(_buttons)):
-    _buttons[i].setCallback(homeScreen.setTab, i)
+    _buttons[i].setCallback(homeScreen.asyncSetTab, i)

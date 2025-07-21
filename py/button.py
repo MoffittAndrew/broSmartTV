@@ -1,6 +1,6 @@
 print("Importing button class...")
 
-from globals import BUTTON, INPUT, GUI
+from globals import INPUT, GUI
 from gui import CustomQLabel
 
 from PyQt5 import QtGui
@@ -10,8 +10,8 @@ class Button(CustomQLabel):
     def __init__(
         this,
         enabled:bool = True,
-        width:int = BUTTON.MIN_WIDTH,
-        height:int = BUTTON.MIN_HEIGHT,
+        width:int = GUI.BUTTON.MIN_WIDTH,
+        height:int = GUI.BUTTON.MIN_HEIGHT,
         text:str = "",
         img = None,
         callback = None,
@@ -92,11 +92,11 @@ class Button(CustomQLabel):
         this.__enabled = bool(enabled)
     
     def setHeight(this, height):
-        if height >= BUTTON.MIN_HEIGHT:
+        if height >= GUI.BUTTON.MIN_HEIGHT:
             this.__height = int(height)
     
     def setWidth(this, width):
-        if width >= BUTTON.MIN_WIDTH:
+        if width >= GUI.BUTTON.MIN_WIDTH:
             this.__width = int(width)
     
     def setText(this, text):
@@ -220,6 +220,16 @@ class ToggleButton(Button):
         this.__value = bool(value)
     
     # Other
-            
+    
     def toggle(this):
         this.setValue(not this.getValue())
+
+
+
+class NavBarButton(Button):
+    def __init__(
+        this,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(width=GUI.NAVBAR.BUTTON_WIDTH, height=GUI.NAVBAR.BUTTON_HEIGHT, *args, **kwargs)

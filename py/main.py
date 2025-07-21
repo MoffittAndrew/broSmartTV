@@ -35,7 +35,7 @@ remoteInterface.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboardInterface)
 
 MAIN_WINDOW.setDefaultTab(homeScreen)
-MAIN_WINDOW.setTab(homeScreen)
+MAIN_WINDOW.setTab()
 
 if __name__ == "__main__":
     print("Running main event loop...")

@@ -9,14 +9,13 @@ class DISPLAY:
     WIDTH = 1920
     HEIGHT = 1080
 
-class GUI:
-    BG_COLOR = Qt.black
-    BUTTON_COLOR = Qt.white
-    INPUT_INTERFACE_COLOR = Qt.red
-
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
+
+class NAVBAR:
+    BUTTON_WIDTH = 300
+    BUTTON_HEIGHT = 100
 
 class TILE:
     WIDTH = 400
@@ -31,6 +30,15 @@ class TILE:
 
 class TILEGRID:
     COLUMNS = 5
+
+class GUI:
+    BG_COLOR = Qt.black
+    BUTTON_COLOR = Qt.white
+    INPUT_INTERFACE_COLOR = Qt.red
+    BUTTON = BUTTON
+    NAVBAR = NAVBAR
+    TILE = TILE
+    TILEGRID = TILEGRID
 
 class IR_CODES:
     ON = "KEY_POWER"
