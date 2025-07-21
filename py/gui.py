@@ -70,6 +70,8 @@ class CustomQWindow(QWidget):
             this.__tab = tab
             this.__layout.setCurrentIndex(this.getTab())
         
+        this.__layout.currentWidget().setTab()
+        
         inputInterface = this.getInputInterface()
         if inputInterface is not None:
             inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())

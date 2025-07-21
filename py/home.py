@@ -131,18 +131,29 @@ class HomeScreen(CustomQWidget):
         
         for i in range(len(_buttons)):
             if _buttons[i].equals(homeButton):
-                this.setTab(i)
+                this.setDefaultTab(i)
+        
+        this.setTab()
     
     def getPrimaryButton(this):
         return this.__body.getPrimaryButton()
     
-    def setTab(this, index):
+    def getDefaultTab(this):
+        return this.__defaultTab
+    
+    def setDefaultTab(this, tab):
+        this.__defaultTab = tab
+    
+    def setTab(this, index=None):
+        if index is None:
+            index = this.getDefaultTab()
+        
         this.__navBar.setTab(index)
         this.__body.setTab(index)
         
         this.__navBar.setPrimaryButton(this.getPrimaryButton())
     
-    async def asyncSetTab(this, index):
+    async def asyncSetTab(this, index=None):
         this.setTab(index)
 
 navBar = NavBar()
