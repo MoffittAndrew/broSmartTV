@@ -96,14 +96,14 @@ class INPUT:
     VOL_DOWN = "VOL_DOWN"
     MIC = "MIC"
     LOOKUP = {
-        POWER: Qt.Key_P,
-        HOME: Qt.Key_H,
+        POWER: Qt.Key_Q,
+        HOME: Qt.Key_Space,
         SELECT: Qt.Key_Return,
         NAV_UP: Qt.Key_Up,
         NAV_RIGHT: Qt.Key_Right,
         NAV_DOWN: Qt.Key_Down,
         NAV_LEFT: Qt.Key_Left,
-        MENU: Qt.Key_Space,
+        MENU: Qt.Key_Tab,
         RETURN: Qt.Key_Escape,
     }
 

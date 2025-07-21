@@ -103,6 +103,10 @@ class CustomQWindow(QWidget):
                 this.getKeyboard().receive(key, INPUT.RELEASED_PREFIX)
         else:
             return super().keyReleaseEvent(event, *args, **kwargs)
+    
+    def show(this):
+        super().show()
+        this.setTab()
 
 MAIN_WINDOW = CustomQWindow()
 MAIN_WINDOW.setWindowTitle("bro is literally a smart tv")

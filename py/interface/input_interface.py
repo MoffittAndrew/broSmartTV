@@ -5,7 +5,7 @@ from button import Button
 from gui import MAIN_WINDOW, CustomQLabel
 
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QPoint, QCoreApplication
+from PyQt5.QtCore import Qt, QCoreApplication
 
 import asyncio
 
@@ -14,9 +14,6 @@ class InputInterface(CustomQLabel):
         super().__init__(*args, **kwargs)
         this.__mode = INPUT.MODES.GUI
         this.setOldMode(INPUT.MODES.GUI)
-        this.setWidth(0)
-        this.setHeight(0)
-        this.setPos(QPoint(0, 0))
         this.setSelectedButton(selectedButton)
         this.setProjectorInterface(projectorInterface)
         this.__backlog = []
@@ -46,15 +43,6 @@ class InputInterface(CustomQLabel):
     def getWebDriver(this):
         return this.__webdriver
     
-    def getWidth(this):
-        return this.width()
-
-    def getHeight(this):
-        return this.height()
-    
-    def getPos(this):
-        return this.__pos
-    
     def getSelectedButton(this):
         return this.__selectedButton
 
@@ -74,16 +62,6 @@ class InputInterface(CustomQLabel):
     def setWebDriver(this, webdriver):
         this.__webdriver = webdriver
     
-    def setWidth(this, width):
-        this.setFixedWidth(width)
-
-    def setHeight(this, height):
-        this.setFixedHeight(height)
-    
-    def setPos(this, pos):
-        this.__pos = pos
-        this.move(pos)
-    
     def setSelectedButton(this, button):
         this.__selectedButton = button
         if button is not None:
@@ -91,16 +69,14 @@ class InputInterface(CustomQLabel):
                 width = button.getWidth()
                 height = button.getHeight()
                 pos = button.getAbsolutePos()
+                x, y = (pos.x(), pos.y())
             else:
                 rect = button.rect
                 width = rect["width"]
                 height = rect["height"]
-                pos = QPoint(int(rect["x"]), int(rect["y"]))
+                x, y = (int(rect["x"]), int(rect["y"]))
             
-            this.setWidth(width)
-            this.setHeight(height)
-            this.setPos(pos)
-            print(this.__pos)
+            this.setGeometry(x, y, width, height)
     
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
@@ -250,7 +226,7 @@ class InputInterface(CustomQLabel):
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
         painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, 6, Qt.SolidLine))
-        painter.drawRect(0, 0, this.getWidth(), this.getHeight())
+        painter.drawRect(0, 0, this.width(), this.height())
         
         painter.restore()
         painter.end()
