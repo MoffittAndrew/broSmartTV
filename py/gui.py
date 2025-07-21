@@ -64,13 +64,14 @@ class CustomQWindow(QWidget):
         if tab is None:
             tab = this.getDefaultTab()
         
+        if tab == this.getDefaultTab():
+            tab.setTab()
+        
         if isinstance(tab, QWidget):
             this.__layout.setCurrentWidget(tab)
         else:
             this.__tab = tab
             this.__layout.setCurrentIndex(this.getTab())
-        
-        this.__layout.currentWidget().setTab()
         
         inputInterface = this.getInputInterface()
         if inputInterface is not None:
