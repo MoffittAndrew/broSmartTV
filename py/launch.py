@@ -1,11 +1,13 @@
 import asyncio
 import qtinter
 
+from interface.remote_interface import remoteInterface
+
 reload_modules = [
     "globals",
     "interface.projector_interface",
     "interface.ir_interface",
-    "interface.remote_interface",
+    #"interface.remote_interface",
 ]
 
 def init_qt():
@@ -46,10 +48,7 @@ async def projector_on():
     print("Switching projector on...")
     await projectorInterface.on()
 
-def launch_app():
-    
-    from interface.remote_interface import remoteInterface
-    asyncio.create_task(remoteInterface.init())
+def launch():
     
     print("Launching main program...")
     from main import MAIN_WINDOW
@@ -58,7 +57,7 @@ def launch_app():
     waiting_circ.stop()
     LAUNCH_FRAME.hide()
 
-async def update_then_launch():
+async def updateThenLaunch():
     
     print("Running update script...")
     try:
@@ -78,36 +77,34 @@ async def update_then_launch():
             sys.modules.pop(mod)
         print("Reloaded modules.")
     
-    launch_app()
+    launch()
 
-def launch():
+async def awaitFindRemote():
     
-    init_qt()
-    asyncio.create_task(projector_on())
-    
-    print("Starting launch screen...")
-    LAUNCH_FRAME.show()
-    asyncio.create_task(update_then_launch())
-    APP.exec_()
-    
-    from interface.remote_interface import remoteInterface
-    remoteInterface.setRunning(False)
-
-async def wait_for_remote():
-    
-    from interface.remote_interface import remoteInterface
     with qtinter.using_qt_from_asyncio():
-        await remoteInterface.await_power_on()
+        await remoteInterface.awaitFindRemote()
 
 def main():
     
-    from interface.remote_interface import remoteInterface
-    if remoteInterface.isRunning():
+    try:
+        asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
-            launch()
+            asyncio.create_task(projector_on())
+            asyncio.create_task(remoteInterface.connect())
+            init_qt()
+            
+            print("Starting launch screen...")
+            LAUNCH_FRAME.show()
+            asyncio.create_task(updateThenLaunch())
+            APP.exec_()
+            print("App closed.")
+
+    except KeyboardInterrupt:
+        print()
+        print("Launch script manually cancelled by user")
+        exit(130)
 
 if __name__ == "__main__":
     print("Starting launch.py...")
-    asyncio.run(wait_for_remote())
     main()
     print("Exiting launch.py...")
