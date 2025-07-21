@@ -109,6 +109,8 @@ class InputInterface(CustomQLabel):
         this.addToBacklog(data)
         if not this.__isProcessingBacklog:
             asyncio.create_task(this.processBacklog())
+        else:
+            print(f"{data} added to backlog, as we are still processing previous inputs.")
     
     def getNextFromBacklog(this):
         next = this.__backlog[0]
@@ -135,7 +137,7 @@ class InputInterface(CustomQLabel):
                 await this.volUp()
             elif data == INPUT.VOL_DOWN:
                 await this.volDown()
-            elif data == INPUT.HOME:
+            elif data == INPUT.RELEASED_PREFIX + INPUT.HOME:
                 await this.home()
         
         this.__isProcessingBacklog = False
