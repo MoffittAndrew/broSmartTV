@@ -12,6 +12,9 @@ class DISPLAY:
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
+    ROUNDNESS = 30
+    BORDER_COLOR = Qt.white
+    BORDER_THICKNESS = 3
 
 class NAVBAR:
     BUTTON_WIDTH = 300
@@ -33,7 +36,6 @@ class TILEGRID:
 
 class GUI:
     BG_COLOR = Qt.black
-    BUTTON_COLOR = Qt.white
     INPUT_INTERFACE_COLOR = Qt.red
     BUTTON = BUTTON
     NAVBAR = NAVBAR

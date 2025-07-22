@@ -45,6 +45,12 @@ class InputInterface(CustomQLabel):
     
     def getSelectedButton(this):
         return this.__selectedButton
+    
+    def getRoundness(this):
+        return this.__roundness
+    
+    def getBorderThickness(this):
+        return this.__borderThickness
 
     def getProjectorInterface(this):
         return this.__projectorInterface
@@ -66,17 +72,29 @@ class InputInterface(CustomQLabel):
         this.__selectedButton = button
         if button is not None:
             if isinstance(button, Button):
-                width = button.getWidth()
-                height = button.getHeight()
+                width = button.width()
+                height = button.height()
                 pos = button.getAbsolutePos()
                 x, y = (pos.x(), pos.y())
+                roundness = button.getRoundness()
+                borderThickness = button.getBorderThickness()
             else:
                 rect = button.rect
                 width = rect["width"]
                 height = rect["height"]
                 x, y = (int(rect["x"]), int(rect["y"]))
+                roundness = 0
+                borderThickness = 2
             
+            this.setRoundness(roundness)
+            this.setBorderThickness(borderThickness)
             this.setGeometry(x, y, width, height)
+    
+    def setRoundness(this, roundness):
+        this.__roundness = roundness
+    
+    def setBorderThickness(this, borderThickness):
+        this.__borderThickness = borderThickness
     
     def setProjectorInterface(this, projectorInterface):
         this.__projectorInterface = projectorInterface
@@ -225,8 +243,15 @@ class InputInterface(CustomQLabel):
         painter.save()
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, 6, Qt.SolidLine))
-        painter.drawRect(0, 0, this.width(), this.height())
+        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, this.getBorderThickness(), Qt.SolidLine))
+        painter.drawRoundedRect(
+            int(this.getBorderThickness()/2),
+            int(this.getBorderThickness()/2),
+            this.width() - this.getBorderThickness(),
+            this.height() - this.getBorderThickness(),
+            this.getRoundness(),
+            this.getRoundness(),
+        )
         
         painter.restore()
         painter.end()
