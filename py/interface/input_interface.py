@@ -15,6 +15,8 @@ class InputInterface(CustomQLabel):
         this.__mode = INPUT.MODES.GUI
         this.setOldMode(INPUT.MODES.GUI)
         this.setSelectedButton(selectedButton)
+        this.setRoundness(GUI.BUTTON.ROUNDNESS)
+        this.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
         this.setProjectorInterface(projectorInterface)
         this.__backlog = []
         this.__isProcessingBacklog = False
