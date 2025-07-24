@@ -149,6 +149,7 @@ class RemoteInterface:
             
             except Exception as e:
                 print(f"An error occurred: {e}")
+                this.setDevice(None)
                 await asyncio.sleep(this.getCheckAliveInterval())
     
     async def awaitFindRemote(this):
