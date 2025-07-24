@@ -99,7 +99,7 @@ class RemoteInterface:
         print(f"Recieved remote signal {data}")
         if this.getInputInterface() is not None:
             this.getInputInterface().receive(data)
-            if data == INPUT.POWER:
+            if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
                 asyncio.create_task(this.disconnect())
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
@@ -107,6 +107,7 @@ class RemoteInterface:
     def __disconnected_callback(this, client: bleak.BleakClient):
         print("Disconnected from remote.")
         this.setConnected(False)
+        this.setDevice(None)
 
     async def __connectToRemote(this):
         async with bleak.BleakClient(this.getDevice(), disconnected_callback=this.__disconnected_callback) as client:
@@ -140,7 +141,7 @@ class RemoteInterface:
         this.setRunning(True)
         while this.isRunning():
             try:
-                if not this.getDevice():
+                if this.getDevice() is None:
                     print("Remote not found, scanning again...")
                     await this.__findRemote()
                 else:
