@@ -1,54 +1,25 @@
-import socket, cv2, pickle, struct
-import imgui
-from imgui.integrations.pygame import PygameRenderer
-import pygame
-
-imgui.create_context()
-pygame.init()
-pygame.display.set_caption("test")
-
-pygame.display.set_mode((1920, 1080), pygame.DOUBLEBUF | pygame.OPENGL)
-
-pygame_renderer = PygameRenderer()
-
-# Socket Create
-server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-host_name  = socket.gethostname()
-#host_ip = socket.gethostbyname(host_name)
 host_ip = '0.0.0.0'
-print('HOST IP:',host_ip)
 port = 9559
-socket_address = (host_ip,port)
-data = b""
-payload_size = struct.calcsize("Q")
 
-# Socket Bind
-server_socket.bind(socket_address)
+import asyncio
+from websockets.asyncio.server import serve
+import json
 
-# Socket Listen
-server_socket.listen(5)
-print("LISTENING AT:",socket_address)
-
-# Socket Accept
-while True:
-    client_socket,addr = server_socket.accept()
-    print('GOT CONNECTION FROM:',addr)
+async def screen_share(websocket):
+    print("Connected")
+    connected = True
+    while connected:
+        async for message in websocket.recv_streaming():
+            print(message)
+            decoded = json.loads(message)
+            if "leaving" in decoded and decoded["leaving"]:
+                connected = False
     
-    if client_socket:
-        while len(data) < payload_size:
-            packet = client_socket.recv(4*1024) # 4K
-            if not packet: break
-            data+=packet
-        packed_msg_size = data[:payload_size]
-        data = data[payload_size:]
-        msg_size = struct.unpack("Q",packed_msg_size)[0]
-        
-        while len(data) < msg_size:
-            data += client_socket.recv(4*1024)
-        frame_data = data[:msg_size]
-        data  = data[msg_size:]
-        frame = pickle.loads(frame_data)
-        cv2.imshow("RECEIVING VIDEO",frame)
-        key = cv2.waitKey(1) & 0xFF
-        if key  == ord('q'):
-            break
+    print("Disconnected")
+
+async def main():
+    async with serve(screen_share, "localhost", port) as server:
+        await server.serve_forever()
+
+if __name__ == "__main__":
+    asyncio.run(main())
