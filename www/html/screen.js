@@ -7,8 +7,10 @@
 
 // Documentation - https://github.com/muaz-khan/WebRTC-Experiment/tree/master/screen-sharing
 
-var uri = 'localhost'
-var port = 9559;
+const uri = 'localhost';
+const port = 9559;
+const shareScreenButton = document.getElementById('share-screen');
+const stopShareScreenButton = document.getElementById('stop-share-screen');
 
 (function() {
 
@@ -123,8 +125,8 @@ var port = 9559;
         // share new screen
         this.share = function(roomid) {
             captureDisplayMedia(function() {
-                document.getElementById('share-screen').hidden = true;
-                document.getElementById('stop-share-screen').hidden = false;
+                shareScreenButton.hidden = true;
+                stopShareScreenButton.hidden = false;
 
                 !signaler && initSignaler(roomid);
                 signaler.broadcast({
@@ -141,12 +143,12 @@ var port = 9559;
             video.hidden = true;
 
             if (this.connected) {
-                document.getElementById('share-screen').disabled = false;
+                shareScreenButton.disabled = false;
             } else {
-                document.getElementById('share-screen').disabled = true;
+                shareScreenButton.disabled = true;
             }
-            document.getElementById('share-screen').hidden = false;
-            document.getElementById('stop-share-screen').hidden = true;
+            shareScreenButton.hidden = false;
+            stopShareScreenButton.hidden = true;
         };
 
         // view pre-shared screens
@@ -164,13 +166,13 @@ var port = 9559;
         this.setConnected = function(connected) {
             this.connected = connected;
             if (connected) {
-                document.getElementById('share-screen').hidden = false;
-                document.getElementById('share-screen').disabled = false;
-                document.getElementById('stop-share-screen').hidden = true;
+                shareScreenButton.hidden = false;
+                shareScreenButton.disabled = false;
+                stopShareScreenButton.hidden = true;
             } else {
-                document.getElementById('share-screen').hidden = false;
-                document.getElementById('share-screen').disabled = true;
-                document.getElementById('stop-share-screen').hidden = true;
+                shareScreenButton.hidden = false;
+                shareScreenButton.disabled = true;
+                stopShareScreenButton.hidden = true;
             };
         };
 
