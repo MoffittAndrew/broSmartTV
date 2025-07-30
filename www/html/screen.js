@@ -11,6 +11,14 @@ const uri = 'localhost';
 const port = 9559;
 const shareScreenButton = document.getElementById('share-screen');
 const stopShareScreenButton = document.getElementById('stop-share-screen');
+const screen_constraints = {
+    audio: true,
+    video: {
+        width: { max: 640},
+        height: { max: 360 },
+        frameRate: { max: 5 }
+    }
+};
 
 (function() {
 
@@ -65,11 +73,6 @@ const stopShareScreenButton = document.getElementById('stop-share-screen');
 
         function captureDisplayMedia(callback, extensionAvailable) {
 
-            let constraints = {
-                audio: true,
-                video: true,
-            };
-
             let successCallback = function(stream) {
                 addStreamStopListener(stream, function() {
                     if (self.onuserleft) self.onuserleft('self');
@@ -114,9 +117,9 @@ const stopShareScreenButton = document.getElementById('stop-share-screen');
             };
 
             if(navigator.mediaDevices.getDisplayMedia) {
-                navigator.mediaDevices.getDisplayMedia(constraints).then(successCallback).catch(errorCallback);
+                navigator.mediaDevices.getDisplayMedia(screen_constraints).then(successCallback).catch(errorCallback);
             } else {
-                navigator.getDisplayMedia(constraints).then(successCallback).catch(errorCallback);                    
+                navigator.getDisplayMedia(screen_constraints).then(successCallback).catch(errorCallback);                    
             };
         }
 
