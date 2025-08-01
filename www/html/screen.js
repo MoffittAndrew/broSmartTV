@@ -98,6 +98,23 @@ const screen_constraints = {
                 stream.oninactive = function() {
                     screen.stop();
                 };
+
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm; codecs="vp8, opus"'
+                });
+
+                // When data is available from the MediaRecorder
+                mediaRecorder.ondataavailable = (event) => {
+                    console.log('ondataavailable', event.data.size)
+                    // Send the data chunk over the WebSocket connection
+                    if (event.data && event.data.size > 0) {
+                        this.ws.send(event.data);
+                    }
+                };
+
+                // Start recording the media streams
+                mediaRecorder.start(2000); // For every 2 seconds, call ondataavailable
+
                 callback(stream);
             };
             let errorCallback = function(error) {
@@ -200,6 +217,7 @@ const screen_constraints = {
                 this.stop();
             });
 
+            this.ws = ws;
             return ws;
         };
     };
