@@ -100,15 +100,15 @@ const screen_constraints = {
                 };
 
                 const mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'video/webm; codecs="vp8, opus"'
+                    mimeType: 'video/webm; codecs="vp9, opus"'
                 });
 
                 // When data is available from the MediaRecorder
                 mediaRecorder.ondataavailable = (event) => {
-                    console.log('ondataavailable', event.data.size)
+                    console.log('ondataavailable', event.data.size, event)
                     // Send the data chunk over the WebSocket connection
                     if (event.data && event.data.size > 0) {
-                        this.ws.send(event.data);
+                        self.ws.send(event.data);
                     }
                 };
 
@@ -196,6 +196,10 @@ const screen_constraints = {
             };
         };
 
+        this.setSocket = function(ws) {
+            this.ws = ws;
+        }
+
         this.openSignalingChannel = function(callback) {
             this.setConnected(false);
 
@@ -217,7 +221,7 @@ const screen_constraints = {
                 this.stop();
             });
 
-            this.ws = ws;
+            this.setSocket(ws);
             return ws;
         };
     };
@@ -512,7 +516,7 @@ const screen_constraints = {
             // method to signal the data
             this.signal = function(data) {
                 data.userid = userid;
-                socket.send(JSON.stringify(data));
+                socket.send(data);
             };
         };
     };
