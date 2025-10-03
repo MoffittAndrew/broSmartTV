@@ -7,6 +7,7 @@
 
 // Documentation - https://github.com/muaz-khan/WebRTC-Experiment/tree/master/screen-sharing
 
+const protocol = 'wss';
 const uri = 'bro';
 const port = 9559;
 const shareScreenButton = document.getElementById('share-screen');
@@ -203,7 +204,7 @@ const screen_constraints = {
         this.openSignalingChannel = function(callback) {
             this.setConnected(false);
 
-            let ws = new WebSocket('ws://' + uri + ':' + port);
+            let ws = new WebSocket(protocol + '://' + uri + ':' + port);
             ws.addEventListener("message", callback);
             ws.addEventListener("error", (event) => {
                 console.log("WebSocket error: ", event);
