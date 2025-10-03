@@ -7,7 +7,7 @@
 
 // Documentation - https://github.com/muaz-khan/WebRTC-Experiment/tree/master/screen-sharing
 
-const uri = 'localhost';
+const uri = 'bro';
 const port = 9559;
 const shareScreenButton = document.getElementById('share-screen');
 const stopShareScreenButton = document.getElementById('stop-share-screen');

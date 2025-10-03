@@ -73,6 +73,8 @@ async def screen_share(websocket):
     print("Disconnected")
 
 async def main():
+    
+    print(f"Running websocket on {host_ip}:{port}")
     async with serve(screen_share, "localhost", port) as server:
         await server.serve_forever()
 
