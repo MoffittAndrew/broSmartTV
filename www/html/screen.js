@@ -7,7 +7,7 @@
 
 // Documentation - https://github.com/muaz-khan/WebRTC-Experiment/tree/master/screen-sharing
 
-const protocol = 'wss';
+const protocol = 'wss'; //hmm
 const uri = 'bro';
 const port = 9559;
 const shareScreenButton = document.getElementById('share-screen');

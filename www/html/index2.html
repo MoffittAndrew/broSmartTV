@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WebRTC Screen Share</title>
+</head>
+<body>
+  <button id="startBtn">Start Screen Share</button>
+  <div id="status"></div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const statusDiv = document.getElementById('status');
+
+    let pc = null;
+    let stream = null;
+
+    async function checkAvailability() {
+      try {
+        const res = await fetch('/status');
+        if (res.ok) {
+          const data = await res.json();
+          return data.available;
+        }
+      } catch (err) {
+        console.error("Status check failed:", err);
+      }
+      return false;
+    }
+
+    async function stopStream(reason = "stopped") {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      if (pc) {
+        pc.close();
+        pc = null;
+      }
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Screen Share";
+      statusDiv.textContent = `🛑 Stream ${reason}`;
+      console.log("Stream stopped:", reason);
+    }
+
+    startBtn.onclick = async () => {
+      const available = await checkAvailability();
+      if (!available) {
+        alert("Stream is currently busy. Try again later.");
+        statusDiv.textContent = "❌ Stream busy";
+        return;
+      }
+
+      pc = new RTCPeerConnection();
+
+      // Handle disconnects (server-side closure or failure)
+      pc.onconnectionstatechange = () => {
+        console.log("Connection state:", pc.connectionState);
+        if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
+          stopStream("disconnected");
+        }
+      };
+
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      } catch (err) {
+        console.error("User cancelled or error:", err);
+        return;
+      }
+
+      for (const track of stream.getTracks()) {
+        pc.addTrack(track, stream);
+      }
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const response = await fetch("/offer", {
+        method: "POST",
+        body: JSON.stringify(pc.localDescription),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        alert(message);
+        stopStream("rejected");
+        return;
+      }
+
+      const answer = await response.json();
+      await pc.setRemoteDescription(answer);
+
+      startBtn.disabled = true;
+      startBtn.textContent = "Streaming...";
+      statusDiv.textContent = "✅ Streaming active";
+
+      // Optional: stop if the user manually stops sharing
+      stream.getVideoTracks()[0].onended = () => {
+        stopStream("ended by user");
+      };
+    };
+  </script>
+</body>
+</html>
