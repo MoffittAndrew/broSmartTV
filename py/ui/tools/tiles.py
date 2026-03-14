@@ -1,7 +1,9 @@
+# Read in the tiles from tile files
+
 print("Importing tiles...")
 
 from globals import PATH
-from tile import Tile, ProjectorTile, DeviceTile#, WebTile
+from ui.tools.tile import Tile, ProjectorTile, DeviceTile#, WebTile
 
 from os import listdir
 from os.path import isfile, join

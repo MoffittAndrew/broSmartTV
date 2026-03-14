@@ -1,7 +1,7 @@
 print("Importing button class...")
 
 from globals import INPUT, GUI
-from gui import CustomQLabel
+from ui.gui import CustomQLabel
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
@@ -12,6 +12,8 @@ class Button(CustomQLabel):
         enabled:bool = True,
         width:int = GUI.BUTTON.MIN_WIDTH,
         height:int = GUI.BUTTON.MIN_HEIGHT,
+        roundness:int = GUI.BUTTON.ROUNDNESS,
+        borderThickness:int = GUI.BUTTON.BORDER_THICKNESS,
         text:str = "",
         img = None,
         callback = None,
@@ -28,8 +30,9 @@ class Button(CustomQLabel):
         this.__navButtons = {}
         
         this.setEnabled(enabled)
-        this.setWidth(width)
-        this.setHeight(height)
+        this.resize(width, height)
+        this.setRoundness(roundness)
+        this.setBorderThickness(borderThickness)
         this.setImg(img)
         this.setText(text)
         this.setCallback(callback)
@@ -39,8 +42,9 @@ class Button(CustomQLabel):
         this.setNavLeft(navLeft)
         this.setMenuOptions(menuOptions)
         
+        this.setAttribute(Qt.WA_TranslucentBackground)
         this.__needsDraw = True
-        canvas = QtGui.QPixmap(this.getWidth(), this.getHeight())
+        canvas = QtGui.QPixmap(this.width(), this.height())
         this.setPixmap(canvas)
         this.draw()
     
@@ -48,12 +52,12 @@ class Button(CustomQLabel):
     
     def enabled(this):
         return this.__enabled
+
+    def getRoundness(this):
+        return this.__roundness
     
-    def getHeight(this):
-        return this.__height
-    
-    def getWidth(this):
-        return this.__width
+    def getBorderThickness(this):
+        return this.__borderThickness
     
     def getText(this):
         return this.__text
@@ -91,13 +95,19 @@ class Button(CustomQLabel):
     def setEnabled(this, enabled):
         this.__enabled = bool(enabled)
     
-    def setHeight(this, height):
-        if height >= GUI.BUTTON.MIN_HEIGHT:
-            this.__height = int(height)
+    def resize(this, w, h):
+        if w >= GUI.BUTTON.MIN_WIDTH:
+            w = int(w)
+        if h >= GUI.BUTTON.MIN_HEIGHT:
+            h = int(h)
+        
+        super().resize(w, h)
     
-    def setWidth(this, width):
-        if width >= GUI.BUTTON.MIN_WIDTH:
-            this.__width = int(width)
+    def setRoundness(this, roundness):
+        this.__roundness = roundness
+    
+    def setBorderThickness(this, borderThickness):
+        this.__borderThickness = borderThickness
     
     def setText(this, text):
         this.__text = str(text)
@@ -165,26 +175,28 @@ class Button(CustomQLabel):
     def draw(this):
         if this.__needsDraw:
             painter = QtGui.QPainter(this.pixmap())
+            painter.save()
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
             if this.getImg() is None and this.getText() != "":
-                pen = QtGui.QPen()
-                pen.setWidth(1)
-                pen.setColor(GUI.BUTTON_COLOR)
-                painter.setPen(pen)
-                
-                painter.setBrush(QtGui.QBrush(GUI.BUTTON_COLOR, Qt.SolidPattern))
-                painter.drawRect(0, 0, this.getWidth(), this.getHeight())
-                
-                painter.setBrush(QtGui.QBrush(GUI.BG_COLOR, Qt.SolidPattern))
-                painter.drawRect(2, 2, this.getWidth() - 4, this.getHeight() - 4)
+                painter.setPen(QtGui.QPen(GUI.BUTTON.BORDER_COLOR, this.getBorderThickness(), Qt.SolidLine))
+                painter.drawRoundedRect(
+                    int(this.getBorderThickness()/2),
+                    int(this.getBorderThickness()/2),
+                    this.width() - this.getBorderThickness(),
+                    this.height() - this.getBorderThickness(),
+                    this.getRoundness(),
+                    this.getRoundness(),
+                )
 
                 font = QtGui.QFont()
                 font.setFamily('Times')
                 font.setPointSize(40)
                 painter.setFont(font)
 
-                painter.drawText(0, 0, this.getWidth(), this.getHeight(), Qt.AlignCenter, this.getText())
+                painter.drawText(0, 0, this.width(), this.height(), Qt.AlignCenter, this.getText())
             
+            painter.restore()
             painter.end()
         this.__needsDraw = False
     

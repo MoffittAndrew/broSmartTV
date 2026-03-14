@@ -1,8 +1,8 @@
-print("Importing edit screen...")
+print("Importing filter screen...")
 
-from gui import CustomQWidget
+from ui.gui import CustomQWidget
 
-class EditScreen(CustomQWidget):
+class FilterScreen(CustomQWidget):
     def __init__(this, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -25,4 +25,4 @@ class EditScreen(CustomQWidget):
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
 
-editScreen = EditScreen()
+filterScreen = FilterScreen()

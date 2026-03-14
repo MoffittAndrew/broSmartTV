@@ -1,3 +1,7 @@
+# This is the script that runs when the smart TV is powered on (see launch.py)
+# Can also be run from a PC for development and testing purposes (although the
+# GUI doesn't render quite right when not run on the raspberry pi)
+
 print("Starting...")
 
 if __name__ == "__main__":
@@ -5,26 +9,32 @@ if __name__ == "__main__":
     APP = QApplication([])
 
 print("Starting imports...")
-from gui import MAIN_WINDOW
+from ui.gui import MAIN_WINDOW
 from interface.input_interface import inputInterface
 #from interface.web_interface import webInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
-from home import homeScreen
+from screen_cast import startScreenCastServer
+from ui.home import homeScreen
 
 import asyncio
 import qtinter
 print("Completed imports.")
 
+# NOTE - this only runs when launching the script directly (i.e. from a PC)
+# When running on the pi, we just import MAIN_WINDOW from launch.py
 def main():
-    with qtinter.using_asyncio_from_qt():  # <-- enable asyncio in qt code
+    with qtinter.using_asyncio_from_qt():  # enable asyncio in qt code
         asyncio.create_task(remoteInterface.connect())
         print("Starting GUI...")
         MAIN_WINDOW.show()
+        print("Starting screen cast server...")
+        asyncio.create_task(startScreenCastServer())
         APP.exec_()
         print("App closed.")
 
+# set up interface relationships
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
 #MAIN_WINDOW.addWidget(webInterface)

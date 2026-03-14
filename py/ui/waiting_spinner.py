@@ -1,3 +1,5 @@
+# Loading spinner
+
 from math import ceil
 
 # PyQt imports

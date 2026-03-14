@@ -1,8 +1,10 @@
+# Sets up a grid of tiles (for the home screen)
+
 print("Importing tile grid...")
 
 from globals import GUI
-from tiles import tiles
-from gui import CustomQWidget
+from ui.tools.tiles import tiles
+from ui.gui import CustomQWidget
 
 from PyQt5.QtWidgets import QGridLayout
 from PyQt5.QtCore import Qt
