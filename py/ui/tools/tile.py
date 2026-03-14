@@ -1,7 +1,10 @@
+# The home screen is made up of a grid of "tiles" (think apple TV layout)
+# Each app on the home screen is a tile, which is just a type of Button
+
 print("Importing tile class...")
 
 from globals import TILE
-from button import Button, ToggleButton
+from ui.tools.button import Button#, ToggleButton
 from interface.input_interface import inputInterface
 #from web_interface import webInterface
 

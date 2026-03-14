@@ -1,8 +1,8 @@
 print("Importing input interface...")
 
 from globals import INPUT, GUI, PROJECTOR
-from button import Button
-from gui import MAIN_WINDOW, CustomQLabel
+from ui.tools.button import Button
+from ui.gui import MAIN_WINDOW, CustomQLabel
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QCoreApplication

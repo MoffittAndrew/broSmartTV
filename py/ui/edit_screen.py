@@ -1,8 +1,8 @@
-print("Importing search screen...")
+print("Importing edit screen...")
 
-from gui import CustomQWidget
+from ui.gui import CustomQWidget
 
-class SearchScreen(CustomQWidget):
+class EditScreen(CustomQWidget):
     def __init__(this, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -25,4 +25,4 @@ class SearchScreen(CustomQWidget):
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
 
-searchScreen = SearchScreen()
+editScreen = EditScreen()

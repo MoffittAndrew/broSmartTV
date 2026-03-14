@@ -1,7 +1,7 @@
 print("Importing button class...")
 
 from globals import INPUT, GUI
-from gui import CustomQLabel
+from ui.gui import CustomQLabel
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt

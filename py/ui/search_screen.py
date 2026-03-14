@@ -1,8 +1,8 @@
-print("Importing settings screen...")
+print("Importing search screen...")
 
-from gui import CustomQWidget
+from ui.gui import CustomQWidget
 
-class SettingsScreen(CustomQWidget):
+class SearchScreen(CustomQWidget):
     def __init__(this, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -25,4 +25,4 @@ class SettingsScreen(CustomQWidget):
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
 
-settingsScreen = SettingsScreen()
+searchScreen = SearchScreen()

@@ -1,13 +1,13 @@
 print("Importing home screen...")
 
 from globals import GUI, DISPLAY
-from button import NavBarButton
-from gui import CustomQWidget
-from tilegrid import tileGrid
-from settings_screen import settingsScreen
-from search_screen import searchScreen
-from filter_screen import filterScreen
-from edit_screen import editScreen
+from ui.gui import CustomQWidget
+from ui.tools.button import NavBarButton
+from ui.tools.tilegrid import tileGrid
+from ui.settings_screen import settingsScreen
+from ui.search_screen import searchScreen
+from ui.filter_screen import filterScreen
+from ui.edit_screen import editScreen
 
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
 

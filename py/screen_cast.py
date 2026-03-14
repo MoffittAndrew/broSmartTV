@@ -1,4 +1,8 @@
 # this code was written by chatgpt (I gave up)
+# Launches the screen cast (via RTC) webserver
+# TODO stream screen data to the smart TV
+
+print("Importing screen cast server...")
 
 import os
 import asyncio
@@ -100,7 +104,7 @@ async def offer(request):
         }),
     )
 
-async def on_shutdown(app):
+async def on_shutdown(screenCastServer):
     print("Server shutting down, closing peer connections...")
     coros = [pc.close() for pc in pcs]
     await asyncio.gather(*coros)
@@ -112,11 +116,11 @@ async def status(request):
     busy = active_pc is not None and active_pc.connectionState not in ("closed", "failed")
     return web.json_response({"available": not busy})
 
-app = web.Application()
-app.on_shutdown.append(on_shutdown)
-app.router.add_get("/", index)
-app.router.add_post("/offer", offer)
-app.router.add_get("/status", status)
+screenCastServer = web.Application()
+screenCastServer.on_shutdown.append(on_shutdown)
+screenCastServer.router.add_get("/", index)
+screenCastServer.router.add_post("/offer", offer)
+screenCastServer.router.add_get("/status", status)
 
-if __name__ == "__main__":
-    web.run_app(app, host="0.0.0.0", port=8080)
+async def startScreenCastServer():
+    await web.run_app(screenCastServer, host="0.0.0.0", port=8080)

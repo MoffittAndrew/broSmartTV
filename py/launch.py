@@ -1,3 +1,8 @@
+# This is the script that sits idle when the smart TV is off
+# It waits for the remote to connect, and as soon as it does it powers on
+# the projector, then checks for code updates from github, then runs main.py
+# to actually start the smart TV software
+
 import asyncio
 import qtinter
 
@@ -18,7 +23,7 @@ def init_qt():
     # PyQt imports
     from PyQt5.QtWidgets import QApplication, QWidget
     from PyQt5.QtCore import Qt, QSize
-    from waiting_spinner import QtWaitingSpinner
+    from ui.waiting_spinner import QtWaitingSpinner
 
     APP = QApplication([])
 
@@ -50,6 +55,8 @@ async def projector_on():
 
 def launch():
     
+    # Starts the smart TV
+    # Simply importing the MAIN_WINDOW from main is enough to launch everything
     print("Launching main program...")
     from main import MAIN_WINDOW
     MAIN_WINDOW.show()
@@ -59,6 +66,7 @@ def launch():
 
 async def updateThenLaunch():
     
+    # Run the update script to pull code changes from github
     print("Running update script...")
     try:
         proc = await asyncio.create_subprocess_exec("update")
@@ -71,12 +79,14 @@ async def updateThenLaunch():
         print("Skipping update check.")
     
     finally:
+        # Load the updated code into memory
         print("Reloading imported modules...")
         import sys
         for mod in reload_modules:
             sys.modules.pop(mod)
         print("Reloaded modules.")
     
+    # Launch the smart TV
     launch()
 
 async def awaitFindRemote():
@@ -87,12 +97,15 @@ async def awaitFindRemote():
 def main():
     
     try:
+        # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
+            # Switch projector on
             asyncio.create_task(projector_on())
             asyncio.create_task(remoteInterface.connect())
             init_qt()
             
+            # Run the update script, then launch smart TV
             print("Starting launch screen...")
             LAUNCH_FRAME.show()
             asyncio.create_task(updateThenLaunch())

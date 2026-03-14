@@ -1,3 +1,5 @@
+# System settings
+
 print("Importing globals...")
 
 import os
@@ -8,6 +10,7 @@ PATH = os.path.dirname(__file__) + "/../"
 class DISPLAY:
     WIDTH = 1920
     HEIGHT = 1080
+    WINDOW_TITLE = "bro is literally a smart tv"
 
 class BUTTON:
     MIN_WIDTH = 200

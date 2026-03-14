@@ -1,3 +1,5 @@
+# Set up the main window where the GUI magic happens
+
 print("Importing GUI tools...")
 
 from globals import DISPLAY, INPUT, GUI
@@ -109,7 +111,7 @@ class CustomQWindow(QWidget):
         this.setTab()
 
 MAIN_WINDOW = CustomQWindow()
-MAIN_WINDOW.setWindowTitle("bro is literally a smart tv")
+MAIN_WINDOW.setWindowTitle(DISPLAY.WINDOW_TITLE)
 MAIN_WINDOW.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
 
 MAIN_WINDOW.setAutoFillBackground(True)
