@@ -1,7 +1,7 @@
 # bro is literally a smart tv
 
 ### Q: What is this?
-A: Python app that turns my raspberry pi 3B+ into a smart TV.
+A: Python app that turns my raspberry pi into a smart TV.
 
 ### Q: Why?
 A: Sometimes I wonder the same thing.
