@@ -3,6 +3,9 @@
 ### Q: What is this?
 A: Python app that turns my raspberry pi into a smart TV.
 
+### Q: What can it do?
+A: While still a work in progress, what I'm aiming for is a full smart tv experience for my flat. This means full control over the projector (through simulating the infra-red signals of an epson remote), allowing us to switch the projector on and off, switch input channels and configure projector settings all through a custom bluetooth remote (fully designed and 3d printed by yours truly, powered by a raspberry pi pico 2w). Additionally, I'm slowly adding features such as wireless screen casting from any laptop (via webrtc), and full integration with streaming platforms (e.g. Netflix, Disney+).
+
 ### Q: Why?
 A: Sometimes I wonder the same thing.
 Short story long, my flatmates and I have an awkward projector setup that's tricky to plug stuff into to launch up netflix or whatever, so I decided to put my dusty pi to use.
