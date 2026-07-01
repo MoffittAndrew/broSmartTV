@@ -4,18 +4,25 @@
 
 print("Starting...")
 
-if __name__ == "__main__":
-    from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication
+
+APP = QApplication.instance()
+if APP is None:
     APP = QApplication([])
 
 print("Starting imports...")
-from ui.gui import MAIN_WINDOW
+from ui.gui import MAIN_WINDOW, ScreenCastView
 from interface.input_interface import inputInterface
 #from interface.web_interface import webInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
-from screen_cast import startScreenCastServer
+from screen_cast import (
+    startScreenCastServer,
+    setFrameHandler,
+    setConnectionHandler,
+    setDisconnectHandler,
+)
 from ui.home import homeScreen
 
 import asyncio
@@ -45,6 +52,12 @@ remoteInterface.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboardInterface)
 
 MAIN_WINDOW.setDefaultTab(homeScreen)
+
+screenCastView = ScreenCastView(MAIN_WINDOW)
+MAIN_WINDOW.setScreenCastWidget(screenCastView)
+setFrameHandler(screenCastView.setFrame)
+setConnectionHandler(MAIN_WINDOW.showScreenCast)
+setDisconnectHandler(MAIN_WINDOW.hideScreenCast)
 
 if __name__ == "__main__":
     print("Running main event loop...")
