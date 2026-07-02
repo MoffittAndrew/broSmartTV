@@ -139,6 +139,26 @@ async def awaitFindRemote():
         await remoteInterface.awaitFindRemote()
 
 
+async def shutdown_background_tasks(tasks):
+    """Cancel/await launcher background tasks before process exit."""
+    remoteInterface.setRunning(False)
+
+    pending = []
+    for task in tasks:
+        if task is None or task.done():
+            continue
+        task.cancel()
+        pending.append(task)
+
+    if not pending:
+        return
+
+    try:
+        await asyncio.wait_for(asyncio.gather(*pending, return_exceptions=True), timeout=2)
+    except asyncio.TimeoutError:
+        print("Timed out while shutting down background tasks.")
+
+
 def main():
     """Top-level launcher orchestration for Pi runtime."""
     try:
@@ -146,17 +166,22 @@ def main():
         asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
             # Switch projector on
-            asyncio.create_task(projector_on())
-            asyncio.create_task(remoteInterface.connect())
+            projector_task = asyncio.create_task(projector_on())
+            remote_task = asyncio.create_task(remoteInterface.connect())
 
             init_qt()
             
             # Run the update script, then launch smart TV
             print("Starting launch screen...")
             LAUNCH_SCREEN.show()
-            asyncio.create_task(updateThenLaunch())
+            update_task = asyncio.create_task(updateThenLaunch())
             APP.exec_()
             print("App closed.")
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                shutdown_background_tasks([projector_task, remote_task, update_task])
+            )
 
     except KeyboardInterrupt:
         print()
