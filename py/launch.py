@@ -161,6 +161,9 @@ def main():
     try:
         # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
+        # The pre-scan runs in a temporary asyncio loop. Clear cached device so
+        # connect() performs a fresh scan inside the qtinter runtime loop.
+        remoteInterface.setDevice(None)
         with qtinter.using_asyncio_from_qt():
             init_qt()
 
