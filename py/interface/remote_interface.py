@@ -5,6 +5,7 @@ from globals import REMOTE, INPUT
 import asyncio
 import sys
 import bleak
+import traceback
 
 if sys.platform.startswith("win"):
     try:
@@ -109,22 +110,24 @@ class RemoteInterface:
     def __disconnected_callback(self, client: bleak.BleakClient):
         print("Disconnected from remote.")
         self.setConnected(False)
-        self.setDevice(None)
+        self.setClient(None)
 
     async def __connectToRemote(self):
+        connected_once = False
         async with bleak.BleakClient(self.getDevice(), disconnected_callback=self.__disconnected_callback) as client:
             self.setClient(client)
             service = client.services.get_service(self.getServiceUUID())
             if service is None:
                 print("Service not found")
-                return
+                return connected_once
 
             characteristic = service.get_characteristic(self.getCharacteristicUUID())
             if characteristic is None:
                 print("Characteristic not found")
-                return
+                return connected_once
 
             print("Remote connected")
+            connected_once = True
             self.setConnected(True)
             if self.getCallbackOnConnect() is not None:
                 callback = self.getCallbackOnConnect()
@@ -134,6 +137,10 @@ class RemoteInterface:
             await client.start_notify(characteristic, self.__callback)
             while client.is_connected:
                 await asyncio.sleep(self.getCheckAliveInterval())
+
+        self.setConnected(False)
+        self.setClient(None)
+        return connected_once
     
     async def connect(self, callbackOnConnect = None):
         
@@ -141,19 +148,33 @@ class RemoteInterface:
             self.setCallbackOnConnect(callbackOnConnect)
         
         self.setRunning(True)
+        connect_failures = 0
         while self.isRunning():
             try:
                 if self.getDevice() is None:
                     print("Remote not found, scanning again...")
                     await self.__findRemote()
+                    connect_failures = 0
                 else:
                     print("Connecting to remote...")
-                    await self.__connectToRemote()
+                    connected_once = await self.__connectToRemote()
+                    if connected_once:
+                        connect_failures = 0
+                    else:
+                        connect_failures += 1
+                        print(f"Remote connect attempt failed ({connect_failures}/3), retrying...")
             
             except Exception as e:
-                print(f"An error occurred: {e}")
+                connect_failures += 1
+                print(f"An error occurred while connecting to remote: {type(e).__name__}: {e!r}")
+                traceback.print_exception(type(e), e, e.__traceback__)
+
+            if connect_failures >= 3:
+                print("Multiple remote connection failures. Clearing cached remote and scanning again...")
                 self.setDevice(None)
-                await asyncio.sleep(self.getCheckAliveInterval())
+                connect_failures = 0
+
+            await asyncio.sleep(self.getCheckAliveInterval())
     
     async def awaitFindRemote(self):
         
