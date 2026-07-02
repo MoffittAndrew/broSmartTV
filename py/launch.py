@@ -15,6 +15,31 @@ reload_modules = [
     #"interface.remote_interface",
 ]
 
+
+def request_restart(reason, exc=None):
+    print(f"Fatal error: {reason}")
+    if exc is not None:
+        print(exc)
+
+    app = globals().get("APP")
+    if app is not None:
+        app.exit(1)
+
+
+def create_monitored_task(coro, name):
+    task = asyncio.create_task(coro, name=name)
+
+    def _task_done_callback(done_task):
+        if done_task.cancelled():
+            return
+
+        exc = done_task.exception()
+        if exc is not None:
+            request_restart(f"Task '{name}' crashed", exc)
+
+    task.add_done_callback(_task_done_callback)
+    return task
+
 def init_qt():
     global APP, LAUNCH_FRAME, waiting_circ
     
@@ -87,7 +112,10 @@ async def updateThenLaunch():
         print("Reloaded modules.")
     
     # Launch the smart TV
-    launch()
+    try:
+        launch()
+    except Exception as e:
+        request_restart("Failed to launch main program", e)
 
 async def awaitFindRemote():
     
@@ -100,15 +128,16 @@ def main():
         # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
-            # Switch projector on
-            asyncio.create_task(projector_on())
-            asyncio.create_task(remoteInterface.connect())
             init_qt()
+
+            # Switch projector on
+            create_monitored_task(projector_on(), "projector_on")
+            create_monitored_task(remoteInterface.connect(), "remote_connect")
             
             # Run the update script, then launch smart TV
             print("Starting launch screen...")
             LAUNCH_FRAME.show()
-            asyncio.create_task(updateThenLaunch())
+            create_monitored_task(updateThenLaunch(), "update_then_launch")
             APP.exec_()
             print("App closed.")
 
