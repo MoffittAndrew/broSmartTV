@@ -31,7 +31,6 @@ reload_modules = [
 _restart_requested = False
 _update_log_lines = []
 _update_log_max_lines = 15
-_remote_connect_task = None
 
 
 def get_update_log_line_color(line):
@@ -96,30 +95,6 @@ def create_monitored_task(coro, name):
 
     task.add_done_callback(_task_done_callback)
     return task
-
-
-async def restart_remote_connect_task():
-    """Reset launcher-time BLE state and start a fresh remote connect loop."""
-    global _remote_connect_task
-
-    old_task = _remote_connect_task
-    if old_task is not None and not old_task.done():
-        remoteInterface.setRunning(False)
-        old_task.cancel()
-        try:
-            await old_task
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            append_update_log_line(f"Remote task restart warning: {e}")
-
-    remoteInterface.setConnected(False)
-    remoteInterface.setDevice(None)
-    remoteInterface.setClient(None)
-    remoteInterface.setRunning(False)
-
-    _remote_connect_task = create_monitored_task(remoteInterface.connect(), "remote_connect")
-    append_update_log_line("Remote connection handoff complete.")
 
 
 def append_update_log_line(line):
@@ -240,8 +215,6 @@ async def updateThenLaunch():
         for mod in reload_modules:
             sys.modules.pop(mod, None)
         append_update_log_line("Reloaded modules.")
-
-    await restart_remote_connect_task()
     
     # Launch the smart TV
     try:
@@ -257,7 +230,6 @@ async def awaitFindRemote():
 
 def main():
     """Top-level launcher orchestration for Pi runtime."""
-    global _remote_connect_task
     try:
         # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
@@ -266,7 +238,7 @@ def main():
 
             # Switch projector on
             create_monitored_task(projector_on(), "projector_on")
-            _remote_connect_task = create_monitored_task(remoteInterface.connect(), "remote_connect")
+            create_monitored_task(remoteInterface.connect(), "remote_connect")
             
             # Run the update script, then launch smart TV
             print("Starting launch screen...")
