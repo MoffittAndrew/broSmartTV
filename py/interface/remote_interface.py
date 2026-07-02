@@ -41,6 +41,7 @@ class RemoteInterface:
         self.setConnected(False)
         self.setDevice(None)
         self.setClient(None)
+        self.__connecting = False
     
     def getName(self):
         return self.__name
@@ -110,15 +111,26 @@ class RemoteInterface:
     def __disconnected_callback(self, client: bleak.BleakClient):
         if self.isConnected():
             print("Disconnected from remote.")
+            self.setDevice(None)
+        elif self.__connecting:
+            print("Connection attempt to remote was interrupted.")
         else:
             print("Connection to remote failed.")
         self.setConnected(False)
-        self.setDevice(None)
+        self.setClient(None)
 
     async def __connectToRemote(self):
         device = self.getDevice()
+        target = device.address if hasattr(device, "address") else device
+        self.__connecting = True
         try:
-            async with bleak.BleakClient(device, disconnected_callback=self.__disconnected_callback) as client:
+            # BlueZ can keep stale device paths from scan results; connecting by
+            # address is generally more reliable than passing a BLEDevice object.
+            async with bleak.BleakClient(
+                target,
+                disconnected_callback=self.__disconnected_callback,
+                timeout=max(15, self.getCheckAliveInterval() * 3),
+            ) as client:
                 self.setClient(client)
                 service = client.services.get_service(self.getServiceUUID())
                 if service is None:
@@ -143,8 +155,11 @@ class RemoteInterface:
         except Exception:
             print("Remote connection attempt failed in __connectToRemote")
             print(f"Device context: {device!r}")
+            print(f"Connection target: {target!r}")
             traceback.print_exc()
             raise
+        finally:
+            self.__connecting = False
     
     async def connect(self, callbackOnConnect = None):
         
