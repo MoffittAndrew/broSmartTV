@@ -5,6 +5,7 @@ from globals import REMOTE, INPUT
 import asyncio
 import sys
 import bleak
+import traceback
 
 if sys.platform.startswith("win"):
     try:
@@ -115,28 +116,35 @@ class RemoteInterface:
         self.setDevice(None)
 
     async def __connectToRemote(self):
-        async with bleak.BleakClient(self.getDevice(), disconnected_callback=self.__disconnected_callback) as client:
-            self.setClient(client)
-            service = client.services.get_service(self.getServiceUUID())
-            if service is None:
-                print("Service not found")
-                return
+        device = self.getDevice()
+        try:
+            async with bleak.BleakClient(device, disconnected_callback=self.__disconnected_callback) as client:
+                self.setClient(client)
+                service = client.services.get_service(self.getServiceUUID())
+                if service is None:
+                    print("Service not found")
+                    return
 
-            characteristic = service.get_characteristic(self.getCharacteristicUUID())
-            if characteristic is None:
-                print("Characteristic not found")
-                return
+                characteristic = service.get_characteristic(self.getCharacteristicUUID())
+                if characteristic is None:
+                    print("Characteristic not found")
+                    return
 
-            print("Remote connected")
-            self.setConnected(True)
-            if self.getCallbackOnConnect() is not None:
-                callback = self.getCallbackOnConnect()
-                self.setCallbackOnConnect(None)
-                asyncio.create_task(callback())
-            
-            await client.start_notify(characteristic, self.__callback)
-            while client.is_connected:
-                await asyncio.sleep(self.getCheckAliveInterval())
+                print("Remote connected")
+                self.setConnected(True)
+                if self.getCallbackOnConnect() is not None:
+                    callback = self.getCallbackOnConnect()
+                    self.setCallbackOnConnect(None)
+                    asyncio.create_task(callback())
+                
+                await client.start_notify(characteristic, self.__callback)
+                while client.is_connected:
+                    await asyncio.sleep(self.getCheckAliveInterval())
+        except Exception:
+            print("Remote connection attempt failed in __connectToRemote")
+            print(f"Device context: {device!r}")
+            traceback.print_exc()
+            raise
     
     async def connect(self, callbackOnConnect = None):
         
@@ -154,7 +162,10 @@ class RemoteInterface:
                     await self.__connectToRemote()
             
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print("An error occurred while managing remote connection loop:")
+                print(f"Exception type: {type(e).__name__}")
+                print(f"Exception repr: {e!r}")
+                traceback.print_exc()
                 self.setDevice(None)
                 await asyncio.sleep(self.getCheckAliveInterval())
     

@@ -49,23 +49,6 @@ def request_restart(reason, exc=None):
     sys.stderr.flush()
     os._exit(1)
 
-
-def create_monitored_task(coro, name):
-    """Create a task that escalates unhandled exceptions to process restart."""
-    task = asyncio.create_task(coro, name=name)
-
-    def _task_done_callback(done_task):
-        if done_task.cancelled():
-            return
-
-        exc = done_task.exception()
-        if exc is not None:
-            request_restart(f"Task '{name}' crashed", exc)
-
-    task.add_done_callback(_task_done_callback)
-    return task
-
-
 def append_update_log_line(line):
     line = str(line).strip()
     if not line:
