@@ -28,7 +28,7 @@ reload_modules = [
 
 _restart_requested = False
 _update_log_lines = []
-_update_log_max_lines = 5
+_update_log_max_lines = 10
 
 
 def request_restart(reason, exc=None):
@@ -124,6 +124,7 @@ def init_qt():
     update_log_label.setStyleSheet("color: white;")
     font = QFont("Monospace")
     font.setStyleHint(QFont.TypeWriter)
+    font.setPointSize(20)
     update_log_label.setFont(font)
 
     margin = 40
