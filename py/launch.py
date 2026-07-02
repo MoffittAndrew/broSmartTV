@@ -179,9 +179,14 @@ def main():
             print("App closed.")
 
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(
-                shutdown_background_tasks([projector_task, remote_task, update_task])
-            )
+            if loop.is_running():
+                loop.create_task(
+                    shutdown_background_tasks([projector_task, remote_task, update_task])
+                )
+            else:
+                loop.run_until_complete(
+                    shutdown_background_tasks([projector_task, remote_task, update_task])
+                )
 
     except KeyboardInterrupt:
         print()
