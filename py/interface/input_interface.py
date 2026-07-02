@@ -8,6 +8,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QCoreApplication
 
 import asyncio
+from screen_cast import stopScreenCastServer
 
 class InputInterface(CustomQLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
@@ -139,7 +140,11 @@ class InputInterface(CustomQLabel):
         this.__isProcessingBacklog = False
     
     async def powerOff(this):
-        await this.getProjectorInterface().off()
+        projectorInterface = this.getProjectorInterface()
+        if projectorInterface is not None:
+            await projectorInterface.off()
+
+        await stopScreenCastServer()
         QCoreApplication.quit()
     
     async def select(this):

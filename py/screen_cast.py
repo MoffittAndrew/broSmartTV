@@ -152,5 +152,27 @@ screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
 
 
-async def startScreenCastServer():
-    await web.run_app(screenCastServer, host="0.0.0.0", port=8080)
+_runner = None
+_site = None
+
+async def startScreenCastServer(host="0.0.0.0", port=8080):
+    global _runner, _site
+
+    if _runner is not None:
+        return
+
+    _runner = web.AppRunner(screenCastServer)
+    await _runner.setup()
+    _site = web.TCPSite(_runner, host, port)
+    await _site.start()
+
+async def stopScreenCastServer():
+    global _runner, _site
+
+    if _site is not None:
+        await _site.stop()
+        _site = None
+
+    if _runner is not None:
+        await _runner.cleanup()
+        _runner = None
