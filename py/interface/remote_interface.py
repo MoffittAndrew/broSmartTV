@@ -42,6 +42,7 @@ class RemoteInterface:
         self.setDevice(None)
         self.setClient(None)
         self.__connecting = False
+        self.__interrupted_notice_printed = False
     
     def getName(self):
         return self.__name
@@ -113,16 +114,34 @@ class RemoteInterface:
             print("Disconnected from remote.")
             self.setDevice(None)
         elif self.__connecting:
-            print("Connection attempt to remote was interrupted.")
+            if not self.__interrupted_notice_printed:
+                print("Connection attempt to remote was interrupted.")
+                self.__interrupted_notice_printed = True
         else:
             print("Connection to remote failed.")
         self.setConnected(False)
         self.setClient(None)
 
+    async def __refresh_device_for_connect(self, device):
+        """Refresh BlueZ device object by address to avoid stale scan handles."""
+        address = device.address if hasattr(device, "address") else None
+        if not address:
+            return device
+
+        refreshed = await bleak.BleakScanner.find_device_by_address(address, timeout=3)
+        if refreshed is not None:
+            self.setDevice(refreshed)
+            return refreshed
+
+        print(f"Could not refresh device by address {address}, using cached scan result.")
+        return device
+
     async def __connectToRemote(self):
         device = self.getDevice()
+        device = await self.__refresh_device_for_connect(device)
         target = device.address if hasattr(device, "address") else device
         self.__connecting = True
+        self.__interrupted_notice_printed = False
         try:
             # BlueZ can keep stale device paths from scan results; connecting by
             # address is generally more reliable than passing a BLEDevice object.
