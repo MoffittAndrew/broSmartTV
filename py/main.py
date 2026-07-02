@@ -1,6 +1,13 @@
-# This is the script that runs when the smart TV is powered on (see launch.py)
-# Can also be run from a PC for development and testing purposes (although the
-# GUI doesn't render quite right when not run on the raspberry pi)
+"""Main application entrypoint.
+
+There are two startup paths:
+1. Raspberry Pi runtime: launch.py imports this module, which executes module
+    setup below (UI wiring, interfaces, screencast callbacks). launch.py then
+    shows MAIN_WINDOW.
+2. Local development/runtime testing: this file is run directly, so __main__
+    calls main(), which starts remote connection + screencast server and enters
+    the Qt event loop.
+"""
 
 print("Starting...")
 
@@ -32,6 +39,7 @@ print("Completed imports.")
 
 
 def request_shutdown():
+    """Run async teardown whether Qt quit comes from running loop or not."""
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -45,6 +53,7 @@ def request_shutdown():
 # NOTE - this only runs when launching the script directly (i.e. from a PC)
 # When running on the pi, we just import MAIN_WINDOW from launch.py
 def main():
+    """Start services and run Qt loop for direct main.py execution."""
     with qtinter.using_asyncio_from_qt():  # enable asyncio in qt code
         reset_shutdown_state()
         asyncio.create_task(remoteInterface.connect())
@@ -56,7 +65,10 @@ def main():
         APP.exec_()
         print("App closed.")
 
-# set up interface relationships
+# Module-level setup that runs on import (used by both startup paths):
+# - link interfaces together
+# - attach widgets/callbacks
+# - configure screencast display handlers
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
 #MAIN_WINDOW.addWidget(webInterface)

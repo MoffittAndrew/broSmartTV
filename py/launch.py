@@ -1,9 +1,22 @@
-# This is the script that sits idle when the smart TV is off
-# It waits for the remote to connect, and as soon as it does it powers on
-# the projector, then checks for code updates from github, then runs main.py
-# to actually start the smart TV software
+"""Launcher entrypoint used on the Raspberry Pi.
+
+Startup flow when running this file directly:
+1. Wait for the remote to be discoverable.
+2. Start a lightweight launch screen (spinner).
+3. Power on the projector and keep remote connection alive.
+4. Run the update script.
+5. Preflight-check Python runtime dependencies needed by main.py.
+6. Import main.py and show the main UI.
+
+Any fatal startup/task error exits the process with code 1 so the outer
+bash launch loop can automatically restart the app.
+"""
 
 import asyncio
+import importlib.util
+import os
+import sys
+import traceback
 import qtinter
 
 from interface.remote_interface import remoteInterface
@@ -15,18 +28,38 @@ reload_modules = [
     #"interface.remote_interface",
 ]
 
+# Modules required before importing main.py.
+# Keep this list focused on modules that commonly fail on Pi setup.
+required_runtime_modules = {
+    "aiohttp": "screen cast server",
+}
+
+_restart_requested = False
+
 
 def request_restart(reason, exc=None):
+    """Force a hard process exit so the outer launcher can restart us."""
+    global _restart_requested
+    if _restart_requested:
+        return
+
+    _restart_requested = True
     print(f"Fatal error: {reason}")
     if exc is not None:
-        print(exc)
+        traceback.print_exception(type(exc), exc, exc.__traceback__)
 
     app = globals().get("APP")
     if app is not None:
         app.exit(1)
 
+    # Ensure the launcher process exits so the outer bash loop can restart it.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1)
+
 
 def create_monitored_task(coro, name):
+    """Create a task that escalates unhandled exceptions to process restart."""
     task = asyncio.create_task(coro, name=name)
 
     def _task_done_callback(done_task):
@@ -41,6 +74,7 @@ def create_monitored_task(coro, name):
     return task
 
 def init_qt():
+    """Initialize the minimal launch UI shown before main.py is ready."""
     global APP, LAUNCH_FRAME, waiting_circ
     
     from globals import DISPLAY
@@ -73,15 +107,23 @@ def init_qt():
     waiting_circ.start()
 
 async def projector_on():
-    
+    """Power on the projector while launch/update work continues."""
     from interface.projector_interface import projectorInterface
     print("Switching projector on...")
     await projectorInterface.on()
 
+
+def check_runtime_dependencies():
+    """Return a list of missing modules required by main.py startup."""
+    missing = []
+    for module_name in required_runtime_modules:
+        if importlib.util.find_spec(module_name) is None:
+            missing.append(module_name)
+    return missing
+
+
 def launch():
-    
-    # Starts the smart TV
-    # Simply importing the MAIN_WINDOW from main is enough to launch everything
+    """Import main.py and transition from launch screen to the full UI."""
     print("Launching main program...")
     from main import MAIN_WINDOW
     MAIN_WINDOW.show()
@@ -90,7 +132,7 @@ def launch():
     LAUNCH_FRAME.hide()
 
 async def updateThenLaunch():
-    
+    """Run updater, reload selected modules, verify deps, then launch main."""
     # Run the update script to pull code changes from github
     print("Running update script...")
     try:
@@ -108,8 +150,23 @@ async def updateThenLaunch():
         print("Reloading imported modules...")
         import sys
         for mod in reload_modules:
-            sys.modules.pop(mod)
+            sys.modules.pop(mod, None)
         print("Reloaded modules.")
+
+    missing_modules = check_runtime_dependencies()
+    if missing_modules:
+        details = ", ".join(
+            f"{name} ({required_runtime_modules.get(name, 'required module')})"
+            for name in missing_modules
+        )
+        request_restart(
+            "Missing Python dependencies before launching main.py: " + details,
+            ModuleNotFoundError(
+                "Install missing modules on the Pi, for example: pip install "
+                + " ".join(missing_modules)
+            ),
+        )
+        return
     
     # Launch the smart TV
     try:
@@ -118,12 +175,13 @@ async def updateThenLaunch():
         request_restart("Failed to launch main program", e)
 
 async def awaitFindRemote():
-    
+    """Block until the remote is found before showing launch UI."""
     with qtinter.using_qt_from_asyncio():
         await remoteInterface.awaitFindRemote()
 
+
 def main():
-    
+    """Top-level launcher orchestration for Pi runtime."""
     try:
         # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
@@ -145,6 +203,8 @@ def main():
         print()
         print("Launch script manually cancelled by user")
         exit(130)
+    except Exception as e:
+        request_restart("Launcher crashed unexpectedly", e)
 
 if __name__ == "__main__":
     print("Starting launch.py...")
