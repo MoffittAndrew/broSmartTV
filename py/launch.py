@@ -153,7 +153,7 @@ def init_qt():
     update_log_label.setStyleSheet("color: white;")
     font = QFont("Monospace")
     font.setStyleHint(QFont.TypeWriter)
-    font.setPointSize(40)
+    font.setPointSize(30)
     update_log_label.setFont(font)
 
     margin = 40
