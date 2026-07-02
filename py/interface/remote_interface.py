@@ -3,17 +3,19 @@ print("Importing remote interface...")
 from globals import REMOTE, INPUT
 
 import asyncio
+import sys
 import bleak
 
-try:
-    from bleak.backends.winrt.util import allow_sta
-    # tell Bleak we are using a graphical user interface that has been properly
-    # configured to work with asyncio
-    allow_sta()
-except ImportError:
-    # other OSes and older versions of Bleak will raise ImportError which we
-    # can safely ignore
-    pass
+if sys.platform.startswith("win"):
+    try:
+        from bleak.backends.winrt.util import allow_sta
+        # tell Bleak we are using a graphical user interface that has been
+        # properly configured to work with asyncio
+        allow_sta()
+    except (ImportError, AttributeError):
+        # Older Bleak versions or partial WinRT environments can fail here;
+        # we can safely continue without this optimization.
+        pass
 
 class RemoteInterface:
     def __init__(
