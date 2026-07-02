@@ -5,15 +5,13 @@ Startup flow when running this file directly:
 2. Start a lightweight launch screen (spinner).
 3. Power on the projector and keep remote connection alive.
 4. Run the update script.
-5. Preflight-check Python runtime dependencies needed by main.py.
-6. Import main.py and show the main UI.
+5. Import main.py and show the main UI.
 
 Any fatal startup/task error exits the process with code 1 so the outer
 bash launch loop can automatically restart the app.
 """
 
 import asyncio
-import importlib.util
 import os
 import sys
 import traceback
@@ -27,12 +25,6 @@ reload_modules = [
     "interface.ir_interface",
     #"interface.remote_interface",
 ]
-
-# Modules required before importing main.py.
-# Keep this list focused on modules that commonly fail on Pi setup.
-required_runtime_modules = {
-    "aiohttp": "screen cast server",
-}
 
 _restart_requested = False
 
@@ -113,15 +105,6 @@ async def projector_on():
     await projectorInterface.on()
 
 
-def check_runtime_dependencies():
-    """Return a list of missing modules required by main.py startup."""
-    missing = []
-    for module_name in required_runtime_modules:
-        if importlib.util.find_spec(module_name) is None:
-            missing.append(module_name)
-    return missing
-
-
 def launch():
     """Import main.py and transition from launch screen to the full UI."""
     print("Launching main program...")
@@ -132,7 +115,7 @@ def launch():
     LAUNCH_FRAME.hide()
 
 async def updateThenLaunch():
-    """Run updater, reload selected modules, verify deps, then launch main."""
+    """Run updater, reload selected modules, then launch main."""
     # Run the update script to pull code changes from github
     print("Running update script...")
     try:
@@ -152,21 +135,6 @@ async def updateThenLaunch():
         for mod in reload_modules:
             sys.modules.pop(mod, None)
         print("Reloaded modules.")
-
-    missing_modules = check_runtime_dependencies()
-    if missing_modules:
-        details = ", ".join(
-            f"{name} ({required_runtime_modules.get(name, 'required module')})"
-            for name in missing_modules
-        )
-        request_restart(
-            "Missing Python dependencies before launching main.py: " + details,
-            ModuleNotFoundError(
-                "Install missing modules on the Pi, for example: pip install "
-                + " ".join(missing_modules)
-            ),
-        )
-        return
     
     # Launch the smart TV
     try:
