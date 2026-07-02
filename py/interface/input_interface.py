@@ -5,10 +5,10 @@ from ui.tools.button import Button
 from ui.gui import MAIN_WINDOW, CustomQLabel
 
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QCoreApplication
+from PyQt5.QtCore import Qt
 
 import asyncio
-from screen_cast import stopScreenCastServer
+from teardown import teardown_app
 
 class InputInterface(CustomQLabel):
     def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
@@ -140,12 +140,7 @@ class InputInterface(CustomQLabel):
         this.__isProcessingBacklog = False
     
     async def powerOff(this):
-        projectorInterface = this.getProjectorInterface()
-        if projectorInterface is not None:
-            await projectorInterface.off()
-
-        await stopScreenCastServer()
-        QCoreApplication.quit()
+        await teardown_app(projector_interface=this.getProjectorInterface(), quit_app=True)
     
     async def select(this):
         if this.inProjectorMode():

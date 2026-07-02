@@ -23,21 +23,36 @@ from screen_cast import (
     setConnectionHandler,
     setDisconnectHandler,
 )
+from teardown import reset_shutdown_state, teardown_app
 from ui.home import homeScreen
 
 import asyncio
 import qtinter
 print("Completed imports.")
 
+
+def request_shutdown():
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.get_event_loop_policy().get_event_loop()
+
+    if loop.is_running():
+        loop.create_task(teardown_app(projector_interface=projectorInterface, quit_app=False))
+    else:
+        loop.run_until_complete(teardown_app(projector_interface=projectorInterface, quit_app=False))
+
 # NOTE - this only runs when launching the script directly (i.e. from a PC)
 # When running on the pi, we just import MAIN_WINDOW from launch.py
 def main():
     with qtinter.using_asyncio_from_qt():  # enable asyncio in qt code
+        reset_shutdown_state()
         asyncio.create_task(remoteInterface.connect())
         print("Starting GUI...")
         MAIN_WINDOW.show()
         print("Starting screen cast server...")
         asyncio.create_task(startScreenCastServer())
+        APP.aboutToQuit.connect(request_shutdown)
         APP.exec_()
         print("App closed.")
 
