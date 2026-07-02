@@ -30,7 +30,7 @@ reload_modules = [
 
 _restart_requested = False
 _update_log_lines = []
-_update_log_max_lines = 10
+_update_log_max_lines = 15
 
 
 def get_update_log_line_color(line):
