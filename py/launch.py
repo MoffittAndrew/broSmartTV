@@ -12,9 +12,11 @@ bash launch loop can automatically restart the app.
 """
 
 import asyncio
+import re
 import os
 import sys
 import traceback
+from html import escape
 import qtinter
 
 from interface.remote_interface import remoteInterface
@@ -29,6 +31,33 @@ reload_modules = [
 _restart_requested = False
 _update_log_lines = []
 _update_log_max_lines = 10
+
+
+def get_update_log_line_color(line):
+    lower_line = line.lower()
+
+    exit_match = re.search(r"exited with code\s+(-?\d+)", lower_line)
+    if exit_match is not None:
+        return "#8BE28B" if int(exit_match.group(1)) == 0 else "#FF7A7A"
+
+    if any(token in lower_line for token in ["error", "failed", "fatal", "exception", "traceback"]):
+        return "#FF7A7A"
+
+    if any(token in lower_line for token in ["warn", "warning", "skip", "retry"]):
+        return "#FFD166"
+
+    if any(token in lower_line for token in ["done", "finished", "reloaded", "connected", "updated"]):
+        return "#8BE28B"
+
+    return "#FFFFFF"
+
+
+def build_update_log_rich_text(lines):
+    rendered_lines = []
+    for line in lines:
+        color = get_update_log_line_color(line)
+        rendered_lines.append(f'<span style="color: {color};">{escape(line)}</span>')
+    return "<br>".join(rendered_lines)
 
 
 def request_restart(reason, exc=None):
@@ -81,7 +110,7 @@ def append_update_log_line(line):
 
     label = globals().get("update_log_label")
     if label is not None:
-        label.setText("\n".join(_update_log_lines))
+        label.setText(build_update_log_rich_text(_update_log_lines))
 
 def init_qt():
     """Initialize the minimal launch UI shown before main.py is ready."""
@@ -124,7 +153,7 @@ def init_qt():
     update_log_label.setStyleSheet("color: white;")
     font = QFont("Monospace")
     font.setStyleHint(QFont.TypeWriter)
-    font.setPointSize(20)
+    font.setPointSize(40)
     update_log_label.setFont(font)
 
     margin = 40
