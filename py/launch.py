@@ -29,6 +29,13 @@ reload_modules = [
 _restart_requested = False
 
 
+def exit_process(code=0):
+    """Exit immediately to avoid unstable interpreter finalization paths."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
+
+
 def request_restart(reason, exc=None):
     """Force a hard process exit so the outer launcher can restart us."""
     global _restart_requested
@@ -199,3 +206,4 @@ if __name__ == "__main__":
     print("Starting launch.py...")
     main()
     print("Exiting launch.py...")
+    exit_process(0)
