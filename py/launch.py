@@ -12,11 +12,9 @@ bash launch loop can automatically restart the app.
 """
 
 import asyncio
-import re
 import os
 import sys
 import traceback
-from html import escape
 import qtinter
 
 from interface.remote_interface import remoteInterface
@@ -29,35 +27,6 @@ reload_modules = [
 ]
 
 _restart_requested = False
-_update_log_lines = []
-_update_log_max_lines = 15
-
-
-def get_update_log_line_color(line):
-    lower_line = line.lower()
-
-    exit_match = re.search(r"exited with code\s+(-?\d+)", lower_line)
-    if exit_match is not None:
-        return "#8BE28B" if int(exit_match.group(1)) == 0 else "#FF7A7A"
-
-    if any(token in lower_line for token in ["error", "failed", "fatal", "exception", "traceback"]):
-        return "#FF7A7A"
-
-    if any(token in lower_line for token in ["warn", "warning", "skip", "retry"]):
-        return "#FFD166"
-
-    if any(token in lower_line for token in ["done", "finished", "reloaded", "connected", "updated"]):
-        return "#8BE28B"
-
-    return "#FFFFFF"
-
-
-def build_update_log_rich_text(lines):
-    rendered_lines = []
-    for line in lines:
-        color = get_update_log_line_color(line)
-        rendered_lines.append(f'<span style="color: {color};">{escape(line)}</span>')
-    return "<br>".join(rendered_lines)
 
 
 def request_restart(reason, exc=None):
@@ -98,73 +67,32 @@ def create_monitored_task(coro, name):
 
 
 def append_update_log_line(line):
-    global _update_log_lines
-
     line = str(line).strip()
     if not line:
         return
 
     print(line)
-    _update_log_lines.append(line)
-    _update_log_lines = _update_log_lines[-_update_log_max_lines:]
 
-    label = globals().get("update_log_label")
-    if label is not None:
-        label.setText(build_update_log_rich_text(_update_log_lines))
+    launch_screen = globals().get("LAUNCH_SCREEN")
+    if launch_screen is not None:
+        launch_screen.append_log_line(line)
 
 def init_qt():
     """Initialize the minimal launch UI shown before main.py is ready."""
-    global APP, LAUNCH_FRAME, waiting_circ, update_log_label, _update_log_lines
+    global APP, LAUNCH_SCREEN
     
     from globals import DISPLAY
     
-    # PyQt imports
-    from PyQt5.QtWidgets import QApplication, QWidget, QLabel
-    from PyQt5.QtCore import Qt, QSize
-    from PyQt5.QtGui import QFont
-    from ui.waiting_spinner import QtWaitingSpinner
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtCore import Qt
+    from ui.launch_screen import LaunchScreen
 
     APP = QApplication([])
 
     # Hide mouse pointer
     APP.setOverrideCursor(Qt.CursorShape.BlankCursor)
 
-    # Initialize window
-    LAUNCH_FRAME = QWidget()
-    LAUNCH_FRAME.setWindowTitle("Launching...")
-    LAUNCH_FRAME.setFixedSize(QSize(DISPLAY.WIDTH, DISPLAY.HEIGHT))
-    LAUNCH_FRAME.setContentsMargins(0, 0, 0, 0)
-
-    # Set background color
-    LAUNCH_FRAME.setAutoFillBackground(True)
-    p = LAUNCH_FRAME.palette()
-    p.setColor(LAUNCH_FRAME.backgroundRole(), Qt.black)
-    LAUNCH_FRAME.setPalette(p)
-
-    # Setup spinning circle
-    waiting_circ = QtWaitingSpinner()
-    waiting_circ.setParent(LAUNCH_FRAME)
-    waiting_circ.start()
-
-    # Show rolling update output below the spinner for quick on-device debugging.
-    _update_log_lines = []
-    update_log_label = QLabel(LAUNCH_FRAME)
-    update_log_label.setWordWrap(True)
-    update_log_label.setStyleSheet("color: white;")
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.TypeWriter)
-    font.setPointSize(30)
-    update_log_label.setFont(font)
-
-    margin = 40
-    label_height = min(220, max(120, DISPLAY.HEIGHT // 3))
-    update_log_label.setGeometry(
-        margin,
-        DISPLAY.HEIGHT - label_height - margin,
-        DISPLAY.WIDTH - (2 * margin),
-        label_height,
-    )
-    update_log_label.setText("Waiting for update output...")
+    LAUNCH_SCREEN = LaunchScreen(display=DISPLAY, log_font_size=30, log_max_lines=15)
 
 async def projector_on():
     """Power on the projector while launch/update work continues."""
@@ -179,8 +107,8 @@ def launch():
     from main import MAIN_WINDOW
     MAIN_WINDOW.show()
     
-    waiting_circ.stop()
-    LAUNCH_FRAME.hide()
+    LAUNCH_SCREEN.stop()
+    LAUNCH_SCREEN.hide()
 
 async def updateThenLaunch():
     """Run updater, reload selected modules, then launch main."""
@@ -242,7 +170,7 @@ def main():
             
             # Run the update script, then launch smart TV
             print("Starting launch screen...")
-            LAUNCH_FRAME.show()
+            LAUNCH_SCREEN.show()
             create_monitored_task(updateThenLaunch(), "update_then_launch")
             APP.exec_()
             print("App closed.")
