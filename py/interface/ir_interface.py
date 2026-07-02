@@ -3,10 +3,10 @@ print("Importing infrared interface...")
 import os
 
 class IRInterface:
-    def __init__(this, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         ...
     
-    def send(this, data):
+    def send(self, data):
         os.system(f"irsend SEND_ONCE Projector {data}")
 
 irInterface = IRInterface()

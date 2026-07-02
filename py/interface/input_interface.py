@@ -11,68 +11,68 @@ import asyncio
 from teardown import teardown_app
 
 class InputInterface(CustomQLabel):
-    def __init__(this, selectedButton = None, projectorInterface = None, *args, **kwargs):
+    def __init__(self, selectedButton = None, projectorInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.__mode = INPUT.MODES.GUI
-        this.setOldMode(INPUT.MODES.GUI)
-        this.setSelectedButton(selectedButton)
-        this.setRoundness(GUI.BUTTON.ROUNDNESS)
-        this.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
-        this.setProjectorInterface(projectorInterface)
-        this.__backlog = []
-        this.__isProcessingBacklog = False
+        self.__mode = INPUT.MODES.GUI
+        self.setOldMode(INPUT.MODES.GUI)
+        self.setSelectedButton(selectedButton)
+        self.setRoundness(GUI.BUTTON.ROUNDNESS)
+        self.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
+        self.setProjectorInterface(projectorInterface)
+        self.__backlog = []
+        self.__isProcessingBacklog = False
         
-        this.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        this.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
     
-    def inGUIMode(this):
-        return this.getMode() == INPUT.MODES.GUI
+    def inGUIMode(self):
+        return self.getMode() == INPUT.MODES.GUI
     
-    def inProjectorMode(this):
-        return this.getMode() == INPUT.MODES.PROJECTOR
+    def inProjectorMode(self):
+        return self.getMode() == INPUT.MODES.PROJECTOR
 
-    def inWebMode(this):
-        return this.getMode() == INPUT.MODES.WEB
+    def inWebMode(self):
+        return self.getMode() == INPUT.MODES.WEB
 
-    def inOtherMode(this):
-        return this.getMode() == INPUT.MODES.OTHER
+    def inOtherMode(self):
+        return self.getMode() == INPUT.MODES.OTHER
     
-    def getMode(this):
-        return this.__mode
+    def getMode(self):
+        return self.__mode
 
-    def getOldMode(this):
-        return this.__oldMode
+    def getOldMode(self):
+        return self.__oldMode
 
-    def getWebDriver(this):
-        return this.__webdriver
+    def getWebDriver(self):
+        return self.__webdriver
     
-    def getSelectedButton(this):
-        return this.__selectedButton
+    def getSelectedButton(self):
+        return self.__selectedButton
     
-    def getRoundness(this):
-        return this.__roundness
+    def getRoundness(self):
+        return self.__roundness
     
-    def getBorderThickness(this):
-        return this.__borderThickness
+    def getBorderThickness(self):
+        return self.__borderThickness
 
-    def getProjectorInterface(this):
-        return this.__projectorInterface
+    def getProjectorInterface(self):
+        return self.__projectorInterface
     
-    def setMode(this, mode = INPUT.MODES.GUI):
-        if mode == INPUT.MODES.PROJECTOR and this.getProjectorInterface() is None:
+    def setMode(self, mode = INPUT.MODES.GUI):
+        if mode == INPUT.MODES.PROJECTOR and self.getProjectorInterface() is None:
             print("Cannot set input interface to projector mode, no projector interface has been set!")
-        elif this.getMode() != mode:
-            this.setOldMode(this.getMode())
-            this.__mode = mode
+        elif self.getMode() != mode:
+            self.setOldMode(self.getMode())
+            self.__mode = mode
     
-    def setOldMode(this, oldMode):
-        this.__oldMode = oldMode
+    def setOldMode(self, oldMode):
+        self.__oldMode = oldMode
     
-    def setWebDriver(this, webdriver):
-        this.__webdriver = webdriver
+    def setWebDriver(self, webdriver):
+        self.__webdriver = webdriver
     
-    def setSelectedButton(this, button):
-        this.__selectedButton = button
+    def setSelectedButton(self, button):
+        self.__selectedButton = button
         if button is not None:
             if isinstance(button, Button):
                 width = button.width()
@@ -89,91 +89,91 @@ class InputInterface(CustomQLabel):
                 roundness = 0
                 borderThickness = 2
             
-            this.setRoundness(roundness)
-            this.setBorderThickness(borderThickness)
-            this.setGeometry(x, y, width, height)
+            self.setRoundness(roundness)
+            self.setBorderThickness(borderThickness)
+            self.setGeometry(x, y, width, height)
     
-    def setRoundness(this, roundness):
-        this.__roundness = roundness
+    def setRoundness(self, roundness):
+        self.__roundness = roundness
     
-    def setBorderThickness(this, borderThickness):
-        this.__borderThickness = borderThickness
+    def setBorderThickness(self, borderThickness):
+        self.__borderThickness = borderThickness
     
-    def setProjectorInterface(this, projectorInterface):
-        this.__projectorInterface = projectorInterface
+    def setProjectorInterface(self, projectorInterface):
+        self.__projectorInterface = projectorInterface
     
-    def receive(this, data):
-        this.addToBacklog(data)
-        if not this.__isProcessingBacklog:
-            asyncio.create_task(this.processBacklog())
+    def receive(self, data):
+        self.addToBacklog(data)
+        if not self.__isProcessingBacklog:
+            asyncio.create_task(self.processBacklog())
         else:
             print(f"{data} added to backlog, as we are still processing previous inputs.")
     
-    def getNextFromBacklog(this):
-        next = this.__backlog[0]
-        del this.__backlog[0]
+    def getNextFromBacklog(self):
+        next = self.__backlog[0]
+        del self.__backlog[0]
         return next
     
-    def addToBacklog(this, data):
-        this.__backlog.append(data)
+    def addToBacklog(self, data):
+        self.__backlog.append(data)
     
-    async def processBacklog(this):
-        this.__isProcessingBacklog = True
-        while len(this.__backlog) > 0:
+    async def processBacklog(self):
+        self.__isProcessingBacklog = True
+        while len(self.__backlog) > 0:
             
-            data = this.getNextFromBacklog()
+            data = self.getNextFromBacklog()
             if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
-                await this.powerOff()
+                await self.powerOff()
             elif data == INPUT.SELECT:
-                await this.select()
+                await self.select()
             elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
-                await this.navigate(data)
+                await self.navigate(data)
             elif data == INPUT.RETURN:
-                await this.back()
+                await self.back()
             elif data == INPUT.VOL_UP:
-                await this.volUp()
+                await self.volUp()
             elif data == INPUT.VOL_DOWN:
-                await this.volDown()
+                await self.volDown()
             elif data == INPUT.RELEASED_PREFIX + INPUT.HOME:
-                await this.home()
+                await self.home()
         
-        this.__isProcessingBacklog = False
+        self.__isProcessingBacklog = False
     
-    async def powerOff(this):
-        await teardown_app(projector_interface=this.getProjectorInterface(), quit_app=True)
+    async def powerOff(self):
+        await teardown_app(projector_interface=self.getProjectorInterface(), quit_app=True)
     
-    async def select(this):
-        if this.inProjectorMode():
-            await this.getProjectorInterface().select()
+    async def select(self):
+        if self.inProjectorMode():
+            await self.getProjectorInterface().select()
         else:
-            selectedButton = this.getSelectedButton()
+            selectedButton = self.getSelectedButton()
             if selectedButton is not None:
                 await selectedButton.click()
-                if this.inWebMode() and not isinstance(selectedButton, Button):
-                    driver = this.getWebDriver()
+                if self.inWebMode() and not isinstance(selectedButton, Button):
+                    driver = self.getWebDriver()
                     if not driver.elementExists(selectedButton):
-                        this.setSelectedButton(driver.getDefaultElement())
+                        self.setSelectedButton(driver.getDefaultElement())
             else:
                 print("No initial selected button set.")
     
-    async def navigate(this, index:str = INPUT.NAV_RIGHT):
-        if this.inProjectorMode():
+    async def navigate(self, index:str = INPUT.NAV_RIGHT):
+        if self.inProjectorMode():
             if index == INPUT.NAV_UP:
-                await this.getProjectorInterface().navUp()
+                await self.getProjectorInterface().navUp()
             elif index == INPUT.NAV_RIGHT:
-                await this.getProjectorInterface().navRight()
+                await self.getProjectorInterface().navRight()
             elif index == INPUT.NAV_DOWN:
-                await this.getProjectorInterface().navDown()
+                await self.getProjectorInterface().navDown()
             elif index == INPUT.NAV_LEFT:
-                await this.getProjectorInterface().navLeft()
-        elif not this.inOtherMode():
-            selectedButton = this.getSelectedButton()
+                await self.getProjectorInterface().navLeft()
+        elif not self.inOtherMode():
+            selectedButton = self.getSelectedButton()
             if selectedButton is not None:
-                if not this.inWebMode():
+                if not self.inWebMode():
                     newButton = selectedButton.getNavButton(index)
                 
                 else:
-                    driver = this.getWebDriver()
+                    driver = self.getWebDriver()
                     if driver is not None:
                         if index == INPUT.NAV_UP:
                             newButtonLocator = driver.getElementAbove(selectedButton)
@@ -183,76 +183,79 @@ class InputInterface(CustomQLabel):
                             newButtonLocator = driver.getElementBelow(selectedButton)
                         elif index == INPUT.NAV_LEFT:
                             newButtonLocator = driver.getElementLeft(selectedButton)
+                        else:
+                            newButtonLocator = None
                         newButton = driver.find_element(newButtonLocator)
                     else:
                         print("No webdriver set!")
+                        newButton = None
                 
                 if newButton is not None:
-                    this.setSelectedButton(newButton)
+                    self.setSelectedButton(newButton)
             else:
                 print("No initial selected button set.")
     
-    async def navUp(this):
-        await this.navigate(INPUT.NAV_UP)
+    async def navUp(self):
+        await self.navigate(INPUT.NAV_UP)
     
-    async def navRight(this):
-        await this.navigate(INPUT.NAV_RIGHT)
+    async def navRight(self):
+        await self.navigate(INPUT.NAV_RIGHT)
     
-    async def navDown(this):
-        await this.navigate(INPUT.NAV_DOWN)
+    async def navDown(self):
+        await self.navigate(INPUT.NAV_DOWN)
     
-    async def navLeft(this):
-        await this.navigate(INPUT.NAV_LEFT)
+    async def navLeft(self):
+        await self.navigate(INPUT.NAV_LEFT)
     
-    async def back(this):
-        if this.inProjectorMode():
-            await this.getProjectorInterface().back()
-        elif this.inWebMode():
-            this.getWebDriver().quit()
+    async def back(self):
+        if self.inProjectorMode():
+            await self.getProjectorInterface().back()
+        elif self.inWebMode():
+            self.getWebDriver().quit()
     
-    async def volUp(this):
-        await this.getProjectorInterface().volUp()
-        if this.inProjectorMode():
-            this.setMode(this.getOldMode())
+    async def volUp(self):
+        await self.getProjectorInterface().volUp()
+        if self.inProjectorMode():
+            self.setMode(self.getOldMode())
     
-    async def volDown(this):
-        await this.getProjectorInterface().volDown()
-        if this.inProjectorMode():
-            this.setMode(this.getOldMode())
+    async def volDown(self):
+        await self.getProjectorInterface().volDown()
+        if self.inProjectorMode():
+            self.setMode(self.getOldMode())
     
-    async def home(this):
-        if this.inOtherMode():
-            await this.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
-        if this.inProjectorMode():
-            await this.getProjectorInterface().menu()
+    async def home(self):
+        if self.inOtherMode():
+            await self.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
+        if self.inProjectorMode():
+            await self.getProjectorInterface().menu()
         else:
             MAIN_WINDOW.setTab()
-        this.setMode(INPUT.MODES.GUI)
-        await this.getProjectorInterface().back()
+        self.setMode(INPUT.MODES.GUI)
+        await self.getProjectorInterface().back()
     
-    async def openProjectorMenu(this):
-        this.setMode(INPUT.MODES.PROJECTOR)
-        await this.getProjectorInterface().menu()
+    async def openProjectorMenu(self):
+        self.setMode(INPUT.MODES.PROJECTOR)
+        await self.getProjectorInterface().menu()
     
-    async def switchProjectorInputChannel(this, inputChannel):
+    async def switchProjectorInputChannel(self, inputChannel):
         if inputChannel != PROJECTOR.CHANNELS.HDMI:
-            this.setMode(INPUT.MODES.OTHER)
-        await this.getProjectorInterface().switchInputChannel(inputChannel)
+            self.setMode(INPUT.MODES.OTHER)
+        await self.getProjectorInterface().switchInputChannel(inputChannel)
     
-    def paintEvent(this, event=None):
+    def paintEvent(self, event=None):
         painter = QtGui.QPainter()
-        painter.begin(this)
+        painter.begin(self)
         painter.save()
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, this.getBorderThickness(), Qt.SolidLine))
+        painter.setPen(QtGui.QPen(GUI.INPUT_INTERFACE_COLOR, self.getBorderThickness(), Qt.SolidLine))
         painter.drawRoundedRect(
-            int(this.getBorderThickness()/2),
-            int(this.getBorderThickness()/2),
-            this.width() - this.getBorderThickness(),
-            this.height() - this.getBorderThickness(),
-            this.getRoundness(),
-            this.getRoundness(),
+            int(self.getBorderThickness()/2),
+            int(self.getBorderThickness()/2),
+            self.width() - self.getBorderThickness(),
+            self.height() - self.getBorderThickness(),
+            self.getRoundness(),
+            self.getRoundness(),
         )
         
         painter.restore()

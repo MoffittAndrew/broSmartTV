@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt
 
 class Button(CustomQLabel):
     def __init__(
-        this,
+        self,
         enabled:bool = True,
         width:int = GUI.BUTTON.MIN_WIDTH,
         height:int = GUI.BUTTON.MIN_HEIGHT,
@@ -27,75 +27,75 @@ class Button(CustomQLabel):
     ):
         super().__init__(*args, **kwargs)
         
-        this.__navButtons = {}
+        self.__navButtons = {}
         
-        this.setEnabled(enabled)
-        this.resize(width, height)
-        this.setRoundness(roundness)
-        this.setBorderThickness(borderThickness)
-        this.setImg(img)
-        this.setText(text)
-        this.setCallback(callback)
-        this.setNavUp(navUp)
-        this.setNavRight(navRight)
-        this.setNavDown(navDown)
-        this.setNavLeft(navLeft)
-        this.setMenuOptions(menuOptions)
+        self.setEnabled(enabled)
+        self.resize(width, height)
+        self.setRoundness(roundness)
+        self.setBorderThickness(borderThickness)
+        self.setImg(img)
+        self.setText(text)
+        self.setCallback(callback)
+        self.setNavUp(navUp)
+        self.setNavRight(navRight)
+        self.setNavDown(navDown)
+        self.setNavLeft(navLeft)
+        self.setMenuOptions(menuOptions)
         
-        this.setAttribute(Qt.WA_TranslucentBackground)
-        this.__needsDraw = True
-        canvas = QtGui.QPixmap(this.width(), this.height())
-        this.setPixmap(canvas)
-        this.draw()
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.__needsDraw = True
+        canvas = QtGui.QPixmap(self.width(), self.height())
+        self.setPixmap(canvas)
+        self.draw()
     
     ## Getters
     
-    def enabled(this):
-        return this.__enabled
+    def enabled(self):
+        return self.__enabled
 
-    def getRoundness(this):
-        return this.__roundness
+    def getRoundness(self):
+        return self.__roundness
     
-    def getBorderThickness(this):
-        return this.__borderThickness
+    def getBorderThickness(self):
+        return self.__borderThickness
     
-    def getText(this):
-        return this.__text
+    def getText(self):
+        return self.__text
     
-    def getImg(this):
-        return this.__img
+    def getImg(self):
+        return self.__img
     
-    def getCallback(this):
-        return this.__callback, this.__callbackArgs, this.__callbackKwargs
+    def getCallback(self):
+        return self.__callback, self.__callbackArgs, self.__callbackKwargs
     
-    def getNavButton(this, index: str = INPUT.NAV_RIGHT):
-        if index in this.__navButtons.keys():
-            return this.__navButtons[index]
+    def getNavButton(self, index: str = INPUT.NAV_RIGHT):
+        if index in self.__navButtons.keys():
+            return self.__navButtons[index]
     
-    def getNavUp(this):
-        return this.getNavButton(INPUT.NAV_UP)
+    def getNavUp(self):
+        return self.getNavButton(INPUT.NAV_UP)
     
-    def getNavRight(this):
-        return this.getNavButton(INPUT.NAV_RIGHT)
+    def getNavRight(self):
+        return self.getNavButton(INPUT.NAV_RIGHT)
     
-    def getNavDown(this):
-        return this.getNavButton(INPUT.NAV_DOWN)
+    def getNavDown(self):
+        return self.getNavButton(INPUT.NAV_DOWN)
     
-    def getNavLeft(this):
-        return this.getNavButton(INPUT.NAV_LEFT)
+    def getNavLeft(self):
+        return self.getNavButton(INPUT.NAV_LEFT)
 
-    def getMenuOption(this, index):
-        return this.__menuOptions[index]
+    def getMenuOption(self, index):
+        return self.__menuOptions[index]
     
-    def getMenuOptions(this):
-        return this.__menuOptions
+    def getMenuOptions(self):
+        return self.__menuOptions
     
     ## Setters
     
-    def setEnabled(this, enabled):
-        this.__enabled = bool(enabled)
+    def setEnabled(self, enabled):
+        self.__enabled = bool(enabled)
     
-    def resize(this, w, h):
+    def resize(self, w, h):
         if w >= GUI.BUTTON.MIN_WIDTH:
             w = int(w)
         if h >= GUI.BUTTON.MIN_HEIGHT:
@@ -103,90 +103,90 @@ class Button(CustomQLabel):
         
         super().resize(w, h)
     
-    def setRoundness(this, roundness):
-        this.__roundness = roundness
+    def setRoundness(self, roundness):
+        self.__roundness = roundness
     
-    def setBorderThickness(this, borderThickness):
-        this.__borderThickness = borderThickness
+    def setBorderThickness(self, borderThickness):
+        self.__borderThickness = borderThickness
     
-    def setText(this, text):
-        this.__text = str(text)
-        if this.getImg() is None:
-            this.__needsDraw = True
+    def setText(self, text):
+        self.__text = str(text)
+        if self.getImg() is None:
+            self.__needsDraw = True
     
-    def setImg(this, img):
-        this.__img = img
-        if this.getImg() is None:
-            this.__needsDraw = True
+    def setImg(self, img):
+        self.__img = img
+        if self.getImg() is None:
+            self.__needsDraw = True
     
-    def setCallback(this, callback, *args, **kwargs):
-        this.__callback = callback
-        this.__callbackArgs = args
-        this.__callbackKwargs = kwargs
+    def setCallback(self, callback, *args, **kwargs):
+        self.__callback = callback
+        self.__callbackArgs = args
+        self.__callbackKwargs = kwargs
     
-    def setNavButton(this, index, button):
-        this.__navButtons[index] = button
+    def setNavButton(self, index, button):
+        self.__navButtons[index] = button
     
-    def setNavUp(this, button):
-        this.setNavButton("NAV_UP", button)
+    def setNavUp(self, button):
+        self.setNavButton("NAV_UP", button)
     
-    def setNavRight(this, button):
-        this.setNavButton("NAV_RIGHT", button)
+    def setNavRight(self, button):
+        self.setNavButton("NAV_RIGHT", button)
     
-    def setNavDown(this, button):
-        this.setNavButton("NAV_DOWN", button)
+    def setNavDown(self, button):
+        self.setNavButton("NAV_DOWN", button)
     
-    def setNavLeft(this, button):
-        this.setNavButton("NAV_LEFT", button)
+    def setNavLeft(self, button):
+        self.setNavButton("NAV_LEFT", button)
     
-    def setMenuOptions(this, menuOptions):
+    def setMenuOptions(self, menuOptions):
         
         if len(menuOptions) > 0:
             for i in range(len(menuOptions) - 1):
                 menuOptions[i + 1].setNavUp(menuOptions[i])
                 menuOptions[i].setNavDown(menuOptions[i + 1])
         
-        this.__menuOptions = menuOptions
+        self.__menuOptions = menuOptions
     
     # Other
     
-    def enable(this):
-        this.setEnabled(True)
+    def enable(self):
+        self.setEnabled(True)
     
-    def disable(this):
-        this.setEnabled(False)
+    def disable(self):
+        self.setEnabled(False)
     
-    def addMenuOption(this, menuOption = None):
+    def addMenuOption(self, menuOption = None):
         if menuOption is not None:
-            if len(this.getMenuOptions()) > 0:
-                lastMenuOption = this.getMenuOptions()[-1]
+            if len(self.getMenuOptions()) > 0:
+                lastMenuOption = self.getMenuOptions()[-1]
                 menuOption.setNavUp(lastMenuOption)
                 lastMenuOption.setNavDown(menuOption)
-            this.__menuOptions.append(menuOption)
+            self.__menuOptions.append(menuOption)
     
-    async def click(this):
-        if this.enabled():
-            callback, args, kwargs = this.getCallback()
+    async def click(self):
+        if self.enabled():
+            callback, args, kwargs = self.getCallback()
             if callback is not None:
                 await callback(*args, **kwargs)
             else:
-                print(f"Button {this.getText()} has no callback!")
+                print(f"Button {self.getText()} has no callback!")
     
-    def draw(this):
-        if this.__needsDraw:
-            painter = QtGui.QPainter(this.pixmap())
+    def draw(self):
+        if self.__needsDraw:
+            painter = QtGui.QPainter(self.pixmap())
             painter.save()
             painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-            if this.getImg() is None and this.getText() != "":
-                painter.setPen(QtGui.QPen(GUI.BUTTON.BORDER_COLOR, this.getBorderThickness(), Qt.SolidLine))
+            if self.getImg() is None and self.getText() != "":
+                painter.setPen(QtGui.QPen(GUI.BUTTON.BORDER_COLOR, self.getBorderThickness(), Qt.SolidLine))
                 painter.drawRoundedRect(
-                    int(this.getBorderThickness()/2),
-                    int(this.getBorderThickness()/2),
-                    this.width() - this.getBorderThickness(),
-                    this.height() - this.getBorderThickness(),
-                    this.getRoundness(),
-                    this.getRoundness(),
+                    int(self.getBorderThickness()/2),
+                    int(self.getBorderThickness()/2),
+                    self.width() - self.getBorderThickness(),
+                    self.height() - self.getBorderThickness(),
+                    self.getRoundness(),
+                    self.getRoundness(),
                 )
 
                 font = QtGui.QFont()
@@ -194,17 +194,17 @@ class Button(CustomQLabel):
                 font.setPointSize(40)
                 painter.setFont(font)
 
-                painter.drawText(0, 0, this.width(), this.height(), Qt.AlignCenter, this.getText())
+                painter.drawText(0, 0, self.width(), self.height(), Qt.AlignCenter, self.getText())
             
             painter.restore()
             painter.end()
-        this.__needsDraw = False
+        self.__needsDraw = False
     
-    def __str__(this):
-        return this.getText()
+    def __str__(self):
+        return self.getText()
     
-    def equals(this, button):
-        if this.getText() == button.getText():
+    def equals(self, button):
+        if self.getText() == button.getText():
             return True
         return False
 
@@ -212,35 +212,35 @@ class Button(CustomQLabel):
 
 class ToggleButton(Button):
     def __init__(
-        this,
+        self,
         value:bool = True,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         
-        this.setValue(value)
+        self.setValue(value)
         
     ## Getters
     
-    def getValue(this):
-        return this.__value
+    def getValue(self):
+        return self.__value
         
     ## Setters
         
-    def setValue(this, value = None):
-        this.__value = bool(value)
+    def setValue(self, value = None):
+        self.__value = bool(value)
     
     # Other
     
-    def toggle(this):
-        this.setValue(not this.getValue())
+    def toggle(self):
+        self.setValue(not self.getValue())
 
 
 
 class NavBarButton(Button):
     def __init__(
-        this,
+        self,
         *args,
         **kwargs,
     ):

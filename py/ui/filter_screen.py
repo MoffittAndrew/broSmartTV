@@ -3,25 +3,25 @@ print("Importing filter screen...")
 from ui.gui import CustomQWidget
 
 class FilterScreen(CustomQWidget):
-    def __init__(this, navBarButton = None, *args, **kwargs):
+    def __init__(self, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        this.setNavBarButton(navBarButton)
+        self.setNavBarButton(navBarButton)
         
     ## Getters
     
-    def getNavBarButton(this):
-        return this.__navBarButton
+    def getNavBarButton(self):
+        return self.__navBarButton
     
-    def getPrimaryButton(this):
+    def getPrimaryButton(self):
         return
     
     ## Setters
         
-    def setNavBarButton(this, navBarButton):
-        this.__navBarButton = navBarButton
+    def setNavBarButton(self, navBarButton):
+        self.__navBarButton = navBarButton
         if navBarButton is not None:
-            tiles = this.getTiles()
+            tiles = self.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
 
