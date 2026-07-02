@@ -1,5 +1,5 @@
-# Runtime dependencies for broSmartTV on the Raspberry Pi
-# Install with: python3 -m pip install --user -r requirements.txt
+# Core/development Python dependencies.
+# Raspberry Pi runtime uses requirements-pi.txt from the launcher update script.
 
 PyQt5==5.15.11
 qtinter==0.11.0
