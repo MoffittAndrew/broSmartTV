@@ -21,10 +21,9 @@ from interface.remote_interface import remoteInterface
 
 reload_modules = [
     "globals",
-    "ui.launch_screen",
     "interface.projector_interface",
     "interface.ir_interface",
-    #"interface.remote_interface",
+    #"interface.remote_interface", don't reload this, it will break the remote connection
 ]
 
 _restart_requested = False
