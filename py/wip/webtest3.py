@@ -10,57 +10,57 @@ url="http://www.netflix.com"
 
 
 class Ui_MainWindow(object):
-    def setupUi(this, MainWindow):
+    def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
-        this.centralwidget = QtWidgets.QWidget(MainWindow)
-        this.centralwidget.setObjectName("centralwidget")
-        this.verticalLayout = QtWidgets.QVBoxLayout(this.centralwidget)
-        this.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        this.verticalLayout.setObjectName("verticalLayout")
-        MainWindow.setCentralWidget(this.centralwidget)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout.setObjectName("verticalLayout")
+        MainWindow.setCentralWidget(self.centralwidget)
         
         
-        this.chrome_options = Options()
-        this.chrome_options.add_experimental_option("useAutomationExtension", False)
-        this.chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
-        this.chrome_options.add_argument("--kiosk")
-        this.chrome_options.add_argument(f"--app={url}")
-        this.s=Service(ChromeDriverManager().install())
+        self.chrome_options = Options()
+        self.chrome_options.add_experimental_option("useAutomationExtension", False)
+        self.chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
+        self.chrome_options.add_argument("--kiosk")
+        self.chrome_options.add_argument(f"--app={url}")
+        self.s=Service(ChromeDriverManager().install())
         
-        this.driver = webdriver.Chrome(service=this.s,options=this.chrome_options)
+        self.driver = webdriver.Chrome(service=self.s,options=self.chrome_options)
         time.sleep(0.2)
 
-        this.hwnd = 0
-        this.tries = 30
-        this.total_tries = 0
-        while(this.hwnd==0 and this.total_tries<=this.tries):
+        self.hwnd = 0
+        self.tries = 30
+        self.total_tries = 0
+        while(self.hwnd==0 and self.total_tries<=self.tries):
             try:
-                win32gui.EnumWindows(this.hwnd_method, None)
-                #win32gui.SetWindowLong (this.hwnd, win32con.GWL_EXSTYLE, win32gui.GetWindowLong (this.hwnd, win32con.GWL_EXSTYLE ) | win32con.WS_EX_LAYERED )
-                #winxpgui.SetLayeredWindowAttributes(this.hwnd, win32api.RGB(0,0,0), 255, win32con.LWA_ALPHA)
-                this.embed_window = QtGui.QWindow.fromWinId(this.hwnd)
-                this.embed_widget = QtWidgets.QWidget.createWindowContainer(this.embed_window)
-                this.verticalLayout.addWidget(this.embed_widget)
-                #this.driver.execute_script("document.documentElement.requestFullscreen();")
-                this.tries += 1
+                win32gui.EnumWindows(self.hwnd_method, None)
+                #win32gui.SetWindowLong (self.hwnd, win32con.GWL_EXSTYLE, win32gui.GetWindowLong (self.hwnd, win32con.GWL_EXSTYLE ) | win32con.WS_EX_LAYERED )
+                #winxpgui.SetLayeredWindowAttributes(self.hwnd, win32api.RGB(0,0,0), 255, win32con.LWA_ALPHA)
+                self.embed_window = QtGui.QWindow.fromWinId(self.hwnd)
+                self.embed_widget = QtWidgets.QWidget.createWindowContainer(self.embed_window)
+                self.verticalLayout.addWidget(self.embed_widget)
+                #self.driver.execute_script("document.documentElement.requestFullscreen();")
+                self.tries += 1
                 break
             except Exception as e:
                 print(e)
-                this.tries += 1
+                self.tries += 1
                 
                 
-        this.retranslateUi(MainWindow)
+        self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        this.driver.get(url)
+        self.driver.get(url)
             
-    def hwnd_method(this, hwnd, ctx):
+    def hwnd_method(self, hwnd, ctx):
         window_title = win32gui.GetWindowText(hwnd)
         print(window_title)
         if "netflix" in window_title.lower():
-            this.hwnd = hwnd
+            self.hwnd = hwnd
 
-    def retranslateUi(this, MainWindow):
+    def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
 

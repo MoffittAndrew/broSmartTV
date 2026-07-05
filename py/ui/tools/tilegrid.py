@@ -10,52 +10,52 @@ from PyQt5.QtWidgets import QGridLayout
 from PyQt5.QtCore import Qt
 
 class TileGrid(CustomQWidget):
-    def __init__(this, columns:int = GUI.TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
+    def __init__(self, columns:int = GUI.TILEGRID.COLUMNS, tiles:list = tiles, navBarButton = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        this.setColumns(columns)
-        this.setTiles(tiles)
-        this.setNavBarButton(navBarButton)
+        self.setColumns(columns)
+        self.setTiles(tiles)
+        self.setNavBarButton(navBarButton)
     
     ## Getters
     
-    def getColumns(this):
-        return this.__columns
+    def getColumns(self):
+        return self.__columns
     
-    def getTiles(this):
-        return this.__tiles
+    def getTiles(self):
+        return self.__tiles
     
-    def getNavBarButton(this):
-        return this.__navBarButton
+    def getNavBarButton(self):
+        return self.__navBarButton
     
-    def getPrimaryButton(this):
-        if len(this.getTiles()[0]) > 0:
-            return this.getTiles()[0][0]
+    def getPrimaryButton(self):
+        if len(self.getTiles()[0]) > 0:
+            return self.getTiles()[0][0]
         else:
             return None
     
     ## Setters
     
-    def setColumns(this, columns):
-        this.__columns = columns
+    def setColumns(self, columns):
+        self.__columns = columns
     
-    def setTiles(this, tilesList: list):
+    def setTiles(self, tilesList: list):
         
-        this.__tilesList = tilesList
-        this.__tiles = []
+        self.__tilesList = tilesList
+        self.__tiles = []
         row = []
         counter = 0
-        for i in range(len(this.__tilesList)):
-            if counter < this.getColumns():
-                row.append(this.__tilesList[i])
+        for i in range(len(self.__tilesList)):
+            if counter < self.getColumns():
+                row.append(self.__tilesList[i])
             else:
-                this.__tiles.append(row)
+                self.__tiles.append(row)
                 row = []
                 counter = 0
             counter += 1
-        this.__tiles.append(row)
+        self.__tiles.append(row)
         
-        tiles = this.getTiles()
+        tiles = self.getTiles()
         for i_row in range(len(tiles)):
             if len(tiles[i_row]) > 0:
                 for i_col in range(len(tiles[i_row]) - 1):
@@ -81,14 +81,14 @@ class TileGrid(CustomQWidget):
                 tile = tiles[i_row][i_col]
                 layout.addWidget(tile, i_row, i_col)
         
-        this.setFixedWidth(len(this.getTiles()[0]) * GUI.TILE.WIDTH)
-        this.setFixedHeight(len(this.getTiles()) * GUI.TILE.HEIGHT)
-        this.setLayout(layout)
+        self.setFixedWidth(len(self.getTiles()[0]) * GUI.TILE.WIDTH)
+        self.setFixedHeight(len(self.getTiles()) * GUI.TILE.HEIGHT)
+        self.setLayout(layout)
     
-    def setNavBarButton(this, navBarButton):
-        this.__navBarButton = navBarButton
+    def setNavBarButton(self, navBarButton):
+        self.__navBarButton = navBarButton
         if navBarButton is not None:
-            tiles = this.getTiles()
+            tiles = self.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
 
