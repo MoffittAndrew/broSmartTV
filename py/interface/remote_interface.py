@@ -10,7 +10,7 @@ try:
     # tell Bleak we are using a graphical user interface that has been properly
     # configured to work with asyncio
     allow_sta()
-except ImportError:
+except (ImportError, AttributeError):
     # other OSes and older versions of Bleak will raise ImportError which we
     # can safely ignore
     pass
