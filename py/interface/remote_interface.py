@@ -3,24 +3,21 @@ print("Importing remote interface...")
 from globals import REMOTE, INPUT
 
 import asyncio
-import sys
 import bleak
-import traceback
 
-if sys.platform.startswith("win"):
-    try:
-        from bleak.backends.winrt.util import allow_sta
-        # tell Bleak we are using a graphical user interface that has been
-        # properly configured to work with asyncio
-        allow_sta()
-    except (ImportError, AttributeError):
-        # Older Bleak versions or partial WinRT environments can fail here;
-        # we can safely continue without this optimization.
-        pass
+try:
+    from bleak.backends.winrt.util import allow_sta
+    # tell Bleak we are using a graphical user interface that has been properly
+    # configured to work with asyncio
+    allow_sta()
+except (ImportError, AttributeError):
+    # other OSes and older versions of Bleak will raise ImportError which we
+    # can safely ignore
+    pass
 
 class RemoteInterface:
     def __init__(
-        self,
+        this,
         name = REMOTE.NAME,
         serviceUUID = REMOTE.SERVICE_UUID,
         characteristicUUID = REMOTE.CHARACTERISTIC_UUID,
@@ -30,199 +27,152 @@ class RemoteInterface:
         inputInterface = None,
         running = False,
     ):
-        self.__name = name
-        self.__serviceUUID = serviceUUID
-        self.__characteristicUUID = characteristicUUID
-        self.__checkAliveInterval = checkAliveInterval
-        self.__scanTimeout = scanTimeout
-        self.setCallbackOnConnect(callbackOnConnect)
-        self.setInputInterface(inputInterface)
-        self.setRunning(running)
-        self.setConnected(False)
-        self.setDevice(None)
-        self.setClient(None)
-        self.__connecting = False
-        self.__interrupted_notice_printed = False
+        this.__name = name
+        this.__serviceUUID = serviceUUID
+        this.__characteristicUUID = characteristicUUID
+        this.__checkAliveInterval = checkAliveInterval
+        this.__scanTimeout = scanTimeout
+        this.setCallbackOnConnect(callbackOnConnect)
+        this.setInputInterface(inputInterface)
+        this.setRunning(running)
+        this.setConnected(False)
+        this.setDevice(None)
+        this.setClient(None)
     
-    def getName(self):
-        return self.__name
+    def getName(this):
+        return this.__name
     
-    def getServiceUUID(self):
-        return self.__serviceUUID
+    def getServiceUUID(this):
+        return this.__serviceUUID
     
-    def getCharacteristicUUID(self):
-        return self.__characteristicUUID
+    def getCharacteristicUUID(this):
+        return this.__characteristicUUID
     
-    def getCheckAliveInterval(self):
-        return self.__checkAliveInterval
+    def getCheckAliveInterval(this):
+        return this.__checkAliveInterval
     
-    def getScanTimeout(self):
-        return self.__scanTimeout
+    def getScanTimeout(this):
+        return this.__scanTimeout
     
-    def getInputInterface(self):
-        return self.__inputInterface
+    def getInputInterface(this):
+        return this.__inputInterface
     
-    def getCallbackOnConnect(self):
-        return self.__callbackOnConnect
+    def getCallbackOnConnect(this):
+        return this.__callbackOnConnect
     
-    def getDevice(self):
-        return self.__device
+    def getDevice(this):
+        return this.__device
 
-    def getClient(self):
-        return self.__client
+    def getClient(this):
+        return this.__client
     
-    def isRunning(self):
-        return self.__running
+    def isRunning(this):
+        return this.__running
     
-    def isConnected(self):
-        return self.__connected
+    def isConnected(this):
+        return this.__connected
     
-    def setCallbackOnConnect(self, callback):
-        self.__callbackOnConnect = callback
+    def setCallbackOnConnect(this, callback):
+        this.__callbackOnConnect = callback
     
-    def setInputInterface(self, inputInterface):
-        self.__inputInterface = inputInterface
+    def setInputInterface(this, inputInterface):
+        this.__inputInterface = inputInterface
     
-    def setRunning(self, running):
-        self.__running = running
+    def setRunning(this, running):
+        this.__running = running
     
-    def setConnected(self, connected):
-        self.__connected = connected
+    def setConnected(this, connected):
+        this.__connected = connected
     
-    def setDevice(self, device):
-        self.__device = device
+    def setDevice(this, device):
+        this.__device = device
     
-    def setClient(self, client):
-        self.__client = client
+    def setClient(this, client):
+        this.__client = client
     
-    async def __findRemote(self):
+    async def __findRemote(this):
         print("Scanning for remote...")
-        self.setDevice(await bleak.BleakScanner.find_device_by_name(self.getName(), timeout=self.getScanTimeout()))
+        this.setDevice(await bleak.BleakScanner.find_device_by_name(this.getName(), timeout=this.getScanTimeout()))
     
-    def __callback(self, sender: bleak.BleakGATTCharacteristic, data: bytearray):
+    def __callback(this, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
         print(f"Recieved remote signal {data}")
-        if self.getInputInterface() is not None:
-            self.getInputInterface().receive(data)
+        if this.getInputInterface() is not None:
+            this.getInputInterface().receive(data)
             if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
-                asyncio.create_task(self.disconnect())
+                asyncio.create_task(this.disconnect())
         else:
             print("Cannot handle incoming remote input, remote has no input interface!")
     
-    def __disconnected_callback(self, client: bleak.BleakClient):
-        if self.isConnected():
-            print("Disconnected from remote.")
-            self.setDevice(None)
-        elif self.__connecting:
-            if not self.__interrupted_notice_printed:
-                print("Connection attempt to remote was interrupted.")
-                self.__interrupted_notice_printed = True
-        else:
-            print("Connection to remote failed.")
-        self.setConnected(False)
-        self.setClient(None)
+    def __disconnected_callback(this, client: bleak.BleakClient):
+        print("Disconnected from remote.")
+        this.setConnected(False)
+        this.setDevice(None)
 
-    async def __refresh_device_for_connect(self, device):
-        """Refresh BlueZ device object by address to avoid stale scan handles."""
-        address = device.address if hasattr(device, "address") else None
-        if not address:
-            return device
+    async def __connectToRemote(this):
+        async with bleak.BleakClient(this.getDevice(), disconnected_callback=this.__disconnected_callback) as client:
+            this.setClient(client)
+            service = client.services.get_service(this.getServiceUUID())
+            if service is None:
+                print("Service not found")
+                return
 
-        refreshed = await bleak.BleakScanner.find_device_by_address(address, timeout=3)
-        if refreshed is not None:
-            self.setDevice(refreshed)
-            return refreshed
+            characteristic = service.get_characteristic(this.getCharacteristicUUID())
+            if characteristic is None:
+                print("Characteristic not found")
+                return
 
-        print(f"Could not refresh device by address {address}, using cached scan result.")
-        return device
-
-    async def __connectToRemote(self):
-        device = self.getDevice()
-        device = await self.__refresh_device_for_connect(device)
-        target = device.address if hasattr(device, "address") else device
-        self.__connecting = True
-        self.__interrupted_notice_printed = False
-        try:
-            # BlueZ can keep stale device paths from scan results; connecting by
-            # address is generally more reliable than passing a BLEDevice object.
-            async with bleak.BleakClient(
-                target,
-                disconnected_callback=self.__disconnected_callback,
-                timeout=max(15, self.getCheckAliveInterval() * 3),
-            ) as client:
-                self.setClient(client)
-                service = client.services.get_service(self.getServiceUUID())
-                if service is None:
-                    print("Service not found")
-                    return
-
-                characteristic = service.get_characteristic(self.getCharacteristicUUID())
-                if characteristic is None:
-                    print("Characteristic not found")
-                    return
-
-                print("Remote connected")
-                self.setConnected(True)
-                if self.getCallbackOnConnect() is not None:
-                    callback = self.getCallbackOnConnect()
-                    self.setCallbackOnConnect(None)
-                    asyncio.create_task(callback())
-                
-                await client.start_notify(characteristic, self.__callback)
-                while client.is_connected:
-                    await asyncio.sleep(self.getCheckAliveInterval())
-        except Exception:
-            print("Remote connection attempt failed in __connectToRemote")
-            print(f"Device context: {device!r}")
-            print(f"Connection target: {target!r}")
-            traceback.print_exc()
-            raise
-        finally:
-            self.__connecting = False
+            print("Remote connected")
+            this.setConnected(True)
+            if this.getCallbackOnConnect() is not None:
+                callback = this.getCallbackOnConnect()
+                this.setCallbackOnConnect(None)
+                asyncio.create_task(callback())
+            
+            await client.start_notify(characteristic, this.__callback)
+            while client.is_connected:
+                await asyncio.sleep(this.getCheckAliveInterval())
     
-    async def connect(self, callbackOnConnect = None):
+    async def connect(this, callbackOnConnect = None):
         
         if callbackOnConnect is not None:
-            self.setCallbackOnConnect(callbackOnConnect)
+            this.setCallbackOnConnect(callbackOnConnect)
         
-        self.setRunning(True)
-        while self.isRunning():
+        this.setRunning(True)
+        while this.isRunning():
             try:
-                if self.getDevice() is None:
+                if this.getDevice() is None:
                     print("Remote not found, scanning again...")
-                    await self.__findRemote()
+                    await this.__findRemote()
                 else:
                     print("Connecting to remote...")
-                    await self.__connectToRemote()
+                    await this.__connectToRemote()
             
             except Exception as e:
-                print("An error occurred while managing remote connection loop:")
-                print(f"Exception type: {type(e).__name__}")
-                print(f"Exception repr: {e!r}")
-                traceback.print_exc()
-                self.setDevice(None)
-                await asyncio.sleep(self.getCheckAliveInterval())
+                print(f"An error occurred: {e}")
+                this.setDevice(None)
+                await asyncio.sleep(this.getCheckAliveInterval())
     
-    async def awaitFindRemote(self):
+    async def awaitFindRemote(this):
         
         print("Initializing remote scan...")
-        self.setRunning(True)
-        self.setConnected(False)
+        this.setRunning(True)
+        this.setConnected(False)
         
         waiting = True
         while waiting:
-            await self.__findRemote()
-            if not self.getDevice():
+            await this.__findRemote()
+            if not this.getDevice():
                 print("Remote not found")
             else:
                 print("Remote found!")
                 waiting = False
     
-    async def disconnect(self):
+    async def disconnect(this):
         print("Disconnecting from remote...")
-        self.setRunning(False)
-        if self.getClient() is not None:
-            await self.getClient().disconnect()
+        this.setRunning(False)
+        if this.getClient() is not None:
+            await this.getClient().disconnect()
         else:
             print("Cannot disconnect from remote, as there is no remote connected!")
 
