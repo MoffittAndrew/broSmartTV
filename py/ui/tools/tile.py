@@ -10,7 +10,7 @@ from interface.input_interface import inputInterface
 
 class Tile(Button):
     def __init__(
-        this,
+        self,
         index:int = None,
         name:str = "new tile",
         filepath:str = "",
@@ -20,64 +20,64 @@ class Tile(Button):
         super().__init__(width = TILE.WIDTH, height = TILE.HEIGHT, *args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_NAME_TEXT, callback = this.editName),
-            Button(text = TILE.EDIT_IMG_TEXT, callback = this.editImg),
+            Button(text = TILE.EDIT_NAME_TEXT, callback = self.editName),
+            Button(text = TILE.EDIT_IMG_TEXT, callback = self.editImg),
         ]
         for menuOption in menuOptions:
-            this.addMenuOption(menuOption)
+            self.addMenuOption(menuOption)
         
-        this.setFilepath(filepath)
-        this.setIndex(index)
-        this.setName(name)
-        this.draw()
+        self.setFilepath(filepath)
+        self.setIndex(index)
+        self.setName(name)
+        self.draw()
         
     ## Getters
     
-    def getAllAttrs(this):
+    def getAllAttrs(self):
         
         attrs = {}
-        attrs["index"] = this.getIndex()
-        attrs["name"] = this.getName()
+        attrs["index"] = self.getIndex()
+        attrs["name"] = self.getName()
         
         return attrs
     
-    def getIndex(this):
-        return this.__index
+    def getIndex(self):
+        return self.__index
     
-    def getName(this):
-        return this.__name
+    def getName(self):
+        return self.__name
     
-    def getFilepath(this):
-        return this.__filepath
+    def getFilepath(self):
+        return self.__filepath
     
     ## Setters
     
-    def setIndex(this, index):
+    def setIndex(self, index):
         if index is not None:
             index = int(index)
-        this.__index = index
+        self.__index = index
     
-    def setName(this, name):
-        this.__name = str(name)
-        this.setText(this.getName())
-        if this.getFilepath() == "":
-            this.setFilepath(this.getName())
+    def setName(self, name):
+        self.__name = str(name)
+        self.setText(self.getName())
+        if self.getFilepath() == "":
+            self.setFilepath(self.getName())
         
-    def setFilepath(this, filepath):
-        this.__filepath = str(filepath).strip().replace(" ", "_")
+    def setFilepath(self, filepath):
+        self.__filepath = str(filepath).strip().replace(" ", "_")
         
     ## Callbacks
     
-    def editName(this):
+    def editName(self):
         return
     
-    def editImg(this):
+    def editImg(self):
         return
 
 
 class ProjectorTile(Tile):
     def __init__(
-        this,
+        self,
         *args,
         **kwargs,
     ):
@@ -86,14 +86,14 @@ class ProjectorTile(Tile):
         menuOptions = [
         ]
         for menuOption in menuOptions:
-            this.addMenuOption(menuOption)
+            self.addMenuOption(menuOption)
         
-        this.setCallback(inputInterface.openProjectorMenu)
+        self.setCallback(inputInterface.openProjectorMenu)
 
 
 class DeviceTile(Tile):
     def __init__(
-        this,
+        self,
         inputChannel:str = "",
         *args,
         **kwargs,
@@ -101,44 +101,44 @@ class DeviceTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_INPUT_TEXT, callback = this.editInputChannel),
+            Button(text = TILE.EDIT_INPUT_TEXT, callback = self.editInputChannel),
         ]
         for menuOption in menuOptions:
-            this.addMenuOption(menuOption)
+            self.addMenuOption(menuOption)
         
-        this.setInputChannel(inputChannel)
-        this.setCallback(this.switchInputChannel)
+        self.setInputChannel(inputChannel)
+        self.setCallback(self.switchInputChannel)
         
     ## Getters
     
-    def getAllAttrs(this):
+    def getAllAttrs(self):
         
         attrs = super().getAllAttrs()
-        attrs["inputChannel"] = this.getInputChannel()
+        attrs["inputChannel"] = self.getInputChannel()
         
         return attrs
     
-    def getInputChannel(this):
-        return this.__inputChannel
+    def getInputChannel(self):
+        return self.__inputChannel
     
     ## Setters
     
-    def setInputChannel(this, inputChannel):
-        this.__inputChannel = str(inputChannel)
+    def setInputChannel(self, inputChannel):
+        self.__inputChannel = str(inputChannel)
         
     ## Callbacks
     
-    async def switchInputChannel(this):
-        await inputInterface.switchProjectorInputChannel(this.getInputChannel())
+    async def switchInputChannel(self):
+        await inputInterface.switchProjectorInputChannel(self.getInputChannel())
     
-    def editInputChannel(this):
+    def editInputChannel(self):
         return
 
 
 """
 class WebTile(Tile):
     def __init__(
-        this,
+        self,
         url:str = "",
         isMusic:bool = False,
         hasSearch:bool = True,
@@ -149,84 +149,84 @@ class WebTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_URL_TEXT, callback = this.editURL),
-            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, callback = this.toggleIsMusic),
-            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, callback = this.toggleHasSearch),
-            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, callback = this.toggleIsPirate),
+            Button(text = TILE.EDIT_URL_TEXT, callback = self.editURL),
+            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, callback = self.toggleIsMusic),
+            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, callback = self.toggleHasSearch),
+            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, callback = self.toggleIsPirate),
         ]
         for menuOption in menuOptions:
-            this.addMenuOption(menuOption)
+            self.addMenuOption(menuOption)
         
-        this.setURL(url)
-        this.setIsMusic(isMusic)
-        this.setHasSearch(hasSearch)
-        this.setIsPirate(isPirate)
-        this.setCallback(this.openURL)
+        self.setURL(url)
+        self.setIsMusic(isMusic)
+        self.setHasSearch(hasSearch)
+        self.setIsPirate(isPirate)
+        self.setCallback(self.openURL)
         
     ## Getters
     
-    def getAllAttrs(this):
+    def getAllAttrs(self):
         
         attrs = super().getAllAttrs()
-        attrs["url"] = this.getURL()
-        attrs["isMusic"] = this.isMusic()
-        attrs["hasSearch"] = this.hasSearch()
-        attrs["isPirate"] = this.isPirate()
+        attrs["url"] = self.getURL()
+        attrs["isMusic"] = self.isMusic()
+        attrs["hasSearch"] = self.hasSearch()
+        attrs["isPirate"] = self.isPirate()
         
         return attrs
     
-    def getURL(this):
-        return this.__url
+    def getURL(self):
+        return self.__url
     
-    def isMusic(this):
-        return this.__isMusic
+    def isMusic(self):
+        return self.__isMusic
     
-    def hasSearch(this):
-        return this.__hasSearch
+    def hasSearch(self):
+        return self.__hasSearch
     
-    def isPirate(this):
-        return this.__isPirate
+    def isPirate(self):
+        return self.__isPirate
     
     ## Setters
     
-    def setURL(this, url):
-        this.__url = str(url)
+    def setURL(self, url):
+        self.__url = str(url)
         
-    def setIsMusic(this, isMusic):
-        this.__isMusic = bool(isMusic)
-        for menuOption in this.getMenuOptions():
+    def setIsMusic(self, isMusic):
+        self.__isMusic = bool(isMusic)
+        for menuOption in self.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_MUSIC_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(this.isMusic())
+                menuOption.setValue(self.isMusic())
         
-    def setHasSearch(this, hasSearch):
-        this.__hasSearch = bool(hasSearch)
-        for menuOption in this.getMenuOptions():
+    def setHasSearch(self, hasSearch):
+        self.__hasSearch = bool(hasSearch)
+        for menuOption in self.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_SEARCH_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(this.hasSearch())
+                menuOption.setValue(self.hasSearch())
     
-    def setIsPirate(this, isPirate):
-        this.__isPirate = bool(isPirate)
-        for menuOption in this.getMenuOptions():
+    def setIsPirate(self, isPirate):
+        self.__isPirate = bool(isPirate)
+        for menuOption in self.getMenuOptions():
             if menuOption.getText() == TILE.TOGGLE_PIRATE_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(this.isPirate())
+                menuOption.setValue(self.isPirate())
         
     ## Callbacks
     
-    def openURL(this):
+    def openURL(self):
         incognito = False
-        if this.isPirate():
+        if self.isPirate():
             incognito = True
-        webInterface.openURL(this.getURL(), incognito)
+        webInterface.openURL(self.getURL(), incognito)
     
-    def editURL(this):
+    def editURL(self):
         return
     
-    def toggleIsMusic(this):
-        this.setIsMusic(not this.isMusic())
+    def toggleIsMusic(self):
+        self.setIsMusic(not self.isMusic())
     
-    def toggleHasSearch(this):
-        this.setHasSearch(not this.hasSearch())
+    def toggleHasSearch(self):
+        self.setHasSearch(not self.hasSearch())
     
-    def toggleIsPirate(this):
-        this.setIsPirate(not this.isPirate())
+    def toggleIsPirate(self):
+        self.setIsPirate(not self.isPirate())
 """

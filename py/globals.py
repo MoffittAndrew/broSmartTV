@@ -3,9 +3,26 @@
 print("Importing globals...")
 
 import os
+import platform
 from PyQt5.QtCore import Qt
 
 PATH = os.path.dirname(__file__) + "/../"
+
+
+def _read_system_file(path, **kwargs):
+    try:
+        with open(path, "r", **kwargs) as f:
+            return f.read().lower()
+    except OSError:
+        return ""
+
+
+class DEVICE:
+    IS_LINUX = platform.system() == "Linux"
+    OS_RELEASE = _read_system_file("/etc/os-release", encoding="utf-8") if IS_LINUX else ""
+    IS_DEBIAN = "id=debian" in OS_RELEASE or "id_like=debian" in OS_RELEASE
+    MODEL = _read_system_file("/proc/device-tree/model", encoding="utf-8", errors="ignore") if IS_LINUX else ""
+    IS_RASPBERRY_PI = "raspberry pi" in MODEL
 
 class DISPLAY:
     WIDTH = 1920

@@ -9,37 +9,37 @@ from selenium.webdriver.support.relative_locator import locate_with
 from webdriver_manager.chrome import ChromeDriverManager
 
 class WebDriver(webdriver.Chrome):
-    def __init__(this, url, incognito = False, *args, **kwargs):
-        this.__url = url
-        this.__options = Options()
-        this.__options.add_experimental_option("useAutomationExtension", False)
-        this.__options.add_experimental_option("excludeSwitches",["enable-automation"])
-        this.__options.add_argument("--kiosk")
-        this.__options.add_argument(f"--app={this.__url}")
+    def __init__(self, url, incognito = False, *args, **kwargs):
+        self.__url = url
+        self.__options = Options()
+        self.__options.add_experimental_option("useAutomationExtension", False)
+        self.__options.add_experimental_option("excludeSwitches",["enable-automation"])
+        self.__options.add_argument("--kiosk")
+        self.__options.add_argument(f"--app={self.__url}")
         if incognito:
-            this.__options.add_argument("--incognito")
+            self.__options.add_argument("--incognito")
         
-        this.__service=Service(ChromeDriverManager().install())
-        super().__init__(service=this.__service,options=this.__options)
+        self.__service=Service(ChromeDriverManager().install())
+        super().__init__(service=self.__service,options=self.__options)
         
-    def getDefaultElement(this):
-        return this.find_elements(By.TAG_NAME, "button")[0]
+    def getDefaultElement(self):
+        return self.find_elements(By.TAG_NAME, "button")[0]
     
-    def getElementAbove(this, refElement):
+    def getElementAbove(self, refElement):
         return locate_with(By.TAG_NAME, "button").above(refElement)
     
-    def getElementRight(this, refElement):
+    def getElementRight(self, refElement):
         return locate_with(By.TAG_NAME, "button").to_right_of(refElement)
     
-    def getElementBelow(this, refElement):
+    def getElementBelow(self, refElement):
         return locate_with(By.TAG_NAME, "button").below(refElement)
     
-    def getElementLeft(this, refElement):
+    def getElementLeft(self, refElement):
         return locate_with(By.TAG_NAME, "button").to_left_of(refElement)
     
-    def elementExists(this, element):
+    def elementExists(self, element):
         try:
-            this.find_element(By.ID, element.get_attribute("id"))
+            self.find_element(By.ID, element.get_attribute("id"))
         except Exception as e:
             print(f"Element not found: {e}")
             return False
@@ -53,10 +53,10 @@ class WebDriver(webdriver.Chrome):
             print(f"Element not found: {e}")
         return element
     
-    def start(this):
-        this.get(this.__url)
+    def start(self):
+        self.get(self.__url)
         
-    def quit(this):
+    def quit(self):
         super().quit()
         
         ## TODO go back to home screen

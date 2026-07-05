@@ -1,6 +1,5 @@
-# this code was written by chatgpt (I gave up)
-# Launches the screen cast (via RTC) webserver
-# TODO stream screen data to the smart TV
+# this code was written by AI (I gave up)
+# Launches the screen cast (via RTC) webserver and forwards video frames to the Qt UI
 
 print("Importing screen cast server...")
 
@@ -9,19 +8,67 @@ import asyncio
 import json
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaRecorder
-import cv2
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
 
+_frame_handler = None
+_connection_handler = None
+_disconnect_handler = None
+
+
+def setFrameHandler(callback):
+    global _frame_handler
+    _frame_handler = callback
+
+
+def setConnectionHandler(callback):
+    global _connection_handler
+    _connection_handler = callback
+
+
+def setDisconnectHandler(callback):
+    global _disconnect_handler
+    _disconnect_handler = callback
+
+
+def _notifyFrame(frame):
+    if _frame_handler is not None:
+        _frame_handler(frame)
+
+
+def _notifyConnected():
+    if _connection_handler is not None:
+        _connection_handler()
+
+
+def _notifyDisconnected():
+    if _disconnect_handler is not None:
+        _disconnect_handler()
+
+
+async def _cleanup_peer(pc):
+    global active_pc
+
+    if pc in pcs:
+        pcs.discard(pc)
+
+    if active_pc == pc:
+        active_pc = None
+
+    try:
+        await pc.close()
+    except Exception:
+        pass
+
+
 async def index(request):
-    return web.FileResponse(os.path.dirname(__file__) + "\\..\\index.html")
+    return web.FileResponse(os.path.join(os.path.dirname(__file__), "..", "index.html"))
+
 
 async def offer(request):
     global active_pc
 
-    # If a stream is already active, reject new connection
     if active_pc is not None and active_pc.connectionState not in ("closed", "failed"):
         print("Rejecting new connection: stream busy")
         return web.Response(
@@ -34,7 +81,7 @@ async def offer(request):
 
     pc = RTCPeerConnection()
     pcs.add(pc)
-    active_pc = pc  # mark as current active connection
+    active_pc = pc
     print("New PeerConnection created")
 
     @pc.on("track")
@@ -42,55 +89,33 @@ async def offer(request):
         print(f"Track received: {track.kind}")
 
         if track.kind == "video":
-            recorder = MediaRecorder("display.mp4")
-            recorder.addTrack(track)
-            asyncio.ensure_future(recorder.start())
-
-            async def show_frames():
+            async def read_frames():
+                started = False
                 while True:
                     try:
                         frame = await track.recv()
-                        img = frame.to_ndarray(format="bgr24")
-                        cv2.imshow("Remote Screen", img)
-                        if cv2.waitKey(1) & 0xFF == ord("q"):
-                            break
-                    except Exception as e:
-                        print("Stream ended:", e)
+                        frame_array = frame.to_ndarray(format="bgr24")
+
+                        if not started:
+                            _notifyConnected()
+                            started = True
+
+                        _notifyFrame(frame_array)
+                    except Exception as exc:
+                        print("Stream ended:", exc)
                         break
 
-                print("Closing OpenCV window")
-                cv2.destroyAllWindows()
-                await recorder.stop()
-                await pc.close()
-                if pc in pcs:
-                    pcs.discard(pc)
-                if pc == active_pc:
-                    globals()["active_pc"] = None
+                await _cleanup_peer(pc)
+                _notifyDisconnected()
 
-            asyncio.ensure_future(show_frames())
-
-        @track.on("ended")
-        async def on_ended():
-            print("Track ended by client")
-            await recorder.stop()
-            await pc.close()
-            if pc in pcs:
-                pcs.discard(pc)
-            if pc == active_pc:
-                globals()["active_pc"] = None
-            cv2.destroyAllWindows()
+            asyncio.ensure_future(read_frames())
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
         print(f"Connection state changed: {pc.connectionState}")
         if pc.connectionState in ("failed", "closed", "disconnected"):
-            print("Connection closed, cleaning up.")
-            await pc.close()
-            if pc in pcs:
-                pcs.discard(pc)
-            if pc == active_pc:
-                globals()["active_pc"] = None
-            cv2.destroyAllWindows()
+            await _cleanup_peer(pc)
+            _notifyDisconnected()
 
     await pc.setRemoteDescription(offer)
     answer = await pc.createAnswer()
@@ -104,17 +129,21 @@ async def offer(request):
         }),
     )
 
+
 async def on_shutdown(screenCastServer):
     print("Server shutting down, closing peer connections...")
-    coros = [pc.close() for pc in pcs]
+    coros = [_cleanup_peer(pc) for pc in list(pcs)]
     await asyncio.gather(*coros)
     pcs.clear()
-    globals()["active_pc"] = None
-    cv2.destroyAllWindows()
+    global active_pc
+    active_pc = None
+    _notifyDisconnected()
+
 
 async def status(request):
     busy = active_pc is not None and active_pc.connectionState not in ("closed", "failed")
     return web.json_response({"available": not busy})
+
 
 screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
@@ -122,5 +151,28 @@ screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
 
-async def startScreenCastServer():
-    await web.run_app(screenCastServer, host="0.0.0.0", port=8080)
+
+_runner = None
+_site = None
+
+async def startScreenCastServer(host="0.0.0.0", port=8080):
+    global _runner, _site
+
+    if _runner is not None:
+        return
+
+    _runner = web.AppRunner(screenCastServer)
+    await _runner.setup()
+    _site = web.TCPSite(_runner, host, port)
+    await _site.start()
+
+async def stopScreenCastServer():
+    global _runner, _site
+
+    if _site is not None:
+        await _site.stop()
+        _site = None
+
+    if _runner is not None:
+        await _runner.cleanup()
+        _runner = None

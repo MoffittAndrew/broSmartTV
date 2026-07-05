@@ -5,110 +5,189 @@ print("Importing GUI tools...")
 from globals import DISPLAY, INPUT, GUI
 
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
-from PyQt5.QtCore import QSize, QPoint
-from PyQt5.QtGui import QKeyEvent
+from PyQt5.QtCore import QSize, QPoint, Qt
+from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
+
 
 class CustomQLabel(QLabel):
-    def __init__(this, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setContentsMargins(0, 0, 0, 0)
-    
-    def getAbsolutePos(this):
-        if this.parent() is not None:
-            return this.parent().getAbsolutePos() + this.pos()
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def getAbsolutePos(self):
+        if self.parent() is not None:
+            return self.parent().getAbsolutePos() + self.pos()
         else:
-            return this.pos()
+            return self.pos()
+
 
 class CustomQWidget(QWidget):
-    def __init__(this, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        this.setContentsMargins(0, 0, 0, 0)
-    
-    def getAbsolutePos(this):
-        if this.parent() is not None:
-            return this.parent().getAbsolutePos() + this.pos()
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def getAbsolutePos(self):
+        if self.parent() is not None:
+            return self.parent().getAbsolutePos() + self.pos()
         else:
-            return this.pos()
+            return self.pos()
+
+
+class ScreenCastView(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+        self.setAlignment(Qt.AlignCenter)
+        self.setStyleSheet("background-color: black;")
+        self.setScaledContents(False)
+        self.hide()
+
+    def setFrame(self, frame):
+        if frame is None:
+            return
+
+        height, width = frame.shape[:2]
+        if frame.ndim == 3:
+            rgb = frame[:, :, ::-1]
+            image = QImage(
+                rgb.data,
+                width,
+                height,
+                width * 3,
+                QImage.Format_RGB888,
+            ).copy()
+        else:
+            image = QImage(
+                frame.data,
+                width,
+                height,
+                width,
+                QImage.Format_Grayscale8,
+            ).copy()
+
+        self._pixmap = QPixmap.fromImage(image)
+        self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self._pixmap is not None and not self._pixmap.isNull():
+            self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
 
 class CustomQWindow(QWidget):
-    def __init__(this, keyboard = None, inputInterface = None, *args, **kwargs):
+    def __init__(self, keyboard=None, inputInterface=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        this.setContentsMargins(0, 0, 0, 0)
-        this.__layout = QStackedLayout()
-        this.__layout.setContentsMargins(0, 0, 0, 0)
-        this.__layout.setStackingMode(QStackedLayout.StackAll)
-        this.setKeyboard(keyboard)
-        this.setInputInterface(inputInterface)
-    
-    def getKeyboard(this):
-        return this.__keyboard
-    
-    def getDefaultTab(this):
-        return this.__defaultTab
 
-    def getTab(this):
-        return this.__tab
-    
-    def getInputInterface(this):
-        return this.__inputInterface
+        self.setContentsMargins(0, 0, 0, 0)
+        self.__layout = QStackedLayout()
+        self.__layout.setContentsMargins(0, 0, 0, 0)
+        self.__layout.setStackingMode(QStackedLayout.StackAll)
+        self.setKeyboard(keyboard)
+        self.setInputInterface(inputInterface)
+        self.__screenCastWidget = None
+        self.__screenCastPreviousWidget = None
 
-    def getAbsolutePos(this):
+    def getKeyboard(self):
+        return self.__keyboard
+
+    def getDefaultTab(self):
+        return self.__defaultTab
+
+    def getTab(self):
+        return self.__tab
+
+    def getInputInterface(self):
+        return self.__inputInterface
+
+    def getAbsolutePos(self):
         return QPoint(0, 0)
-    
-    def setKeyboard(this, keyboard):
-        this.__keyboard = keyboard
-    
-    def setDefaultTab(this, tab):
-        this.__defaultTab = tab
-    
-    def setTab(this, tab=None):
-        if tab is None:
-            tab = this.getDefaultTab()
-        
-        if tab == this.getDefaultTab():
-            tab.setTab()
-        
-        if isinstance(tab, QWidget):
-            this.__layout.setCurrentWidget(tab)
-        else:
-            this.__tab = tab
-            this.__layout.setCurrentIndex(this.getTab())
-        
-        inputInterface = this.getInputInterface()
-        if inputInterface is not None:
-            inputInterface.setSelectedButton(this.__layout.currentWidget().getPrimaryButton())
-            this.__layout.setCurrentWidget(inputInterface)
-    
-    def setInputInterface(this, inputInterface):
-        this.__inputInterface = inputInterface
-        if inputInterface is not None:
-            this.addWidget(inputInterface)
-    
-    def addWidget(this, widget):
-        widget.setParent(this)
-        this.__layout.addWidget(widget)
-        this.setLayout(this.__layout)
 
-    def keyPressEvent(this, event, *args, **kwargs):
-        if this.getKeyboard() is not None:
+    def setKeyboard(self, keyboard):
+        self.__keyboard = keyboard
+
+    def setDefaultTab(self, tab):
+        self.__defaultTab = tab
+
+    def setTab(self, tab=None):
+        if tab is None:
+            tab = self.getDefaultTab()
+
+        if tab == self.getDefaultTab():
+            tab.setTab()
+
+        if isinstance(tab, QWidget):
+            self.__layout.setCurrentWidget(tab)
+        else:
+            self.__tab = tab
+            self.__layout.setCurrentIndex(self.getTab())
+
+        inputInterface = self.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.__layout.currentWidget().getPrimaryButton())
+            self.__layout.setCurrentWidget(inputInterface)
+
+    def setInputInterface(self, inputInterface):
+        self.__inputInterface = inputInterface
+        if inputInterface is not None:
+            self.addWidget(inputInterface)
+
+    def addWidget(self, widget):
+        widget.setParent(self)
+        self.__layout.addWidget(widget)
+        self.setLayout(self.__layout)
+
+    def setScreenCastWidget(self, widget):
+        self.__screenCastWidget = widget
+        if widget is not None:
+            self.addWidget(widget)
+            widget.hide()
+
+    def showScreenCast(self):
+        if self.__screenCastWidget is None:
+            return
+
+        if self.__screenCastPreviousWidget is None:
+            self.__screenCastPreviousWidget = self.__layout.currentWidget()
+
+        self.__screenCastWidget.setGeometry(0, 0, self.width(), self.height())
+        self.__screenCastWidget.show()
+        self.__screenCastWidget.raise_()
+        self.__layout.setCurrentWidget(self.__screenCastWidget)
+
+    def hideScreenCast(self):
+        if self.__screenCastWidget is not None:
+            self.__screenCastWidget.hide()
+
+        if self.__screenCastPreviousWidget is not None:
+            self.__layout.setCurrentWidget(self.__screenCastPreviousWidget)
+            self.__screenCastPreviousWidget = None
+
+    def keyPressEvent(self, event, *args, **kwargs):
+        if self.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
                 key = event.key()
-                this.getKeyboard().receive(key)
+                self.getKeyboard().receive(key)
         else:
             return super().keyPressEvent(event, *args, **kwargs)
-    
-    def keyReleaseEvent(this, event, *args, **kwargs):
-        if this.getKeyboard() is not None:
+
+    def keyReleaseEvent(self, event, *args, **kwargs):
+        if self.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
                 key = event.key()
-                this.getKeyboard().receive(key, INPUT.RELEASED_PREFIX)
+                self.getKeyboard().receive(key, INPUT.RELEASED_PREFIX)
         else:
             return super().keyReleaseEvent(event, *args, **kwargs)
-    
-    def show(this):
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.__screenCastWidget is not None:
+            self.__screenCastWidget.setGeometry(0, 0, self.width(), self.height())
+
+    def show(self):
         super().show()
-        this.setTab()
+        self.setTab()
+
 
 MAIN_WINDOW = CustomQWindow()
 MAIN_WINDOW.setWindowTitle(DISPLAY.WINDOW_TITLE)
