@@ -166,6 +166,7 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     await _runner.setup()
     _site = web.TCPSite(_runner, host, port)
     await _site.start()
+    print(f"Screen cast server started at http://{host}:{port}")
 
 async def stopScreenCastServer():
     global _runner, _site
