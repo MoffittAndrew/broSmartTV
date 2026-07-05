@@ -21,19 +21,13 @@ from interface.remote_interface import remoteInterface
 
 reload_modules = [
     "globals",
+    "ui.launch_screen",
     "interface.projector_interface",
     "interface.ir_interface",
     #"interface.remote_interface",
 ]
 
 _restart_requested = False
-
-
-def exit_process(code=0):
-    """Exit immediately to avoid unstable interpreter finalization paths."""
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(code)
 
 
 def request_restart(reason, exc=None):
@@ -102,37 +96,43 @@ def launch():
 
 async def updateThenLaunch():
     """Run updater, reload selected modules, then launch main."""
+    from globals import DEVICE
+
     # Run the update script to pull code changes from github
-    append_update_log_line("Running update script...")
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "update",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
+    if DEVICE.IS_RASPBERRY_PI:
+        append_update_log_line("Running update script...")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "update",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
 
-        if proc.stdout is not None:
-            while True:
-                raw_line = await proc.stdout.readline()
-                if not raw_line:
-                    break
-                append_update_log_line(raw_line.decode(errors="replace"))
+            if proc.stdout is not None:
+                while True:
+                    raw_line = await proc.stdout.readline()
+                    if not raw_line:
+                        break
+                    append_update_log_line(raw_line.decode(errors="replace"))
 
-        return_code = await proc.wait()
-        append_update_log_line(f"Update script exited with code {return_code}")
+            return_code = await proc.wait()
+            append_update_log_line(f"Update script exited with code {return_code}")
+        
+        except Exception as e:
+            append_update_log_line("The following error occured when attempting to run the update script:")
+            append_update_log_line(e)
+            append_update_log_line("Skipping update check.")
+        
+        finally:
+            # Load the updated code into memory
+            append_update_log_line("Reloading imported modules...")
+            import sys
+            for mod in reload_modules:
+                sys.modules.pop(mod, None)
+            append_update_log_line("Reloaded modules.")
     
-    except Exception as e:
-        append_update_log_line("The following error occured when attempting to run the update script:")
-        append_update_log_line(e)
-        append_update_log_line("Skipping update check.")
-    
-    finally:
-        # Load the updated code into memory
-        append_update_log_line("Reloading imported modules...")
-        import sys
-        for mod in reload_modules:
-            sys.modules.pop(mod, None)
-        append_update_log_line("Reloaded modules.")
+    else:
+        append_update_log_line("Skipping update script on non-Raspberry Pi device.")
     
     # Launch the smart TV
     try:
@@ -206,4 +206,3 @@ if __name__ == "__main__":
     print("Starting launch.py...")
     main()
     print("Exiting launch.py...")
-    exit_process(0)
