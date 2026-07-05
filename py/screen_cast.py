@@ -8,6 +8,7 @@ import asyncio
 import json
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
+from globals import SCREEN_CAST
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
@@ -155,7 +156,7 @@ screenCastServer.router.add_get("/status", status)
 _runner = None
 _site = None
 
-async def startScreenCastServer(host="0.0.0.0", port=8080):
+async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     global _runner, _site
 
     if _runner is not None:

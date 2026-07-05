@@ -129,6 +129,10 @@ class INPUT:
         RETURN: Qt.Key_Escape,
     }
 
+class SCREEN_CAST:
+    HOST = "0.0.0.0"
+    PORT = 8080
+
 class WEB:
     CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
     MAX_GET_WINDOW_TRIES = 30
