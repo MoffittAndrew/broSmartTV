@@ -106,9 +106,13 @@ class RemoteInterface:
             print("Cannot handle incoming remote input, remote has no input interface!")
     
     def __disconnected_callback(self, client: bleak.BleakClient):
-        print("Disconnected from remote.")
+        if self.isConnected():
+            print("Disconnected from remote.")
+            self.setDevice(None)
+        else:
+            print("Connection to remote failed.")
         self.setConnected(False)
-        self.setDevice(None)
+        self.setClient(None)
 
     async def __connectToRemote(self):
         async with bleak.BleakClient(self.getDevice(), disconnected_callback=self.__disconnected_callback) as client:
