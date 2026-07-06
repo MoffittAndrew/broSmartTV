@@ -88,10 +88,14 @@ def launch():
     """Import main.py and transition from launch screen to the full UI."""
     print("Launching main program...")
     from main import MAIN_WINDOW
+    from screen_cast import startScreenCastServer
     MAIN_WINDOW.show()
     
     LAUNCH_SCREEN.stop()
     LAUNCH_SCREEN.hide()
+    
+    print("Starting screen cast server...")
+    asyncio.create_task(startScreenCastServer())
 
 async def updateThenLaunch():
     """Run updater, reload selected modules, then launch main."""

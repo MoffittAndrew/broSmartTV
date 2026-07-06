@@ -6,11 +6,14 @@ print("Importing screen cast server...")
 import os
 import asyncio
 import json
+import ssl
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
+from globals import PATH, SCREEN_CAST
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
+_track_tasks = set()
 
 _frame_handler = None
 _connection_handler = None
@@ -63,7 +66,7 @@ async def _cleanup_peer(pc):
 
 
 async def index(request):
-    return web.FileResponse(os.path.join(os.path.dirname(__file__), "..", "index.html"))
+    return web.FileResponse(os.path.join(PATH, "web", "index.html"))
 
 
 async def offer(request):
@@ -89,26 +92,24 @@ async def offer(request):
         print(f"Track received: {track.kind}")
 
         if track.kind == "video":
-            async def read_frames():
-                started = False
-                while True:
-                    try:
-                        frame = await track.recv()
-                        frame_array = frame.to_ndarray(format="bgr24")
+            _notifyConnected()
 
-                        if not started:
-                            _notifyConnected()
-                            started = True
+            async def read_frames():
+                try:
+                    while True:
+                        frame = await track.recv()
+                        frame_array = frame.to_ndarray(format="rgb24")
 
                         _notifyFrame(frame_array)
-                    except Exception as exc:
-                        print("Stream ended:", exc)
-                        break
+                except Exception as exc:
+                    print("Stream ended:", exc)
+                finally:
+                    await _cleanup_peer(pc)
+                    _notifyDisconnected()
 
-                await _cleanup_peer(pc)
-                _notifyDisconnected()
-
-            asyncio.ensure_future(read_frames())
+            task = asyncio.create_task(read_frames())
+            _track_tasks.add(task)
+            task.add_done_callback(_track_tasks.discard)
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -145,17 +146,26 @@ async def status(request):
     return web.json_response({"available": not busy})
 
 
+async def capture_settings(request):
+    return web.json_response({
+        "width": SCREEN_CAST.CAPTURE_WIDTH,
+        "height": SCREEN_CAST.CAPTURE_HEIGHT,
+        "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
+    })
+
+
 screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
+screenCastServer.router.add_get("/capture-settings", capture_settings)
 
 
 _runner = None
 _site = None
 
-async def startScreenCastServer(host="0.0.0.0", port=8080):
+async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     global _runner, _site
 
     if _runner is not None:
@@ -163,8 +173,25 @@ async def startScreenCastServer(host="0.0.0.0", port=8080):
 
     _runner = web.AppRunner(screenCastServer)
     await _runner.setup()
-    _site = web.TCPSite(_runner, host, port)
+
+    ssl_context = None
+    scheme = "http"
+    if SCREEN_CAST.SSL_CERT and SCREEN_CAST.SSL_KEY:
+        try:
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_context.load_cert_chain(SCREEN_CAST.SSL_CERT, SCREEN_CAST.SSL_KEY)
+            scheme = "https"
+        except Exception as exc:
+            print(f"Failed to enable HTTPS for screen cast server: {exc}")
+            print("Falling back to HTTP.")
+            ssl_context = None
+
+    _site = web.TCPSite(_runner, host, port, ssl_context=ssl_context)
     await _site.start()
+    if SCREEN_CAST.IP is not None:
+        print(f"Screen cast server started at {scheme}://{SCREEN_CAST.IP}:{port}")
+    else:
+        print(f"Screen cast server started on port {port} (LAN IP unavailable, scheme={scheme})")
 
 async def stopScreenCastServer():
     global _runner, _site
