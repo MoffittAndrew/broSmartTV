@@ -13,6 +13,7 @@ from globals import PATH, SCREEN_CAST
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
+_track_tasks = set()
 
 _frame_handler = None
 _connection_handler = None
@@ -91,26 +92,24 @@ async def offer(request):
         print(f"Track received: {track.kind}")
 
         if track.kind == "video":
+            _notifyConnected()
+
             async def read_frames():
-                started = False
-                while True:
-                    try:
+                try:
+                    while True:
                         frame = await track.recv()
                         frame_array = frame.to_ndarray(format="bgr24")
 
-                        if not started:
-                            _notifyConnected()
-                            started = True
-
                         _notifyFrame(frame_array)
-                    except Exception as exc:
-                        print("Stream ended:", exc)
-                        break
+                except Exception as exc:
+                    print("Stream ended:", exc)
+                finally:
+                    await _cleanup_peer(pc)
+                    _notifyDisconnected()
 
-                await _cleanup_peer(pc)
-                _notifyDisconnected()
-
-            asyncio.ensure_future(read_frames())
+            task = asyncio.create_task(read_frames())
+            _track_tasks.add(task)
+            task.add_done_callback(_track_tasks.discard)
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
