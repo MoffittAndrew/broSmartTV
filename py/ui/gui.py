@@ -48,17 +48,18 @@ class ScreenCastView(QLabel):
 
         height, width = frame.shape[:2]
         if frame.ndim == 3:
-            rgb = frame[:, :, ::-1]
+            rgb = frame[:, :, ::-1].copy()
             image = QImage(
-                rgb.data,
+                rgb.tobytes(),
                 width,
                 height,
                 width * 3,
                 QImage.Format_RGB888,
             ).copy()
         else:
+            grayscale = frame.copy()
             image = QImage(
-                frame.data,
+                grayscale.tobytes(),
                 width,
                 height,
                 width,
