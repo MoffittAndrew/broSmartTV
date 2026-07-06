@@ -194,6 +194,9 @@ class SCREEN_CAST:
     IP = _discover_lan_ipv4()
     HOST = "0.0.0.0"
     PORT = 8080
+    CAPTURE_WIDTH = 1920
+    CAPTURE_HEIGHT = 1080
+    CAPTURE_FRAME_RATE = 60
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
 class WEB:

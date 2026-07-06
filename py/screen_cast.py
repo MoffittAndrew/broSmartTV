@@ -146,11 +146,20 @@ async def status(request):
     return web.json_response({"available": not busy})
 
 
+async def capture_settings(request):
+    return web.json_response({
+        "width": SCREEN_CAST.CAPTURE_WIDTH,
+        "height": SCREEN_CAST.CAPTURE_HEIGHT,
+        "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
+    })
+
+
 screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
+screenCastServer.router.add_get("/capture-settings", capture_settings)
 
 
 _runner = None

@@ -18,6 +18,7 @@
 
     let pc = null;
     let stream = null;
+    let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
 
     function describeCaptureSettings(track) {
       const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
@@ -27,12 +28,23 @@
       return `${width}x${height} @ ${frameRate}fps`;
     }
 
+    async function loadCaptureSettings() {
+      try {
+        const response = await fetch('/capture-settings');
+        if (response.ok) {
+          captureSettings = await response.json();
+        }
+      } catch (err) {
+        console.error("Failed to load capture settings:", err);
+      }
+    }
+
     async function requestDisplayMedia() {
       const constraints = {
         video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30, max: 30 },
+          width: { ideal: captureSettings.width },
+          height: { ideal: captureSettings.height },
+          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
         },
         audio: false,
       };
@@ -82,6 +94,8 @@
     }
 
     startBtn.onclick = async () => {
+      await loadCaptureSettings();
+
       const available = await checkAvailability();
       if (!available) {
         alert("Stream is currently busy. Try again later.");
