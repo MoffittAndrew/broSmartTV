@@ -6,6 +6,7 @@ print("Importing screen cast server...")
 import os
 import asyncio
 import json
+import ssl
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from globals import PATH, SCREEN_CAST
@@ -164,12 +165,25 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
 
     _runner = web.AppRunner(screenCastServer)
     await _runner.setup()
-    _site = web.TCPSite(_runner, host, port)
+
+    ssl_context = None
+    scheme = "http"
+    if SCREEN_CAST.SSL_CERT and SCREEN_CAST.SSL_KEY:
+        try:
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_context.load_cert_chain(SCREEN_CAST.SSL_CERT, SCREEN_CAST.SSL_KEY)
+            scheme = "https"
+        except Exception as exc:
+            print(f"Failed to enable HTTPS for screen cast server: {exc}")
+            print("Falling back to HTTP.")
+            ssl_context = None
+
+    _site = web.TCPSite(_runner, host, port, ssl_context=ssl_context)
     await _site.start()
     if SCREEN_CAST.IP is not None:
-        print(f"Screen cast server started at http://{SCREEN_CAST.IP}:{port}")
+        print(f"Screen cast server started at {scheme}://{SCREEN_CAST.IP}:{port}")
     else:
-        print(f"Screen cast server started on port {port} (LAN IP unavailable)")
+        print(f"Screen cast server started on port {port} (LAN IP unavailable, scheme={scheme})")
 
 async def stopScreenCastServer():
     global _runner, _site

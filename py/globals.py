@@ -179,6 +179,8 @@ class SCREEN_CAST:
     IP = _discover_lan_ipv4()
     HOST = "0.0.0.0"
     PORT = 8080
+    SSL_CERT = os.getenv("SCREEN_CAST_SSL_CERT")
+    SSL_KEY = os.getenv("SCREEN_CAST_SSL_KEY")
 
 class WEB:
     CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
