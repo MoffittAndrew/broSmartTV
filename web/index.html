@@ -115,6 +115,17 @@
         return;
       }
 
+      const videoTrack = stream.getVideoTracks()[0];
+      try {
+        await videoTrack.applyConstraints({
+          width: { ideal: captureSettings.width },
+          height: { ideal: captureSettings.height },
+          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
+        });
+      } catch (err) {
+        console.warn("Unable to tighten video track constraints:", err);
+      }
+
       pc = new RTCPeerConnection();
 
       // Handle disconnects (server-side closure or failure)
@@ -126,7 +137,17 @@
       };
 
       for (const track of stream.getTracks()) {
-        pc.addTrack(track, stream);
+        const sender = pc.addTrack(track, stream);
+        if (track.kind === 'video' && sender && typeof sender.getParameters === 'function' && typeof sender.setParameters === 'function') {
+          const parameters = sender.getParameters();
+          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+            ? parameters.encodings
+            : [{}];
+          parameters.encodings[0].maxFramerate = captureSettings.frameRate;
+          sender.setParameters(parameters).catch((err) => {
+            console.warn("Unable to apply sender framerate parameters:", err);
+          });
+        }
       }
 
       const offer = await pc.createOffer();
@@ -153,11 +174,10 @@
       statusDiv.textContent = "✅ Streaming active";
 
       // Optional: stop if the user manually stops sharing
-      stream.getVideoTracks()[0].onended = () => {
+      videoTrack.onended = () => {
         stopStream("ended by user");
       };
 
-      const videoTrack = stream.getVideoTracks()[0];
       const actualCapture = describeCaptureSettings(videoTrack);
       console.log("Capture settings:", actualCapture);
       statusDiv.textContent = `✅ Streaming active (${actualCapture})`;

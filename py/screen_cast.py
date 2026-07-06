@@ -98,7 +98,7 @@ async def offer(request):
                 try:
                     while True:
                         frame = await track.recv()
-                        frame_array = frame.to_ndarray(format="bgr24")
+                        frame_array = frame.to_ndarray(format="rgb24")
 
                         _notifyFrame(frame_array)
                 except Exception as exc:

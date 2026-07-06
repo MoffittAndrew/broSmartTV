@@ -4,6 +4,7 @@ print("Importing GUI tools...")
 
 from globals import DISPLAY, INPUT, GUI
 
+from PyQt5 import sip
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
 from PyQt5.QtCore import QSize, QPoint, Qt
 from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
@@ -47,33 +48,37 @@ class ScreenCastView(QLabel):
             return
 
         height, width = frame.shape[:2]
+        target_size = self.size()
         if frame.ndim == 3:
-            rgb = frame[:, :, ::-1].copy()
+            rgb = frame if frame.flags.c_contiguous else frame.copy()
             image = QImage(
-                rgb.tobytes(),
+                sip.voidptr(rgb.ctypes.data),
                 width,
                 height,
                 width * 3,
                 QImage.Format_RGB888,
-            ).copy()
+            )
         else:
-            grayscale = frame.copy()
+            grayscale = frame if frame.flags.c_contiguous else frame.copy()
             image = QImage(
-                grayscale.tobytes(),
+                sip.voidptr(grayscale.ctypes.data),
                 width,
                 height,
                 width,
                 QImage.Format_Grayscale8,
-            ).copy()
+            )
 
         self._pixmap = QPixmap.fromImage(image)
-        self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        if not target_size.isEmpty() and self._pixmap.size() != target_size:
+            self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
+        else:
+            self.setPixmap(self._pixmap)
         self.update()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self._pixmap is not None and not self._pixmap.isNull():
-            self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.FastTransformation))
 
 
 class CustomQWindow(QWidget):
