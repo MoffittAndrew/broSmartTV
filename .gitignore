@@ -203,6 +203,7 @@ cython_debug/
 certs/*.crt
 certs/*.key
 certs/*.pem
+!certs/screen-cast.crt
 .cursorignore
 .cursorindexingignore
 
