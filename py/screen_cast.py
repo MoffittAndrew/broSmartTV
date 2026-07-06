@@ -64,7 +64,7 @@ async def _cleanup_peer(pc):
 
 
 async def index(request):
-    return web.FileResponse(os.path.join(PATH, "index.html"))
+    return web.FileResponse(os.path.join(PATH, "web", "index.html"))
 
 
 async def offer(request):
