@@ -10,14 +10,133 @@
 
   <script>
 
-    // full disclosure - this code is 100% written by chatGPT
-    // I spent months trying to get this working and chatty P did it in 30s
-
     const startBtn = document.getElementById('startBtn');
     const statusDiv = document.getElementById('status');
 
     let pc = null;
     let stream = null;
+    let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
+    let fpsMonitor = null;
+    let videoSender = null;
+    let currentFps = "unknown";
+    let currentWidth = "unknown";
+    let currentHeight = "unknown";
+    let isStreaming = false;
+    let isStarting = false;
+
+    function describeCaptureSettings(track) {
+      const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
+      const width = settings.width ?? 'unknown';
+      const height = settings.height ?? 'unknown';
+      const frameRate = settings.frameRate ?? 'unknown';
+      return `${width}x${height} @ ${frameRate}fps`;
+    }
+
+    async function loadCaptureSettings() {
+      try {
+        const response = await fetch('/capture-settings');
+        if (response.ok) {
+          captureSettings = await response.json();
+        }
+      } catch (err) {
+        console.error("Failed to load capture settings:", err);
+      }
+    }
+
+    function updateStreamingStatus() {
+      statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
+    }
+
+    function stopFpsMonitor(resetStatus = true) {
+      if (fpsMonitor) {
+        clearInterval(fpsMonitor);
+        fpsMonitor = null;
+      }
+      if (resetStatus) {
+        currentFps = "unknown";
+        currentWidth = "unknown";
+        currentHeight = "unknown";
+      }
+      videoSender = null;
+    }
+
+    function startFpsMonitor(sender) {
+      stopFpsMonitor(false);
+      if (!sender || typeof sender.getStats !== 'function') {
+        return;
+      }
+
+      let lastTimestamp = null;
+      let lastFramesEncoded = null;
+
+      fpsMonitor = setInterval(async () => {
+        try {
+          const stats = await sender.getStats();
+          let videoStat = null;
+          stats.forEach((report) => {
+            if (!videoStat && report.type === 'outbound-rtp' && report.kind === 'video') {
+              videoStat = report;
+            }
+          });
+
+          if (!videoStat) {
+            currentFps = "unknown";
+            updateStreamingStatus();
+            return;
+          }
+
+          const timestamp = videoStat.timestamp;
+          const framesEncoded = typeof videoStat.framesEncoded === 'number'
+            ? videoStat.framesEncoded
+            : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
+
+          if (lastTimestamp !== null && lastFramesEncoded !== null && framesEncoded !== null) {
+            const elapsedSeconds = (timestamp - lastTimestamp) / 1000;
+            if (elapsedSeconds > 0) {
+              const fps = (framesEncoded - lastFramesEncoded) / elapsedSeconds;
+              currentFps = Number.isFinite(fps) ? String(Math.round(fps)) : "unknown";
+            }
+          }
+
+          if (framesEncoded !== null) {
+            lastTimestamp = timestamp;
+            lastFramesEncoded = framesEncoded;
+          }
+
+          updateStreamingStatus();
+        } catch (err) {
+          console.warn("Failed to read outbound video stats:", err);
+          currentFps = "unknown";
+          updateStreamingStatus();
+        }
+      }, 1000);
+    }
+
+    async function requestDisplayMedia() {
+      const constraints = {
+        video: {
+          width: { ideal: captureSettings.width },
+          height: { ideal: captureSettings.height },
+          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
+        },
+        audio: false,
+      };
+
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+        return navigator.mediaDevices.getDisplayMedia(constraints);
+      }
+
+      if (typeof navigator.getDisplayMedia === 'function') {
+        return navigator.getDisplayMedia(constraints);
+      }
+
+      const origin = window.location.origin;
+      const contextHint = window.isSecureContext
+        ? ""
+        : ` Screen capture requires HTTPS or localhost. Current origin: ${origin}`;
+
+      throw new Error(`Screen capture API is unavailable in this browser.${contextHint}`);
+    }
 
     async function checkAvailability() {
       try {
@@ -33,6 +152,9 @@
     }
 
     async function stopStream(reason = "stopped") {
+      stopFpsMonitor();
+      isStreaming = false;
+      isStarting = false;
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
@@ -41,18 +163,59 @@
         pc.close();
         pc = null;
       }
-      startBtn.disabled = false;
       startBtn.textContent = "Start Screen Share";
+      startBtn.disabled = false;
       statusDiv.textContent = `🛑 Stream ${reason}`;
       console.log("Stream stopped:", reason);
     }
 
     startBtn.onclick = async () => {
+      if (isStreaming) {
+        await stopStream("stopped by user");
+        return;
+      }
+
+      if (isStarting) {
+        return;
+      }
+
+      isStarting = true;
+      startBtn.disabled = true;
+
+      await loadCaptureSettings();
+
       const available = await checkAvailability();
       if (!available) {
+        isStarting = false;
+        startBtn.disabled = false;
         alert("Stream is currently busy. Try again later.");
         statusDiv.textContent = "❌ Stream busy";
         return;
+      }
+
+      try {
+        stream = await requestDisplayMedia();
+      } catch (err) {
+        isStarting = false;
+        startBtn.disabled = false;
+        console.error("User cancelled or error:", err);
+        if (!window.isSecureContext) {
+          statusDiv.textContent = "❌ Screen share blocked: open this page via HTTPS or localhost";
+        } else {
+          statusDiv.textContent = "❌ Unable to start screen share";
+        }
+        return;
+      }
+
+      const videoTrack = stream.getVideoTracks()[0];
+      try {
+        await videoTrack.applyConstraints({
+          width: { ideal: captureSettings.width },
+          height: { ideal: captureSettings.height },
+          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
+        });
+      } catch (err) {
+        console.warn("Unable to tighten video track constraints:", err);
       }
 
       pc = new RTCPeerConnection();
@@ -65,15 +228,21 @@
         }
       };
 
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      } catch (err) {
-        console.error("User cancelled or error:", err);
-        return;
-      }
-
       for (const track of stream.getTracks()) {
-        pc.addTrack(track, stream);
+        const sender = pc.addTrack(track, stream);
+        if (track.kind === 'video') {
+          videoSender = sender;
+        }
+        if (track.kind === 'video' && sender && typeof sender.getParameters === 'function' && typeof sender.setParameters === 'function') {
+          const parameters = sender.getParameters();
+          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+            ? parameters.encodings
+            : [{}];
+          parameters.encodings[0].maxFramerate = captureSettings.frameRate;
+          sender.setParameters(parameters).catch((err) => {
+            console.warn("Unable to apply sender framerate parameters:", err);
+          });
+        }
       }
 
       const offer = await pc.createOffer();
@@ -95,14 +264,27 @@
       const answer = await response.json();
       await pc.setRemoteDescription(answer);
 
-      startBtn.disabled = true;
-      startBtn.textContent = "Streaming...";
-      statusDiv.textContent = "✅ Streaming active";
+      isStreaming = true;
+      isStarting = false;
+      startBtn.disabled = false;
+      startBtn.textContent = "Stop Screen Share";
+      currentFps = "starting...";
 
       // Optional: stop if the user manually stops sharing
-      stream.getVideoTracks()[0].onended = () => {
+      videoTrack.onended = () => {
         stopStream("ended by user");
       };
+
+      const settings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
+      currentWidth = settings.width ?? 'unknown';
+      currentHeight = settings.height ?? 'unknown';
+      currentFps = settings.frameRate ?? currentFps;
+
+      const actualCapture = describeCaptureSettings(videoTrack);
+      console.log("Capture settings:", actualCapture);
+      updateStreamingStatus();
+
+      startFpsMonitor(videoSender);
     };
   </script>
 </body>

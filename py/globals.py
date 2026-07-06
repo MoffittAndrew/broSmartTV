@@ -4,9 +4,25 @@ print("Importing globals...")
 
 import os
 import platform
+import socket
 from PyQt5.QtCore import Qt
 
 PATH = os.path.dirname(__file__) + "/../"
+
+
+def _screen_cast_tls_paths():
+    cert_path = os.getenv("SCREEN_CAST_SSL_CERT")
+    key_path = os.getenv("SCREEN_CAST_SSL_KEY")
+
+    if cert_path and key_path:
+        return cert_path, key_path
+
+    default_cert_path = os.path.join(PATH, "certs", "screen-cast.crt")
+    default_key_path = os.path.join(PATH, "certs", "screen-cast.key")
+    if os.path.exists(default_cert_path) and os.path.exists(default_key_path):
+        return default_cert_path, default_key_path
+
+    return None, None
 
 
 def _read_system_file(path, **kwargs):
@@ -15,6 +31,51 @@ def _read_system_file(path, **kwargs):
             return f.read().lower()
     except OSError:
         return ""
+
+
+def _discover_lan_ipv4():
+    """Return a best-effort private LAN IPv4 address, or None if unavailable."""
+    candidates = set()
+
+    # Hostname resolution can be stale/incomplete, but still useful when valid.
+    try:
+        candidates.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except OSError:
+        pass
+
+    # UDP connect trick picks the outbound interface without sending traffic.
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.connect(("8.8.8.8", 80))
+            candidates.add(sock.getsockname()[0])
+        finally:
+            sock.close()
+    except OSError:
+        pass
+
+    candidates = [ip for ip in candidates if ip and not ip.startswith("127.")]
+
+    # Prefer the common home-LAN range first.
+    for ip in candidates:
+        if ip.startswith("192.168."):
+            return ip
+
+    # Then accept other RFC1918 private ranges.
+    for ip in candidates:
+        if ip.startswith("10."):
+            return ip
+        if ip.startswith("172."):
+            parts = ip.split(".")
+            if len(parts) >= 2:
+                try:
+                    second = int(parts[1])
+                except ValueError:
+                    continue
+                if 16 <= second <= 31:
+                    return ip
+
+    return None
 
 
 class DEVICE:
@@ -128,6 +189,15 @@ class INPUT:
         MENU: Qt.Key_Tab,
         RETURN: Qt.Key_Escape,
     }
+
+class SCREEN_CAST:
+    IP = _discover_lan_ipv4()
+    HOST = "0.0.0.0"
+    PORT = 8080
+    CAPTURE_WIDTH = 1920
+    CAPTURE_HEIGHT = 1080
+    CAPTURE_FRAME_RATE = 60
+    SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
 class WEB:
     CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
