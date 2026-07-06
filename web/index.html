@@ -10,7 +10,7 @@
 
   <script>
 
-    // full disclosure - this code is 100% written by chatGPT
+    // full disclosure - this code is 100% written by AI
     // I spent months trying to get this working and chatty P did it in 30s
 
     const startBtn = document.getElementById('startBtn');
@@ -18,6 +18,24 @@
 
     let pc = null;
     let stream = null;
+
+    async function requestDisplayMedia() {
+      const constraints = { video: true, audio: false };
+
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+        return navigator.mediaDevices.getDisplayMedia(constraints);
+      }
+
+      if (typeof navigator.getDisplayMedia === 'function') {
+        return navigator.getDisplayMedia(constraints);
+      }
+
+      const contextHint = window.isSecureContext
+        ? ""
+        : " Screen capture usually requires HTTPS or localhost.";
+
+      throw new Error(`Screen capture API is unavailable in this browser.${contextHint}`);
+    }
 
     async function checkAvailability() {
       try {
@@ -55,6 +73,14 @@
         return;
       }
 
+      try {
+        stream = await requestDisplayMedia();
+      } catch (err) {
+        console.error("User cancelled or error:", err);
+        statusDiv.textContent = "❌ Unable to start screen share";
+        return;
+      }
+
       pc = new RTCPeerConnection();
 
       // Handle disconnects (server-side closure or failure)
@@ -64,13 +90,6 @@
           stopStream("disconnected");
         }
       };
-
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      } catch (err) {
-        console.error("User cancelled or error:", err);
-        return;
-      }
 
       for (const track of stream.getTracks()) {
         pc.addTrack(track, stream);
