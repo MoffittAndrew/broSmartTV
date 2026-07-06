@@ -10,6 +10,21 @@ from PyQt5.QtCore import Qt
 PATH = os.path.dirname(__file__) + "/../"
 
 
+def _screen_cast_tls_paths():
+    cert_path = os.getenv("SCREEN_CAST_SSL_CERT")
+    key_path = os.getenv("SCREEN_CAST_SSL_KEY")
+
+    if cert_path and key_path:
+        return cert_path, key_path
+
+    default_cert_path = os.path.join(PATH, "certs", "screen-cast.crt")
+    default_key_path = os.path.join(PATH, "certs", "screen-cast.key")
+    if os.path.exists(default_cert_path) and os.path.exists(default_key_path):
+        return default_cert_path, default_key_path
+
+    return None, None
+
+
 def _read_system_file(path, **kwargs):
     try:
         with open(path, "r", **kwargs) as f:
@@ -179,8 +194,7 @@ class SCREEN_CAST:
     IP = _discover_lan_ipv4()
     HOST = "0.0.0.0"
     PORT = 8080
-    SSL_CERT = os.getenv("SCREEN_CAST_SSL_CERT")
-    SSL_KEY = os.getenv("SCREEN_CAST_SSL_KEY")
+    SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
 class WEB:
     CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
