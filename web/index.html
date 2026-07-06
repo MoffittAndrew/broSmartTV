@@ -22,6 +22,10 @@
     let fpsMonitor = null;
     let videoSender = null;
     let currentFps = "unknown";
+    let currentWidth = "unknown";
+    let currentHeight = "unknown";
+    let isStreaming = false;
+    let isStarting = false;
 
     function describeCaptureSettings(track) {
       const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
@@ -42,21 +46,25 @@
       }
     }
 
-    function updateStatusText(baseText) {
-      statusDiv.textContent = `${baseText} | Current FPS: ${currentFps}`;
+    function updateStreamingStatus() {
+      statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
     }
 
-    function stopFpsMonitor() {
+    function stopFpsMonitor(resetStatus = true) {
       if (fpsMonitor) {
         clearInterval(fpsMonitor);
         fpsMonitor = null;
       }
-      currentFps = "unknown";
+      if (resetStatus) {
+        currentFps = "unknown";
+        currentWidth = "unknown";
+        currentHeight = "unknown";
+      }
       videoSender = null;
     }
 
     function startFpsMonitor(sender) {
-      stopFpsMonitor();
+      stopFpsMonitor(false);
       if (!sender || typeof sender.getStats !== 'function') {
         return;
       }
@@ -76,7 +84,7 @@
 
           if (!videoStat) {
             currentFps = "unknown";
-            updateStatusText("✅ Streaming active");
+            updateStreamingStatus();
             return;
           }
 
@@ -98,11 +106,11 @@
             lastFramesEncoded = framesEncoded;
           }
 
-          updateStatusText("✅ Streaming active");
+          updateStreamingStatus();
         } catch (err) {
           console.warn("Failed to read outbound video stats:", err);
           currentFps = "unknown";
-          updateStatusText("✅ Streaming active");
+          updateStreamingStatus();
         }
       }, 1000);
     }
@@ -148,6 +156,8 @@
 
     async function stopStream(reason = "stopped") {
       stopFpsMonitor();
+      isStreaming = false;
+      isStarting = false;
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
@@ -156,17 +166,31 @@
         pc.close();
         pc = null;
       }
-      startBtn.disabled = false;
       startBtn.textContent = "Start Screen Share";
+      startBtn.disabled = false;
       statusDiv.textContent = `🛑 Stream ${reason}`;
       console.log("Stream stopped:", reason);
     }
 
     startBtn.onclick = async () => {
+      if (isStreaming) {
+        await stopStream("stopped by user");
+        return;
+      }
+
+      if (isStarting) {
+        return;
+      }
+
+      isStarting = true;
+      startBtn.disabled = true;
+
       await loadCaptureSettings();
 
       const available = await checkAvailability();
       if (!available) {
+        isStarting = false;
+        startBtn.disabled = false;
         alert("Stream is currently busy. Try again later.");
         statusDiv.textContent = "❌ Stream busy";
         return;
@@ -175,6 +199,8 @@
       try {
         stream = await requestDisplayMedia();
       } catch (err) {
+        isStarting = false;
+        startBtn.disabled = false;
         console.error("User cancelled or error:", err);
         if (!window.isSecureContext) {
           statusDiv.textContent = "❌ Screen share blocked: open this page via HTTPS or localhost";
@@ -241,19 +267,25 @@
       const answer = await response.json();
       await pc.setRemoteDescription(answer);
 
-      startBtn.disabled = true;
-      startBtn.textContent = "Streaming...";
+      isStreaming = true;
+      isStarting = false;
+      startBtn.disabled = false;
+      startBtn.textContent = "Stop Screen Share";
       currentFps = "starting...";
-      updateStatusText("✅ Streaming active");
 
       // Optional: stop if the user manually stops sharing
       videoTrack.onended = () => {
         stopStream("ended by user");
       };
 
+      const settings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
+      currentWidth = settings.width ?? 'unknown';
+      currentHeight = settings.height ?? 'unknown';
+      currentFps = settings.frameRate ?? currentFps;
+
       const actualCapture = describeCaptureSettings(videoTrack);
       console.log("Capture settings:", actualCapture);
-      updateStatusText(`✅ Streaming active (${actualCapture})`);
+      updateStreamingStatus();
 
       startFpsMonitor(videoSender);
     };
