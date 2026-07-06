@@ -200,10 +200,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 
 # Local HTTPS material for screen casting
-certs/*.crt
 certs/*.key
 certs/*.pem
-!certs/screen-cast.crt
 .cursorignore
 .cursorindexingignore
 
