@@ -19,8 +19,23 @@
     let pc = null;
     let stream = null;
 
+    function describeCaptureSettings(track) {
+      const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
+      const width = settings.width ?? 'unknown';
+      const height = settings.height ?? 'unknown';
+      const frameRate = settings.frameRate ?? 'unknown';
+      return `${width}x${height} @ ${frameRate}fps`;
+    }
+
     async function requestDisplayMedia() {
-      const constraints = { video: true, audio: false };
+      const constraints = {
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+        audio: false,
+      };
 
       if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
         return navigator.mediaDevices.getDisplayMedia(constraints);
@@ -127,6 +142,11 @@
       stream.getVideoTracks()[0].onended = () => {
         stopStream("ended by user");
       };
+
+      const videoTrack = stream.getVideoTracks()[0];
+      const actualCapture = describeCaptureSettings(videoTrack);
+      console.log("Capture settings:", actualCapture);
+      statusDiv.textContent = `✅ Streaming active (${actualCapture})`;
     };
   </script>
 </body>
