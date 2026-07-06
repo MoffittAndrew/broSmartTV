@@ -4,6 +4,7 @@ print("Importing globals...")
 
 import os
 import platform
+import socket
 from PyQt5.QtCore import Qt
 
 PATH = os.path.dirname(__file__) + "/../"
@@ -130,6 +131,7 @@ class INPUT:
     }
 
 class SCREEN_CAST:
+    IP = next((ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if ip.startswith("192.168.")), "127.0.0.1")
     HOST = "0.0.0.0"
     PORT = 8080
 
