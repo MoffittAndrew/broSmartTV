@@ -8,7 +8,7 @@ import asyncio
 import json
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from globals import SCREEN_CAST
+from globals import PATH, SCREEN_CAST
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
@@ -64,7 +64,7 @@ async def _cleanup_peer(pc):
 
 
 async def index(request):
-    return web.FileResponse(os.path.join(os.path.dirname(__file__), "..", "index.html"))
+    return web.FileResponse(os.path.join(PATH, "index.html"))
 
 
 async def offer(request):
