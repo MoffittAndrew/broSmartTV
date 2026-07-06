@@ -97,7 +97,7 @@
             const elapsedSeconds = (timestamp - lastTimestamp) / 1000;
             if (elapsedSeconds > 0) {
               const fps = (framesEncoded - lastFramesEncoded) / elapsedSeconds;
-              currentFps = Number.isFinite(fps) ? fps.toFixed(1) : "unknown";
+              currentFps = Number.isFinite(fps) ? String(Math.round(fps)) : "unknown";
             }
           }
 
