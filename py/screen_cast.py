@@ -166,7 +166,10 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     await _runner.setup()
     _site = web.TCPSite(_runner, host, port)
     await _site.start()
-    print(f"Screen cast server started at http://{SCREEN_CAST.IP}:{port}")
+    if SCREEN_CAST.IP is not None:
+        print(f"Screen cast server started at http://{SCREEN_CAST.IP}:{port}")
+    else:
+        print(f"Screen cast server started on port {port} (LAN IP unavailable)")
 
 async def stopScreenCastServer():
     global _runner, _site
