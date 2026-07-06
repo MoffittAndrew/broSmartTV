@@ -19,6 +19,9 @@
     let pc = null;
     let stream = null;
     let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
+    let fpsMonitor = null;
+    let videoSender = null;
+    let currentFps = "unknown";
 
     function describeCaptureSettings(track) {
       const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
@@ -37,6 +40,71 @@
       } catch (err) {
         console.error("Failed to load capture settings:", err);
       }
+    }
+
+    function updateStatusText(baseText) {
+      statusDiv.textContent = `${baseText} | Current FPS: ${currentFps}`;
+    }
+
+    function stopFpsMonitor() {
+      if (fpsMonitor) {
+        clearInterval(fpsMonitor);
+        fpsMonitor = null;
+      }
+      currentFps = "unknown";
+      videoSender = null;
+    }
+
+    function startFpsMonitor(sender) {
+      stopFpsMonitor();
+      if (!sender || typeof sender.getStats !== 'function') {
+        return;
+      }
+
+      let lastTimestamp = null;
+      let lastFramesEncoded = null;
+
+      fpsMonitor = setInterval(async () => {
+        try {
+          const stats = await sender.getStats();
+          let videoStat = null;
+          stats.forEach((report) => {
+            if (!videoStat && report.type === 'outbound-rtp' && report.kind === 'video') {
+              videoStat = report;
+            }
+          });
+
+          if (!videoStat) {
+            currentFps = "unknown";
+            updateStatusText("✅ Streaming active");
+            return;
+          }
+
+          const timestamp = videoStat.timestamp;
+          const framesEncoded = typeof videoStat.framesEncoded === 'number'
+            ? videoStat.framesEncoded
+            : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
+
+          if (lastTimestamp !== null && lastFramesEncoded !== null && framesEncoded !== null) {
+            const elapsedSeconds = (timestamp - lastTimestamp) / 1000;
+            if (elapsedSeconds > 0) {
+              const fps = (framesEncoded - lastFramesEncoded) / elapsedSeconds;
+              currentFps = Number.isFinite(fps) ? fps.toFixed(1) : "unknown";
+            }
+          }
+
+          if (framesEncoded !== null) {
+            lastTimestamp = timestamp;
+            lastFramesEncoded = framesEncoded;
+          }
+
+          updateStatusText("✅ Streaming active");
+        } catch (err) {
+          console.warn("Failed to read outbound video stats:", err);
+          currentFps = "unknown";
+          updateStatusText("✅ Streaming active");
+        }
+      }, 1000);
     }
 
     async function requestDisplayMedia() {
@@ -79,6 +147,7 @@
     }
 
     async function stopStream(reason = "stopped") {
+      stopFpsMonitor();
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
@@ -138,6 +207,9 @@
 
       for (const track of stream.getTracks()) {
         const sender = pc.addTrack(track, stream);
+        if (track.kind === 'video') {
+          videoSender = sender;
+        }
         if (track.kind === 'video' && sender && typeof sender.getParameters === 'function' && typeof sender.setParameters === 'function') {
           const parameters = sender.getParameters();
           parameters.encodings = parameters.encodings && parameters.encodings.length > 0
@@ -171,7 +243,8 @@
 
       startBtn.disabled = true;
       startBtn.textContent = "Streaming...";
-      statusDiv.textContent = "✅ Streaming active";
+      currentFps = "starting...";
+      updateStatusText("✅ Streaming active");
 
       // Optional: stop if the user manually stops sharing
       videoTrack.onended = () => {
@@ -180,7 +253,9 @@
 
       const actualCapture = describeCaptureSettings(videoTrack);
       console.log("Capture settings:", actualCapture);
-      statusDiv.textContent = `✅ Streaming active (${actualCapture})`;
+      updateStatusText(`✅ Streaming active (${actualCapture})`);
+
+      startFpsMonitor(videoSender);
     };
   </script>
 </body>
