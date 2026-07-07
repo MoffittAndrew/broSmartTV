@@ -8,6 +8,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from globals import WIFI
+
 
 @dataclass
 class Network:
@@ -296,4 +298,4 @@ class WifiInterface:
         return list(self.__known_networks.values())
 
 
-wifiInterface = WifiInterface()
+wifiInterface = WifiInterface(storage_path=WIFI.KNOWN_NETWORKS_FILE)

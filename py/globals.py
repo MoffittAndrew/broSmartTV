@@ -90,6 +90,9 @@ class DISPLAY:
     HEIGHT = 1080
     WINDOW_TITLE = "bro is literally a smart tv"
 
+class WIFI:
+    KNOWN_NETWORKS_FILE = os.path.join(PATH, "known_wifi_networks.json")
+
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
