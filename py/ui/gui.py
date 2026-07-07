@@ -99,6 +99,7 @@ class CustomQWindow(QWidget):
         from ui.tools.onscreen_keyboard import OnScreenKeyboard
         self.__onScreenKeyboard = OnScreenKeyboard(parent=self)
         self.__textInputPreviousSelection = None
+        self.__textInputOnCancel = None
         self.addWidget(self.__onScreenKeyboard)
         self.__onScreenKeyboard.hide()
 
@@ -127,6 +128,8 @@ class CustomQWindow(QWidget):
         self.__defaultTab = tab
 
     def setTab(self, tab=None):
+        self.hideTextInput(cancelled=True)
+
         if tab is None:
             tab = self.getDefaultTab()
 
@@ -168,6 +171,7 @@ class CustomQWindow(QWidget):
             return
 
         self.__textInputPreviousSelection = inputInterface.getSelectedButton()
+        self.__textInputOnCancel = onCancel
 
         def submitBridge(text):
             self._completeTextInput(
@@ -193,11 +197,32 @@ class CustomQWindow(QWidget):
             onSubmit=submitBridge,
             onCancel=cancelBridge,
         )
-        inputInterface.setSelectedButton(self.getOnScreenKeyboard().getPrimaryButton())
+        keyboardPrimaryButton = self.getOnScreenKeyboard().getPrimaryButton()
+        if keyboardPrimaryButton is not None:
+            inputInterface.setSelectedButton(keyboardPrimaryButton)
+
+    def hideTextInput(self, cancelled=False):
+        if not self.getOnScreenKeyboard().isOverlayVisible():
+            return
+
+        self.getOnScreenKeyboard().closeOverlay()
+
+        inputInterface = self.getInputInterface()
+        if inputInterface is not None:
+            restoreButton = self.__textInputPreviousSelection
+            if restoreButton is not None:
+                inputInterface.setSelectedButton(restoreButton)
+
+        if cancelled and self.__textInputOnCancel is not None:
+            result = self.__textInputOnCancel()
+            if inspect.isawaitable(result):
+                asyncio.ensure_future(result)
+
+        self.__textInputOnCancel = None
 
     def _completeTextInput(self, onSubmit, onCancel, submittedText=None, cancelled=False):
         inputInterface = self.getInputInterface()
-        self.getOnScreenKeyboard().closeOverlay()
+        self.hideTextInput(cancelled=False)
 
         if inputInterface is not None:
             restoreButton = self.__textInputPreviousSelection
@@ -213,6 +238,8 @@ class CustomQWindow(QWidget):
             result = callback() if cancelled else callback(submittedText)
             if inspect.isawaitable(result):
                 asyncio.ensure_future(result)
+
+        self.__textInputOnCancel = None
 
     def setScreenCastWidget(self, widget):
         self.__screenCastWidget = widget

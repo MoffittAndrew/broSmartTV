@@ -67,6 +67,8 @@ class OnScreenKeyboard(CustomQWidget):
         self.hide()
 
     def getPrimaryButton(self):
+        if self.__primaryButton is None and len(self.__keyButtons) > 0 and len(self.__keyButtons[0]) > 0:
+            self.__primaryButton = self.__keyButtons[0][0]
         return self.__primaryButton
 
     def isOverlayVisible(self):
@@ -213,6 +215,7 @@ class OnScreenKeyboard(CustomQWidget):
         self.__promptLabel.setText(str(prompt))
         self.__statusLabel.setText("")
         self._renderText()
+        self.getPrimaryButton()
         self.__isVisibleOverlay = True
         self.show()
         self.raise_()
