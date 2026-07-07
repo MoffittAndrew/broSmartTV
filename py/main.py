@@ -12,10 +12,12 @@ There are two startup paths:
 print("Starting...")
 
 from PyQt5.QtWidgets import QApplication
+from typing import cast
 
-APP = QApplication.instance()
-if APP is None:
-    APP = QApplication([])
+app_instance = QApplication.instance()
+if app_instance is None:
+    app_instance = QApplication([])
+APP = cast(QApplication, app_instance)
 
 print("Starting imports...")
 from ui.gui import MAIN_WINDOW, ScreenCastView
@@ -24,6 +26,7 @@ from interface.input_interface import inputInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
+from ui.wifi_overlay import wifiOverlay
 from screen_cast import (
     startScreenCastServer,
     setFrameHandler,
@@ -71,6 +74,7 @@ def main():
 # - configure screencast display handlers
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
+MAIN_WINDOW.addWidget(wifiOverlay)
 #MAIN_WINDOW.addWidget(webInterface)
 
 inputInterface.setProjectorInterface(projectorInterface)
