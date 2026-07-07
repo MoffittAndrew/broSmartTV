@@ -127,10 +127,31 @@ class OnScreenKeyboard(CustomQWidget):
             controlsRow[index + 1].setNavLeft(controlsRow[index])
 
         bottomAlphaRow = self.__keyButtons[-1]
-        bottomAnchors = [0, 4, 6, 7, 8]
-        for index, controlButton in enumerate(controlsRow):
-            upButton = bottomAlphaRow[bottomAnchors[index]]
+        controlByColumn = [
+            self.__spaceButton,
+            self.__spaceButton,
+            self.__spaceButton,
+            self.__spaceButton,
+            self.__backspaceButton,
+            self.__backspaceButton,
+            self.__clearButton,
+            self.__cancelButton,
+            self.__enterButton,
+            self.__enterButton,
+        ]
+
+        for columnIndex, upButton in enumerate(bottomAlphaRow):
+            controlButton = controlByColumn[columnIndex]
             upButton.setNavDown(controlButton)
+
+        controlUpMap = {
+            self.__spaceButton: bottomAlphaRow[0],
+            self.__backspaceButton: bottomAlphaRow[4],
+            self.__clearButton: bottomAlphaRow[6],
+            self.__cancelButton: bottomAlphaRow[7],
+            self.__enterButton: bottomAlphaRow[8],
+        }
+        for controlButton, upButton in controlUpMap.items():
             controlButton.setNavUp(upButton)
 
         self.__primaryButton = self.__keyButtons[0][0]
