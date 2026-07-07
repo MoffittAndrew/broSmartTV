@@ -1,8 +1,10 @@
 print("Importing wifi overlay...")
 
+import asyncio
+
 from globals import DISPLAY
 from interface.wifi_interface import wifiInterface
-from ui.gui import CustomQWidget
+from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
 
 from PyQt5.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
@@ -19,6 +21,10 @@ class WifiOverlay(CustomQWidget):
         self.__titleLabel = QLabel("Wifi networks")
         self.__titleLabel.setStyleSheet("font-size: 48px; font-weight: bold;")
 
+        self.__statusLabel = QLabel("")
+        self.__statusLabel.setWordWrap(True)
+        self.__statusLabel.setStyleSheet("font-size: 24px;")
+
         self.__closeButton = Button(text="Back", callback=self.hideOverlay)
 
         self.__scrollArea = QScrollArea()
@@ -30,6 +36,7 @@ class WifiOverlay(CustomQWidget):
         layout.setContentsMargins(80, 60, 80, 60)
         layout.setSpacing(30)
         layout.addWidget(self.__titleLabel)
+        layout.addWidget(self.__statusLabel)
         layout.addWidget(self.__closeButton)
         layout.addWidget(self.__scrollArea)
 
@@ -58,7 +65,39 @@ class WifiOverlay(CustomQWidget):
         signal_text = f"{network.signal_strength}%" if network.signal_strength else "unknown signal"
         security_text = network.security if network.security else "unknown security"
         label = f"{network.ssid}\n{signal_text}  |  {security_text}"
-        return Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
+        button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
+        button.setCallback(self._onNetworkSelected, network)
+        return button
+
+    async def _onNetworkSelected(self, network):
+        requiresPassword = network.requiresPassword
+        if requiresPassword and not network.password:
+            MAIN_WINDOW.openTextInput(
+                prompt=f"Password for {network.ssid}",
+                masked=True,
+                maxLength=128,
+                onSubmit=lambda password: self._queueConnection(network, password),
+                onCancel=self._onKeyboardCancelled,
+            )
+            self.__statusLabel.setText(f"Enter password for {network.ssid}")
+            return
+
+        self._queueConnection(network, network.password)
+
+    def _queueConnection(self, network, password):
+        asyncio.create_task(self._connectToNetwork(network, password))
+
+    def _onKeyboardCancelled(self):
+        self.__statusLabel.setText("Connection cancelled")
+
+    async def _connectToNetwork(self, network, password):
+        try:
+            self.__statusLabel.setText(f"Connecting to {network.ssid}...")
+            await wifiInterface.connectToNetwork(network, password=password)
+            self.__statusLabel.setText(f"Connected to {network.ssid}")
+            await self.hideOverlay()
+        except Exception as error:
+            self.__statusLabel.setText(f"Failed to connect: {error}")
 
     def _knownNetworkMap(self):
         return {network.ssid: network for network in wifiInterface.getKnownNetworks()}
@@ -118,6 +157,7 @@ class WifiOverlay(CustomQWidget):
     async def showOverlay(self, navBarButton=None):
         self.refreshNetworks()
         self.__closeButton.setNavUp(navBarButton)
+        self.__statusLabel.setText("")
         self.show()
         self.raise_()
 

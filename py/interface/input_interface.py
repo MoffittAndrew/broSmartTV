@@ -92,6 +92,10 @@ class InputInterface(CustomQLabel):
             self.setRoundness(roundness)
             self.setBorderThickness(borderThickness)
             self.setGeometry(x, y, width, height)
+            # Keep the selection outline above active UI layers (e.g. keyboard overlay).
+            self.show()
+            self.raise_()
+            self.update()
     
     def setRoundness(self, roundness):
         self.__roundness = roundness
