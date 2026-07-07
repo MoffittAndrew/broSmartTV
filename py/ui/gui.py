@@ -200,6 +200,9 @@ class CustomQWindow(QWidget):
         keyboardPrimaryButton = self.getOnScreenKeyboard().getPrimaryButton()
         if keyboardPrimaryButton is not None:
             inputInterface.setSelectedButton(keyboardPrimaryButton)
+            # Keep selection outline above the keyboard overlay.
+            self.__layout.setCurrentWidget(inputInterface)
+            inputInterface.raise_()
 
     def hideTextInput(self, cancelled=False):
         if not self.getOnScreenKeyboard().isOverlayVisible():
