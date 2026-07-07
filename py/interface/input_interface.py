@@ -92,6 +92,10 @@ class InputInterface(CustomQLabel):
             self.setRoundness(roundness)
             self.setBorderThickness(borderThickness)
             self.setGeometry(x, y, width, height)
+            # Keep the selection outline above active UI layers (e.g. keyboard overlay).
+            self.show()
+            self.raise_()
+            self.update()
     
     def setRoundness(self, roundness):
         self.__roundness = roundness
@@ -119,25 +123,29 @@ class InputInterface(CustomQLabel):
     
     async def processBacklog(self):
         self.__isProcessingBacklog = True
-        while len(self.__backlog) > 0:
-            
-            data = self.getNextFromBacklog()
-            if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
-                await self.powerOff()
-            elif data == INPUT.SELECT:
-                await self.select()
-            elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
-                await self.navigate(data)
-            elif data == INPUT.RETURN:
-                await self.back()
-            elif data == INPUT.VOL_UP:
-                await self.volUp()
-            elif data == INPUT.VOL_DOWN:
-                await self.volDown()
-            elif data == INPUT.RELEASED_PREFIX + INPUT.HOME:
-                await self.home()
-        
-        self.__isProcessingBacklog = False
+        try:
+            while len(self.__backlog) > 0:
+
+                data = self.getNextFromBacklog()
+                try:
+                    if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
+                        await self.powerOff()
+                    elif data == INPUT.SELECT:
+                        await self.select()
+                    elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
+                        await self.navigate(data)
+                    elif data == INPUT.RETURN:
+                        await self.back()
+                    elif data == INPUT.VOL_UP:
+                        await self.volUp()
+                    elif data == INPUT.VOL_DOWN:
+                        await self.volDown()
+                    elif data == INPUT.RELEASED_PREFIX + INPUT.HOME:
+                        await self.home()
+                except Exception as error:
+                    print(f"Error while handling input '{data}': {error}")
+        finally:
+            self.__isProcessingBacklog = False
     
     async def powerOff(self):
         await teardown_app(projector_interface=self.getProjectorInterface(), quit_app=True)

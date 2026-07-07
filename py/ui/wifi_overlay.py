@@ -1,0 +1,167 @@
+print("Importing wifi overlay...")
+
+import asyncio
+
+from globals import DISPLAY
+from interface.wifi_interface import wifiInterface
+from ui.gui import CustomQWidget, MAIN_WINDOW
+from ui.tools.button import Button
+
+from PyQt5.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
+
+
+class WifiOverlay(CustomQWidget):
+    def __init__(self, onClose=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.__onClose = onClose
+        self.__networkButtons = []
+        self.__primaryButton = None
+
+        self.__titleLabel = QLabel("Wifi networks")
+        self.__titleLabel.setStyleSheet("font-size: 48px; font-weight: bold;")
+
+        self.__statusLabel = QLabel("")
+        self.__statusLabel.setWordWrap(True)
+        self.__statusLabel.setStyleSheet("font-size: 24px;")
+
+        self.__closeButton = Button(text="Back", callback=self.hideOverlay)
+
+        self.__scrollArea = QScrollArea()
+        self.__scrollArea.setWidgetResizable(True)
+        self.__scrollArea.setFrameShape(QScrollArea.NoFrame)
+        self._resetContentContainer()
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(80, 60, 80, 60)
+        layout.setSpacing(30)
+        layout.addWidget(self.__titleLabel)
+        layout.addWidget(self.__statusLabel)
+        layout.addWidget(self.__closeButton)
+        layout.addWidget(self.__scrollArea)
+
+        self.setFixedWidth(DISPLAY.WIDTH)
+        self.setFixedHeight(DISPLAY.HEIGHT)
+        self.setLayout(layout)
+        self.setStyleSheet("background-color: rgba(0, 0, 0, 235);")
+        self.hide()
+
+        self.refreshNetworks()
+
+    def getPrimaryButton(self):
+        if self.__primaryButton is not None:
+            return self.__primaryButton
+        return self.__closeButton
+
+    def isOverlayVisible(self):
+        return self.isVisible()
+
+    def _makeSectionLabel(self, text):
+        label = QLabel(text)
+        label.setStyleSheet("font-size: 32px; font-weight: bold;")
+        return label
+
+    def _makeNetworkButton(self, network):
+        signal_text = f"{network.signal_strength}%" if network.signal_strength else "unknown signal"
+        security_text = network.security if network.security else "unknown security"
+        label = f"{network.ssid}\n{signal_text}  |  {security_text}"
+        button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
+        button.setCallback(self._onNetworkSelected, network)
+        return button
+
+    async def _onNetworkSelected(self, network):
+        requiresPassword = network.requiresPassword
+        if requiresPassword and not network.password:
+            MAIN_WINDOW.openTextInput(
+                prompt=f"Password for {network.ssid}",
+                masked=True,
+                maxLength=128,
+                onSubmit=lambda password: self._queueConnection(network, password),
+                onCancel=self._onKeyboardCancelled,
+            )
+            self.__statusLabel.setText(f"Enter password for {network.ssid}")
+            return
+
+        self._queueConnection(network, network.password)
+
+    def _queueConnection(self, network, password):
+        asyncio.create_task(self._connectToNetwork(network, password))
+
+    def _onKeyboardCancelled(self):
+        self.__statusLabel.setText("Connection cancelled")
+
+    async def _connectToNetwork(self, network, password):
+        try:
+            self.__statusLabel.setText(f"Connecting to {network.ssid}...")
+            await wifiInterface.connectToNetwork(network, password=password)
+            self.__statusLabel.setText(f"Connected to {network.ssid}")
+            await self.hideOverlay()
+        except Exception as error:
+            self.__statusLabel.setText(f"Failed to connect: {error}")
+
+    def _knownNetworkMap(self):
+        return {network.ssid: network for network in wifiInterface.getKnownNetworks()}
+
+    def _resetContentContainer(self):
+        self.__contentWidget = QWidget()
+        self.__contentLayout = QVBoxLayout(self.__contentWidget)
+        self.__contentLayout.setContentsMargins(0, 0, 0, 0)
+        self.__contentLayout.setSpacing(28)
+        self.__scrollArea.setWidget(self.__contentWidget)
+
+    def refreshNetworks(self):
+        self._resetContentContainer()
+
+        self.__networkButtons = []
+        self.__primaryButton = None
+
+        known_networks = self._knownNetworkMap()
+        try:
+            available_networks = wifiInterface.getAvailableNetworks()
+        except Exception:
+            available_networks = []
+
+        known_available_networks = [network for network in available_networks if network.ssid in known_networks]
+        other_available_networks = [network for network in available_networks if network.ssid not in known_networks]
+
+        if known_available_networks:
+            self.__contentLayout.addWidget(self._makeSectionLabel("Known networks"))
+            for network in known_available_networks:
+                button = self._makeNetworkButton(network)
+                self.__networkButtons.append(button)
+                self.__contentLayout.addWidget(button)
+
+        if other_available_networks:
+            self.__contentLayout.addWidget(self._makeSectionLabel("Available networks"))
+            for network in other_available_networks:
+                button = self._makeNetworkButton(network)
+                self.__networkButtons.append(button)
+                self.__contentLayout.addWidget(button)
+
+        if not self.__networkButtons:
+            empty_label = QLabel("No available networks found.")
+            empty_label.setStyleSheet("font-size: 24px;")
+            self.__contentLayout.addWidget(empty_label)
+            self.__primaryButton = self.__closeButton
+        else:
+            self.__primaryButton = self.__networkButtons[0]
+            self.__closeButton.setNavDown(self.__primaryButton)
+            self.__primaryButton.setNavUp(self.__closeButton)
+
+            for previous_button, next_button in zip(self.__networkButtons, self.__networkButtons[1:]):
+                previous_button.setNavDown(next_button)
+                next_button.setNavUp(previous_button)
+
+        self.__contentLayout.addStretch(1)
+
+    async def showOverlay(self, navBarButton=None):
+        self.refreshNetworks()
+        self.__closeButton.setNavUp(navBarButton)
+        self.__statusLabel.setText("")
+        self.show()
+        self.raise_()
+
+    async def hideOverlay(self):
+        self.hide()
+        if self.__onClose is not None:
+            self.__onClose()
