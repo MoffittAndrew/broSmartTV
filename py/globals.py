@@ -90,12 +90,18 @@ class DISPLAY:
     HEIGHT = 1080
     WINDOW_TITLE = "bro is literally a smart tv"
 
+class WIFI:
+    KNOWN_NETWORKS_FILE = os.path.join(PATH, "known_networks.json")
+
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
+    TEXT_SIZE = 60
     ROUNDNESS = 30
-    BORDER_COLOR = Qt.white
+    COLOR = Qt.white
+    COLOR_DISABLED = Qt.gray
     BORDER_THICKNESS = 3
+    BG_COLOR = Qt.black
 
 class NAVBAR:
     BUTTON_WIDTH = 300

@@ -9,6 +9,9 @@ from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
 from PyQt5.QtCore import QSize, QPoint, Qt
 from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
 
+import asyncio
+import inspect
+
 
 class CustomQLabel(QLabel):
     def __init__(self, *args, **kwargs):
@@ -16,10 +19,10 @@ class CustomQLabel(QLabel):
         self.setContentsMargins(0, 0, 0, 0)
 
     def getAbsolutePos(self):
-        if self.parent() is not None:
-            return self.parent().getAbsolutePos() + self.pos()
-        else:
-            return self.pos()
+        window = self.window()
+        if window is not None and isinstance(window, QWidget):
+            return self.mapTo(window, QPoint(0, 0))
+        return self.pos()
 
 
 class CustomQWidget(QWidget):
@@ -28,10 +31,10 @@ class CustomQWidget(QWidget):
         self.setContentsMargins(0, 0, 0, 0)
 
     def getAbsolutePos(self):
-        if self.parent() is not None:
-            return self.parent().getAbsolutePos() + self.pos()
-        else:
-            return self.pos()
+        window = self.window()
+        if window is not None and isinstance(window, QWidget):
+            return self.mapTo(window, QPoint(0, 0))
+        return self.pos()
 
 
 class ScreenCastView(QLabel):
@@ -75,8 +78,8 @@ class ScreenCastView(QLabel):
             self.setPixmap(self._pixmap)
         self.update()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
         if self._pixmap is not None and not self._pixmap.isNull():
             self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.FastTransformation))
 
@@ -93,6 +96,12 @@ class CustomQWindow(QWidget):
         self.setInputInterface(inputInterface)
         self.__screenCastWidget = None
         self.__screenCastPreviousWidget = None
+        from ui.tools.onscreen_keyboard import OnScreenKeyboard
+        self.__onScreenKeyboard = OnScreenKeyboard(parent=self)
+        self.__textInputPreviousSelection = None
+        self.__textInputOnCancel = None
+        self.addWidget(self.__onScreenKeyboard)
+        self.__onScreenKeyboard.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -106,6 +115,9 @@ class CustomQWindow(QWidget):
     def getInputInterface(self):
         return self.__inputInterface
 
+    def getOnScreenKeyboard(self):
+        return self.__onScreenKeyboard
+
     def getAbsolutePos(self):
         return QPoint(0, 0)
 
@@ -116,6 +128,8 @@ class CustomQWindow(QWidget):
         self.__defaultTab = tab
 
     def setTab(self, tab=None):
+        self.hideTextInput(cancelled=True)
+
         if tab is None:
             tab = self.getDefaultTab()
 
@@ -142,6 +156,93 @@ class CustomQWindow(QWidget):
         widget.setParent(self)
         self.__layout.addWidget(widget)
         self.setLayout(self.__layout)
+
+    def openTextInput(
+        self,
+        prompt="Enter text",
+        initialText="",
+        masked=False,
+        maxLength=64,
+        onSubmit=None,
+        onCancel=None,
+    ):
+        inputInterface = self.getInputInterface()
+        if inputInterface is None:
+            return
+
+        self.__textInputPreviousSelection = inputInterface.getSelectedButton()
+        self.__textInputOnCancel = onCancel
+
+        def submitBridge(text):
+            self._completeTextInput(
+                onSubmit=onSubmit,
+                onCancel=onCancel,
+                submittedText=text,
+                cancelled=False,
+            )
+
+        def cancelBridge():
+            self._completeTextInput(
+                onSubmit=onSubmit,
+                onCancel=onCancel,
+                submittedText=None,
+                cancelled=True,
+            )
+
+        self.getOnScreenKeyboard().openOverlay(
+            prompt=prompt,
+            initialText=initialText,
+            masked=masked,
+            maxLength=maxLength,
+            onSubmit=submitBridge,
+            onCancel=cancelBridge,
+        )
+        keyboardPrimaryButton = self.getOnScreenKeyboard().getPrimaryButton()
+        if keyboardPrimaryButton is not None:
+            inputInterface.setSelectedButton(keyboardPrimaryButton)
+            # Keep selection outline above the keyboard overlay.
+            self.__layout.setCurrentWidget(inputInterface)
+            inputInterface.raise_()
+
+    def hideTextInput(self, cancelled=False):
+        if not self.getOnScreenKeyboard().isOverlayVisible():
+            return
+
+        self.getOnScreenKeyboard().closeOverlay()
+
+        inputInterface = self.getInputInterface()
+        if inputInterface is not None:
+            restoreButton = self.__textInputPreviousSelection
+            if restoreButton is not None:
+                inputInterface.setSelectedButton(restoreButton)
+
+        if cancelled and self.__textInputOnCancel is not None:
+            result = self.__textInputOnCancel()
+            if inspect.isawaitable(result):
+                asyncio.ensure_future(result)
+
+        self.__textInputOnCancel = None
+
+    def _completeTextInput(self, onSubmit, onCancel, submittedText=None, cancelled=False):
+        inputInterface = self.getInputInterface()
+        self.hideTextInput(cancelled=False)
+
+        if inputInterface is not None:
+            restoreButton = self.__textInputPreviousSelection
+            if restoreButton is None:
+                currentWidget = self.__layout.currentWidget()
+                if currentWidget is not None and hasattr(currentWidget, "getPrimaryButton"):
+                    restoreButton = currentWidget.getPrimaryButton()
+            if restoreButton is not None:
+                inputInterface.setSelectedButton(restoreButton)
+
+        callback = onCancel if cancelled else onSubmit
+        if callback is not None:
+            result = callback() if cancelled else callback(submittedText)
+            if inspect.isawaitable(result):
+                asyncio.ensure_future(result)
+
+        self.__textInputOnCancel = None
 
     def setScreenCastWidget(self, widget):
         self.__screenCastWidget = widget
@@ -185,10 +286,12 @@ class CustomQWindow(QWidget):
         else:
             return super().keyReleaseEvent(event, *args, **kwargs)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
         if self.__screenCastWidget is not None:
             self.__screenCastWidget.setGeometry(0, 0, self.width(), self.height())
+        if self.__onScreenKeyboard is not None:
+            self.__onScreenKeyboard.setGeometry(0, 0, self.width(), self.height())
 
     def show(self):
         super().show()
