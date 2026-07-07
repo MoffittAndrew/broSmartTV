@@ -24,12 +24,7 @@ class WifiOverlay(CustomQWidget):
         self.__scrollArea = QScrollArea()
         self.__scrollArea.setWidgetResizable(True)
         self.__scrollArea.setFrameShape(QScrollArea.NoFrame)
-
-        self.__contentWidget = QWidget()
-        self.__contentLayout = QVBoxLayout(self.__contentWidget)
-        self.__contentLayout.setContentsMargins(0, 0, 0, 0)
-        self.__contentLayout.setSpacing(28)
-        self.__scrollArea.setWidget(self.__contentWidget)
+        self._resetContentContainer()
 
         layout = QVBoxLayout()
         layout.setContentsMargins(80, 60, 80, 60)
@@ -68,14 +63,15 @@ class WifiOverlay(CustomQWidget):
     def _knownNetworkMap(self):
         return {network.ssid: network for network in wifiInterface.getKnownNetworks()}
 
+    def _resetContentContainer(self):
+        self.__contentWidget = QWidget()
+        self.__contentLayout = QVBoxLayout(self.__contentWidget)
+        self.__contentLayout.setContentsMargins(0, 0, 0, 0)
+        self.__contentLayout.setSpacing(28)
+        self.__scrollArea.setWidget(self.__contentWidget)
+
     def refreshNetworks(self):
-        while self.__contentLayout.count() > 0:
-            item = self.__contentLayout.takeAt(0)
-            if item is None:
-                continue
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+        self._resetContentContainer()
 
         self.__networkButtons = []
         self.__primaryButton = None
