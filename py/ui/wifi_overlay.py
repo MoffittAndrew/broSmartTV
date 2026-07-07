@@ -178,6 +178,7 @@ class WifiOverlay(CustomQWidget):
 
         self.__networkButtons = []
         self.__primaryButton = None
+        pinned_network_button = None
 
         try:
             available_networks = wifiInterface.getAvailableNetworks()
@@ -189,10 +190,12 @@ class WifiOverlay(CustomQWidget):
         if priority_networks:
             section_label = "Current activity" if self.__isConnecting else "Current network"
             self.__contentLayout.addWidget(self._makeSectionLabel(section_label))
-            for network in priority_networks:
+            for index, network in enumerate(priority_networks):
                 button = self._makeNetworkButton(network)
                 self.__networkButtons.append(button)
                 self.__contentLayout.addWidget(button)
+                if not self.__isConnecting and index == 0:
+                    pinned_network_button = button
 
         if known_available_networks:
             self.__contentLayout.addWidget(self._makeSectionLabel("Known networks"))
@@ -224,7 +227,12 @@ class WifiOverlay(CustomQWidget):
 
             if self.__isConnecting:
                 for button in self.__networkButtons:
-                    button.disable()
+                    button.setEnabled(False)
+            else:
+                for button in self.__networkButtons:
+                    button.setEnabled(True)
+                if pinned_network_button is not None:
+                    pinned_network_button.setEnabled(False)
 
         self.__contentLayout.addStretch(1)
 
