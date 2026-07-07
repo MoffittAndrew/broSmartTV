@@ -211,6 +211,29 @@ class OnScreenKeyboard(CustomQWidget):
 
         self.__capsButton.setText("CAPS ON" if self.__capsEnabled else "CAPS OFF")
         self.__capsButton.draw()
+        self._redrawAllButtons()
+
+    def _redrawAllButtons(self):
+        for row in self.__keyButtons:
+            for button in row:
+                button.draw()
+                button.update()
+
+        for button in self.__symbolButtons:
+            button.draw()
+            button.update()
+
+        controls = [
+            self.__capsButton,
+            self.__spaceButton,
+            self.__backspaceButton,
+            self.__clearButton,
+            self.__cancelButton,
+            self.__enterButton,
+        ]
+        for button in controls:
+            button.draw()
+            button.update()
 
     async def _toggleCaps(self):
         self.__capsEnabled = not self.__capsEnabled
