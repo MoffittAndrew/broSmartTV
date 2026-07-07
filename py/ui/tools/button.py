@@ -194,7 +194,7 @@ class Button(CustomQLabel):
             if callback is not None:
                 await callback(*args, **kwargs)
             else:
-                print(f"Button {self.getText()} has no callback!")
+                print(f"Button '{self.getText()}' has no callback!")
     
     def draw(self):
         if self.__needsDraw:
