@@ -12,10 +12,12 @@ There are two startup paths:
 print("Starting...")
 
 from PyQt5.QtWidgets import QApplication
+from typing import cast
 
-APP = QApplication.instance()
-if APP is None:
-    APP = QApplication([])
+app_instance = QApplication.instance()
+if app_instance is None:
+    app_instance = QApplication([])
+APP = cast(QApplication, app_instance)
 
 print("Starting imports...")
 from ui.gui import MAIN_WINDOW, ScreenCastView

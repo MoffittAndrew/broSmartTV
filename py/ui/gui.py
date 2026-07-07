@@ -16,10 +16,10 @@ class CustomQLabel(QLabel):
         self.setContentsMargins(0, 0, 0, 0)
 
     def getAbsolutePos(self):
-        if self.parent() is not None:
-            return self.parent().getAbsolutePos() + self.pos()
-        else:
-            return self.pos()
+        window = self.window()
+        if window is not None and isinstance(window, QWidget):
+            return self.mapTo(window, QPoint(0, 0))
+        return self.pos()
 
 
 class CustomQWidget(QWidget):
@@ -28,10 +28,10 @@ class CustomQWidget(QWidget):
         self.setContentsMargins(0, 0, 0, 0)
 
     def getAbsolutePos(self):
-        if self.parent() is not None:
-            return self.parent().getAbsolutePos() + self.pos()
-        else:
-            return self.pos()
+        window = self.window()
+        if window is not None and isinstance(window, QWidget):
+            return self.mapTo(window, QPoint(0, 0))
+        return self.pos()
 
 
 class ScreenCastView(QLabel):
