@@ -12,6 +12,7 @@ class Button(CustomQLabel):
         enabled:bool = True,
         width:int = GUI.BUTTON.MIN_WIDTH,
         height:int = GUI.BUTTON.MIN_HEIGHT,
+        textSize:int = GUI.BUTTON.TEXT_SIZE,
         roundness:int = GUI.BUTTON.ROUNDNESS,
         borderThickness:int = GUI.BUTTON.BORDER_THICKNESS,
         color:QtGui.QColor = GUI.BUTTON.COLOR,
@@ -33,6 +34,7 @@ class Button(CustomQLabel):
         
         self.setEnabled(enabled)
         self.resize(width, height)
+        self.setTextSize(textSize)
         self.setRoundness(roundness)
         self.setBorderThickness(borderThickness)
         self.setColor(color)
@@ -56,6 +58,9 @@ class Button(CustomQLabel):
     
     def enabled(self):
         return self.__enabled
+
+    def getTextSize(self):
+        return self.__textSize
 
     def getRoundness(self):
         return self.__roundness
@@ -124,6 +129,9 @@ class Button(CustomQLabel):
 
         super().resize(w, h)
         self.__needsDraw = True
+    
+    def setTextSize(self, textSize: int):
+        self.__textSize = textSize
     
     def setRoundness(self, roundness: int):
         self.__roundness = roundness
@@ -228,7 +236,7 @@ class Button(CustomQLabel):
                 if self.getText() != "":
                     font = QtGui.QFont()
                     font.setFamily('Times')
-                    font.setPointSize(40)
+                    font.setPointSize(self.getTextSize())
                     painter.setFont(font)
                     painter.setPen(QtGui.QPen(borderAndTextColor))
 

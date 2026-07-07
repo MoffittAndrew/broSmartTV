@@ -88,7 +88,7 @@ class WifiInterface:
         stdout, stderr = await process.communicate()
         return subprocess.CompletedProcess(
             command,
-            process.returncode,
+            process.returncode if process.returncode is not None else 1,
             stdout.decode(errors="replace"),
             stderr.decode(errors="replace"),
         )
@@ -123,11 +123,13 @@ class WifiInterface:
         except ValueError:
             signal_value = 0
 
+        known_network = self.__known_networks.get(ssid)
+
         return Network(
             ssid=ssid,
             signal_strength=signal_value,
             security=security.strip(),
-            password=self.__known_networks.get(ssid).password if ssid in self.__known_networks else None,
+            password=known_network.password if known_network is not None else None,
             is_current=in_use.strip() == "*",
         )
 
@@ -231,6 +233,9 @@ class WifiInterface:
         return self._parse_nmcli_wifi_list(result.stdout)
 
     async def connectToNetwork(self, network: Network, password=None):
+        print(
+            f"[wifi_interface] connect requested: ssid='{network.ssid if network is not None else None}', password_arg_provided={password is not None}"
+        )
         if network is None or not network.ssid.strip():
             raise ValueError("A network with a valid SSID is required.")
 
@@ -240,6 +245,7 @@ class WifiInterface:
             provided_password = known_network.password
 
         if network.requiresPassword and not provided_password:
+            print(f"[wifi_interface] connect rejected: ssid='{network.ssid}' requires password but none available")
             raise ValueError(f"Network '{network.ssid}' requires a password.")
 
         backend = self._require_backend(["nmcli"])
@@ -250,7 +256,16 @@ class WifiInterface:
         if provided_password:
             command.extend(["password", provided_password])
 
+        print(
+            f"[wifi_interface] running nmcli connect: ssid='{network.ssid}', using_password={bool(provided_password)}"
+        )
+
         result = await self.__async_command_runner(command)
+        if result.stdout:
+            print(f"[wifi_interface] nmcli stdout: {result.stdout.strip()}")
+        if result.stderr:
+            print(f"[wifi_interface] nmcli stderr: {result.stderr.strip()}")
+        print(f"[wifi_interface] nmcli return code: {result.returncode}")
         if result.returncode != 0:
             raise RuntimeError((result.stderr or result.stdout or "").strip() or f"Failed to connect to '{network.ssid}'.")
 
@@ -262,6 +277,7 @@ class WifiInterface:
         )
         self.__current_network = connected_network
         self.saveKnownNetwork(connected_network)
+        print(f"[wifi_interface] connect success persisted: ssid='{network.ssid}'")
         return connected_network
 
     def saveKnownNetwork(self, network: Network):

@@ -96,6 +96,7 @@ class WIFI:
 class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
+    TEXT_SIZE = 60
     ROUNDNESS = 30
     COLOR = Qt.white
     COLOR_DISABLED = Qt.gray
