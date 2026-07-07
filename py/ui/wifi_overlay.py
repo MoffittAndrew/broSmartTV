@@ -5,20 +5,18 @@ from interface.wifi_interface import wifiInterface
 from ui.gui import CustomQWidget
 from ui.tools.button import Button
 
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
 
 class WifiOverlay(CustomQWidget):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, onClose=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.__returnWidget = None
+        self.__onClose = onClose
         self.__networkButtons = []
         self.__primaryButton = None
 
         self.__titleLabel = QLabel("Wifi networks")
-        self.__titleLabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.__titleLabel.setStyleSheet("font-size: 48px; font-weight: bold;")
 
         self.__closeButton = Button(text="Back", callback=self.hideOverlay)
@@ -43,6 +41,8 @@ class WifiOverlay(CustomQWidget):
         self.setFixedWidth(DISPLAY.WIDTH)
         self.setFixedHeight(DISPLAY.HEIGHT)
         self.setLayout(layout)
+        self.setStyleSheet("background-color: rgba(0, 0, 0, 235);")
+        self.hide()
 
         self.refreshNetworks()
 
@@ -51,9 +51,11 @@ class WifiOverlay(CustomQWidget):
             return self.__primaryButton
         return self.__closeButton
 
+    def isOverlayVisible(self):
+        return self.isVisible()
+
     def _makeSectionLabel(self, text):
         label = QLabel(text)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         label.setStyleSheet("font-size: 32px; font-weight: bold;")
         return label
 
@@ -67,8 +69,10 @@ class WifiOverlay(CustomQWidget):
         return {network.ssid: network for network in wifiInterface.getKnownNetworks()}
 
     def refreshNetworks(self):
-        while self.__contentLayout.count():
+        while self.__contentLayout.count() > 0:
             item = self.__contentLayout.takeAt(0)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
@@ -115,22 +119,13 @@ class WifiOverlay(CustomQWidget):
 
         self.__contentLayout.addStretch(1)
 
-    async def showOverlay(self, returnWidget=None):
-        self.__returnWidget = returnWidget
+    async def showOverlay(self, navBarButton=None):
         self.refreshNetworks()
-        parent = self.parent()
-        if parent is not None:
-            parent.setTab(self)
-        else:
-            self.show()
+        self.__closeButton.setNavUp(navBarButton)
+        self.show()
+        self.raise_()
 
     async def hideOverlay(self):
-        parent = self.parent()
-        if parent is not None and self.__returnWidget is not None:
-            parent.setTab(self.__returnWidget)
-        else:
-            self.hide()
-        self.__returnWidget = None
-
-
-wifiOverlay = WifiOverlay()
+        self.hide()
+        if self.__onClose is not None:
+            self.__onClose()

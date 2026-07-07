@@ -35,6 +35,7 @@ _bodyWidgets = [
 
 
 tileGrid.setNavBarButton(homeButton)
+settingsScreen.setNavBarButton(settingsButton)
 
 class NavBar(CustomQWidget):
     def __init__(self, buttons:list = _buttons, *args, **kwargs):

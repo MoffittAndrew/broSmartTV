@@ -1,9 +1,9 @@
 print("Importing settings screen...")
 
 from globals import DISPLAY, GUI
-from ui.gui import CustomQWidget
+from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
-from ui.wifi_overlay import wifiOverlay
+from ui.wifi_overlay import WifiOverlay
 
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
@@ -24,6 +24,7 @@ class SettingsScreen(CustomQWidget):
         self.__currentNetworkLabel.setStyleSheet("font-size: 24px;")
 
         self.__switchNetworkButton = Button(text="Switch network", callback=self.openWifiOverlay)
+        self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(80, 60, 80, 60)
@@ -46,6 +47,8 @@ class SettingsScreen(CustomQWidget):
         return self.__navBarButton
     
     def getPrimaryButton(self):
+        if self.__wifiOverlay.isOverlayVisible():
+            return self.__wifiOverlay.getPrimaryButton()
         return self.__switchNetworkButton
 
     def getCurrentNetwork(self):
@@ -81,10 +84,23 @@ class SettingsScreen(CustomQWidget):
             self.__switchNetworkButton.setNavUp(navBarButton)
 
     async def openWifiOverlay(self):
-        await wifiOverlay.showOverlay(self)
+        await self.__wifiOverlay.showOverlay(navBarButton=self.getNavBarButton())
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
+    def _onOverlayClosed(self):
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
 
     def showEvent(self, a0):
+        self.__wifiOverlay.hide()
         self.refreshCurrentNetwork()
         return super().showEvent(a0)
+
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
+        self.__wifiOverlay.setGeometry(0, 0, self.width(), self.height())
 
 settingsScreen = SettingsScreen()
