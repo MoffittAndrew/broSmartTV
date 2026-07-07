@@ -17,6 +17,8 @@ class WifiOverlay(CustomQWidget):
         self.__onClose = onClose
         self.__networkButtons = []
         self.__primaryButton = None
+        self.__isConnecting = False
+        self.__connectingNetwork = None
 
         self.__titleLabel = QLabel("Wifi networks")
         self.__titleLabel.setStyleSheet("font-size: 48px; font-weight: bold;")
@@ -64,7 +66,14 @@ class WifiOverlay(CustomQWidget):
     def _makeNetworkButton(self, network):
         signal_text = f"{network.signal_strength}%" if network.signal_strength else "unknown signal"
         security_text = network.security if network.security else "unknown security"
+        status_text = ""
+        if self.__connectingNetwork is not None and self.__connectingNetwork.ssid == network.ssid:
+            if self.__isConnecting:
+                status_text = "\n[connecting...]"
+            else:
+                status_text = "\n[last attempt]"
         label = f"{network.ssid}\n{signal_text}  |  {security_text}"
+        label = f"{label}{status_text}"
         button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
         button.setCallback(self._onNetworkSelected, network)
         return button
@@ -85,6 +94,16 @@ class WifiOverlay(CustomQWidget):
         self._queueConnection(network, network.password)
 
     def _queueConnection(self, network, password):
+        if self.__isConnecting:
+            self.__statusLabel.setText("Already connecting. Please wait...")
+            return
+
+        network.password = password
+        self.__connectingNetwork = network
+        self.__isConnecting = True
+        self.__statusLabel.setText(f"Connecting to {network.ssid}...")
+        self.refreshNetworks()
+        self._syncSelection()
         asyncio.create_task(self._connectToNetwork(network, password))
 
     def _onKeyboardCancelled(self):
@@ -92,12 +111,17 @@ class WifiOverlay(CustomQWidget):
 
     async def _connectToNetwork(self, network, password):
         try:
-            self.__statusLabel.setText(f"Connecting to {network.ssid}...")
             await wifiInterface.connectToNetwork(network, password=password)
+            self.__isConnecting = False
+            self.__connectingNetwork = None
+            self.refreshNetworks()
             self.__statusLabel.setText(f"Connected to {network.ssid}")
             await self.hideOverlay()
         except Exception as error:
+            self.__isConnecting = False
             self.__statusLabel.setText(f"Failed to connect: {error}")
+            self.refreshNetworks()
+            self._syncSelection()
 
     def _knownNetworkMap(self):
         return {network.ssid: network for network in wifiInterface.getKnownNetworks()}
@@ -109,20 +133,66 @@ class WifiOverlay(CustomQWidget):
         self.__contentLayout.setSpacing(28)
         self.__scrollArea.setWidget(self.__contentWidget)
 
+    def _syncSelection(self):
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            primaryButton = self.getPrimaryButton()
+            if primaryButton is not None:
+                inputInterface.setSelectedButton(primaryButton)
+
+    def _resolveCurrentNetwork(self):
+        try:
+            return wifiInterface.getCurrentNetwork()
+        except Exception:
+            return None
+
+    def _buildOrderedNetworks(self, available_networks):
+        priority_network = self.__connectingNetwork
+        if priority_network is None:
+            priority_network = self._resolveCurrentNetwork()
+
+        remaining_networks = list(available_networks)
+        ordered_networks = []
+
+        if priority_network is not None and priority_network.ssid:
+            matched_network = None
+            for network in remaining_networks:
+                if network.ssid == priority_network.ssid:
+                    matched_network = network
+                    break
+
+            if matched_network is None:
+                matched_network = priority_network
+
+            ordered_networks.append(matched_network)
+            remaining_networks = [network for network in remaining_networks if network.ssid != matched_network.ssid]
+
+        known_networks = self._knownNetworkMap()
+        known_available_networks = [network for network in remaining_networks if network.ssid in known_networks]
+        other_available_networks = [network for network in remaining_networks if network.ssid not in known_networks]
+
+        return ordered_networks, known_available_networks, other_available_networks
+
     def refreshNetworks(self):
         self._resetContentContainer()
 
         self.__networkButtons = []
         self.__primaryButton = None
 
-        known_networks = self._knownNetworkMap()
         try:
             available_networks = wifiInterface.getAvailableNetworks()
         except Exception:
             available_networks = []
 
-        known_available_networks = [network for network in available_networks if network.ssid in known_networks]
-        other_available_networks = [network for network in available_networks if network.ssid not in known_networks]
+        priority_networks, known_available_networks, other_available_networks = self._buildOrderedNetworks(available_networks)
+
+        if priority_networks:
+            section_label = "Current activity" if self.__isConnecting else "Current network"
+            self.__contentLayout.addWidget(self._makeSectionLabel(section_label))
+            for network in priority_networks:
+                button = self._makeNetworkButton(network)
+                self.__networkButtons.append(button)
+                self.__contentLayout.addWidget(button)
 
         if known_available_networks:
             self.__contentLayout.addWidget(self._makeSectionLabel("Known networks"))
@@ -151,6 +221,10 @@ class WifiOverlay(CustomQWidget):
             for previous_button, next_button in zip(self.__networkButtons, self.__networkButtons[1:]):
                 previous_button.setNavDown(next_button)
                 next_button.setNavUp(previous_button)
+
+            if self.__isConnecting:
+                for button in self.__networkButtons:
+                    button.disable()
 
         self.__contentLayout.addStretch(1)
 
