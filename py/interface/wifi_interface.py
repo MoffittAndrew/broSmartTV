@@ -162,6 +162,16 @@ class WifiInterface:
                 known_networks[network.ssid] = network
         self.__known_networks = known_networks
 
+    def _parse_known_networks_payload(self, payload):
+        if isinstance(payload, dict):
+            records = payload.get("known_networks", [])
+            if isinstance(records, list):
+                return records
+            return []
+        if isinstance(payload, list):
+            return payload
+        return []
+
     def _serialize_known_networks(self):
         return {
             "version": 1,
@@ -286,7 +296,13 @@ class WifiInterface:
             password=provided_password,
         )
         self.__current_network = connected_network
-        self.saveKnownNetwork(connected_network)
+        known_network = self.__known_networks.get(connected_network.ssid)
+        if known_network is None or (
+            bool(connected_network.password)
+            and connected_network.password != known_network.password
+        ):
+            self.saveKnownNetwork(connected_network)
+            print(f"[wifi_interface] known network updated: ssid='{network.ssid}'")
         print(f"[wifi_interface] connect success persisted: ssid='{network.ssid}'")
         return connected_network
 
@@ -306,18 +322,27 @@ class WifiInterface:
             json.dump(self._serialize_known_networks(), storage_file, indent=2, sort_keys=True)
 
     def loadKnownNetworks(self):
-        if not self.__storage_path.exists():
+        source_path = self.__storage_path
+        if not source_path.exists():
             self.__known_networks = {}
             return []
 
         try:
-            with self.__storage_path.open("r", encoding="utf-8") as storage_file:
+            with source_path.open("r", encoding="utf-8") as storage_file:
                 payload = json.load(storage_file)
         except (OSError, json.JSONDecodeError):
             self.__known_networks = {}
             return []
 
-        self._sync_known_networks_from_storage(payload if isinstance(payload, dict) else {})
+        records = self._parse_known_networks_payload(payload)
+        self._sync_known_networks_from_storage({"known_networks": records})
+
+        # If we loaded legacy data, migrate it to the current file name.
+        if source_path != self.__storage_path:
+            self._ensure_storage_parent()
+            with self.__storage_path.open("w", encoding="utf-8") as storage_file:
+                json.dump(self._serialize_known_networks(), storage_file, indent=2, sort_keys=True)
+
         return list(self.__known_networks.values())
 
     def getKnownNetworks(self):

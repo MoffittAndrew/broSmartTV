@@ -81,6 +81,15 @@ class WifiOverlay(CustomQWidget):
         return button
 
     async def _onNetworkSelected(self, network):
+        known_network = None
+        for saved_network in wifiInterface.getKnownNetworks():
+            if saved_network.ssid == network.ssid:
+                known_network = saved_network
+                break
+
+        if known_network is not None and known_network.password:
+            network.password = known_network.password
+
         requiresPassword = network.requiresPassword
         if requiresPassword and not network.password:
             MAIN_WINDOW.openTextInput(
