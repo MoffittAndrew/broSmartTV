@@ -28,6 +28,7 @@ class WifiOverlay(CustomQWidget):
         self.__statusLabel.setStyleSheet("font-size: 24px;")
 
         self.__closeButton = Button(text="Back", callback=self.hideOverlay)
+        self.__refreshButton = Button(text="Refresh", callback=self._onRefreshRequested)
 
         self.__scrollArea = QScrollArea()
         self.__scrollArea.setWidgetResizable(True)
@@ -40,6 +41,7 @@ class WifiOverlay(CustomQWidget):
         layout.addWidget(self.__titleLabel)
         layout.addWidget(self.__statusLabel)
         layout.addWidget(self.__closeButton)
+        layout.addWidget(self.__refreshButton)
         layout.addWidget(self.__scrollArea)
 
         self.setFixedWidth(DISPLAY.WIDTH)
@@ -108,6 +110,15 @@ class WifiOverlay(CustomQWidget):
 
     def _onKeyboardCancelled(self):
         self.__statusLabel.setText("Connection cancelled")
+
+    async def _onRefreshRequested(self):
+        if self.__isConnecting:
+            self.__statusLabel.setText("Cannot refresh while connecting...")
+            return
+
+        self.__statusLabel.setText("Refreshing networks...")
+        self.refreshNetworks()
+        self._syncSelection()
 
     async def _connectToNetwork(self, network, password):
         try:
@@ -215,11 +226,11 @@ class WifiOverlay(CustomQWidget):
             empty_label = QLabel("No available networks found.")
             empty_label.setStyleSheet("font-size: 24px;")
             self.__contentLayout.addWidget(empty_label)
-            self.__primaryButton = self.__closeButton
+            self.__primaryButton = self.__refreshButton
         else:
             self.__primaryButton = self.__networkButtons[0]
-            self.__closeButton.setNavDown(self.__primaryButton)
-            self.__primaryButton.setNavUp(self.__closeButton)
+            self.__refreshButton.setNavDown(self.__primaryButton)
+            self.__primaryButton.setNavUp(self.__refreshButton)
 
             for previous_button, next_button in zip(self.__networkButtons, self.__networkButtons[1:]):
                 previous_button.setNavDown(next_button)
@@ -239,6 +250,8 @@ class WifiOverlay(CustomQWidget):
     async def showOverlay(self, navBarButton=None):
         self.refreshNetworks()
         self.__closeButton.setNavUp(navBarButton)
+        self.__closeButton.setNavDown(self.__refreshButton)
+        self.__refreshButton.setNavUp(self.__closeButton)
         self.__statusLabel.setText("")
         self.show()
         self.raise_()
