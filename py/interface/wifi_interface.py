@@ -267,7 +267,17 @@ class WifiInterface:
             print(f"[wifi_interface] nmcli stderr: {result.stderr.strip()}")
         print(f"[wifi_interface] nmcli return code: {result.returncode}")
         if result.returncode != 0:
-            raise RuntimeError((result.stderr or result.stdout or "").strip() or f"Failed to connect to '{network.ssid}'.")
+            error_text = (result.stderr or result.stdout or "").strip()
+            error_text_lower = error_text.lower()
+            if "not authorized to control networking" in error_text_lower or "not authorized" in error_text_lower:
+                print(
+                    "[wifi_interface] permission denied by NetworkManager. "
+                    "Grant this app/user permission to manage networking (polkit/sudoers)."
+                )
+                raise PermissionError(
+                    "Not authorized to control networking. Configure NetworkManager permissions for this app user."
+                )
+            raise RuntimeError(error_text or f"Failed to connect to '{network.ssid}'.")
 
         connected_network = Network(
             ssid=network.ssid,
