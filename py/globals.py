@@ -97,8 +97,8 @@ class BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
     ROUNDNESS = 30
-    BORDER_COLOR = Qt.white
-    BORDER_COLOR_DISABLED = Qt.gray
+    COLOR = Qt.white
+    COLOR_DISABLED = Qt.gray
     BORDER_THICKNESS = 3
     BG_COLOR = Qt.black
 

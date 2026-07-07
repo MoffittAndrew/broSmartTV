@@ -14,7 +14,7 @@ class Button(CustomQLabel):
         height:int = GUI.BUTTON.MIN_HEIGHT,
         roundness:int = GUI.BUTTON.ROUNDNESS,
         borderThickness:int = GUI.BUTTON.BORDER_THICKNESS,
-        borderColor:QtGui.QColor = GUI.BUTTON.BORDER_COLOR,
+        color:QtGui.QColor = GUI.BUTTON.COLOR,
         backgroundColor:QtGui.QColor = GUI.BUTTON.BG_COLOR,
         text:str = "",
         img = None,
@@ -35,7 +35,7 @@ class Button(CustomQLabel):
         self.resize(width, height)
         self.setRoundness(roundness)
         self.setBorderThickness(borderThickness)
-        self.setBorderColor(borderColor)
+        self.setColor(color)
         self.setBgColor(backgroundColor)
         self.setImg(img)
         self.setText(text)
@@ -63,8 +63,8 @@ class Button(CustomQLabel):
     def getBorderThickness(self):
         return self.__borderThickness
     
-    def getBorderColor(self):
-        return self.__borderColor
+    def getColor(self):
+        return self.__color
     
     def getBgColor(self):
         return self.__bgColor
@@ -105,14 +105,18 @@ class Button(CustomQLabel):
     def setEnabled(self, a0: bool):
         enabled = bool(a0)
         self.__enabled = enabled
-        super().setEnabled(enabled)
-        
-        if enabled:
-            self.setBorderColor(GUI.BUTTON.BORDER_COLOR)
-        else:
-            self.setBorderColor(GUI.BUTTON.BORDER_COLOR_DISABLED)
+        # Keep QLabel visually enabled to avoid Qt auto-tinting the full pixmap.
+        super().setEnabled(True)
+        self.__needsDraw = True
+        if self.pixmap() is not None:
+            self.draw()
     
-    def resize(self, w, h):
+    def resize(self, w, h=None):
+        if h is None:
+            super().resize(w)
+            self.__needsDraw = True
+            return
+
         if w >= GUI.BUTTON.MIN_WIDTH:
             w = int(w)
         if h >= GUI.BUTTON.MIN_HEIGHT:
@@ -127,8 +131,8 @@ class Button(CustomQLabel):
     def setBorderThickness(self, borderThickness: int):
         self.__borderThickness = borderThickness
     
-    def setBorderColor(self, color: QtGui.QColor):
-        self.__borderColor = color
+    def setColor(self, color: QtGui.QColor):
+        self.__color = color
         self.__needsDraw = True
     
     def setBgColor(self, color: QtGui.QColor):
@@ -199,14 +203,19 @@ class Button(CustomQLabel):
     
     def draw(self):
         if self.__needsDraw:
-            self.pixmap().fill(Qt.transparent)
-            painter = QtGui.QPainter(self.pixmap())
+            canvas = self.pixmap()
+            if canvas is None:
+                return
+
+            canvas.fill(Qt.transparent)
+            painter = QtGui.QPainter(canvas)
             painter.save()
             painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
             if self.getImg() is None:
+                borderAndTextColor = self.getColor() if self.enabled() else GUI.BUTTON.COLOR_DISABLED
                 painter.setBrush(QtGui.QBrush(self.getBgColor()))
-                painter.setPen(QtGui.QPen(self.getBorderColor(), self.getBorderThickness(), Qt.SolidLine))
+                painter.setPen(QtGui.QPen(borderAndTextColor, self.getBorderThickness(), Qt.SolidLine))
                 painter.drawRoundedRect(
                     int(self.getBorderThickness()/2),
                     int(self.getBorderThickness()/2),
@@ -221,6 +230,7 @@ class Button(CustomQLabel):
                     font.setFamily('Times')
                     font.setPointSize(40)
                     painter.setFont(font)
+                    painter.setPen(QtGui.QPen(borderAndTextColor))
 
                     painter.drawText(0, 0, self.width(), self.height(), Qt.AlignCenter, self.getText())
             
