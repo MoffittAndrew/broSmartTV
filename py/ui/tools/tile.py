@@ -11,7 +11,7 @@ from interface.input_interface import inputInterface
 class Tile(Button):
     def __init__(
         self,
-        index:int = None,
+        index:int = 0,
         name:str = "new tile",
         filepath:str = "",
         *args,

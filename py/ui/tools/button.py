@@ -14,6 +14,8 @@ class Button(CustomQLabel):
         height:int = GUI.BUTTON.MIN_HEIGHT,
         roundness:int = GUI.BUTTON.ROUNDNESS,
         borderThickness:int = GUI.BUTTON.BORDER_THICKNESS,
+        borderColor:QtGui.QColor = GUI.BUTTON.BORDER_COLOR,
+        backgroundColor:QtGui.QColor = GUI.BUTTON.BG_COLOR,
         text:str = "",
         img = None,
         callback = None,
@@ -33,6 +35,8 @@ class Button(CustomQLabel):
         self.resize(width, height)
         self.setRoundness(roundness)
         self.setBorderThickness(borderThickness)
+        self.setBorderColor(borderColor)
+        self.setBgColor(backgroundColor)
         self.setImg(img)
         self.setText(text)
         self.setCallback(callback)
@@ -58,6 +62,12 @@ class Button(CustomQLabel):
     
     def getBorderThickness(self):
         return self.__borderThickness
+    
+    def getBorderColor(self):
+        return self.__borderColor
+    
+    def getBgColor(self):
+        return self.__bgColor
     
     def getText(self):
         return self.__text
@@ -92,32 +102,44 @@ class Button(CustomQLabel):
     
     ## Setters
     
-    def setEnabled(self, enabled):
-        self.__enabled = bool(enabled)
+    def _setEnabled(self, a0: bool):
+        enabled = bool(a0)
+        self.__enabled = enabled
+        super().setEnabled(enabled)
     
-    def resize(self, w, h):
+    def resize(self, a0: int, a1: int):
+        w = a0
+        h = a1
         if w >= GUI.BUTTON.MIN_WIDTH:
             w = int(w)
         if h >= GUI.BUTTON.MIN_HEIGHT:
             h = int(h)
-        
+
         super().resize(w, h)
+        self.__needsDraw = True
     
-    def setRoundness(self, roundness):
+    def setRoundness(self, roundness: int):
         self.__roundness = roundness
     
-    def setBorderThickness(self, borderThickness):
+    def setBorderThickness(self, borderThickness: int):
         self.__borderThickness = borderThickness
     
-    def setText(self, text):
-        self.__text = str(text)
+    def setBorderColor(self, color: QtGui.QColor):
+        self.__borderColor = color
+        self.__needsDraw = True
+    
+    def setBgColor(self, color: QtGui.QColor):
+        self.__bgColor = color
+        self.__needsDraw = True
+    
+    def setText(self, a0: str):
+        self.__text = str(a0)
         if self.getImg() is None:
             self.__needsDraw = True
     
     def setImg(self, img):
         self.__img = img
-        if self.getImg() is None:
-            self.__needsDraw = True
+        self.__needsDraw = True
     
     def setCallback(self, callback, *args, **kwargs):
         self.__callback = callback
@@ -152,9 +174,11 @@ class Button(CustomQLabel):
     
     def enable(self):
         self.setEnabled(True)
+        self.setBorderColor(GUI.BUTTON.BORDER_COLOR)
     
     def disable(self):
         self.setEnabled(False)
+        self.setBorderColor(GUI.BUTTON.BORDER_COLOR_DISABLED)
     
     def addMenuOption(self, menuOption = None):
         if menuOption is not None:
@@ -174,12 +198,14 @@ class Button(CustomQLabel):
     
     def draw(self):
         if self.__needsDraw:
+            self.pixmap().fill(Qt.transparent)
             painter = QtGui.QPainter(self.pixmap())
             painter.save()
             painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-            if self.getImg() is None and self.getText() != "":
-                painter.setPen(QtGui.QPen(GUI.BUTTON.BORDER_COLOR, self.getBorderThickness(), Qt.SolidLine))
+            if self.getImg() is None:
+                painter.setBrush(QtGui.QBrush(self.getBgColor()))
+                painter.setPen(QtGui.QPen(self.getBorderColor(), self.getBorderThickness(), Qt.SolidLine))
                 painter.drawRoundedRect(
                     int(self.getBorderThickness()/2),
                     int(self.getBorderThickness()/2),
@@ -189,12 +215,13 @@ class Button(CustomQLabel):
                     self.getRoundness(),
                 )
 
-                font = QtGui.QFont()
-                font.setFamily('Times')
-                font.setPointSize(40)
-                painter.setFont(font)
+                if self.getText() != "":
+                    font = QtGui.QFont()
+                    font.setFamily('Times')
+                    font.setPointSize(40)
+                    painter.setFont(font)
 
-                painter.drawText(0, 0, self.width(), self.height(), Qt.AlignCenter, self.getText())
+                    painter.drawText(0, 0, self.width(), self.height(), Qt.AlignCenter, self.getText())
             
             painter.restore()
             painter.end()

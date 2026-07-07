@@ -71,8 +71,8 @@ class WifiOverlay(CustomQWidget):
             if self.__isConnecting:
                 status_text = "\n[connecting...]"
             else:
-                status_text = "\n[last attempt]"
-        label = f"{network.ssid}\n{signal_text}  |  {security_text}"
+                status_text = "\n[connection failed]"
+        label = f"{network.ssid}  |  Signal strength: {signal_text}  |  Security: {security_text}"
         label = f"{label}{status_text}"
         button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
         button.setCallback(self._onNetworkSelected, network)
@@ -227,12 +227,12 @@ class WifiOverlay(CustomQWidget):
 
             if self.__isConnecting:
                 for button in self.__networkButtons:
-                    button.setEnabled(False)
+                    button.disable()
             else:
                 for button in self.__networkButtons:
-                    button.setEnabled(True)
+                    button.enable()
                 if pinned_network_button is not None:
-                    pinned_network_button.setEnabled(False)
+                    pinned_network_button.disable()
 
         self.__contentLayout.addStretch(1)
 

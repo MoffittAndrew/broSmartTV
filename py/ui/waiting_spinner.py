@@ -76,7 +76,7 @@ class QtWaitingSpinner(QWidget):
             color.setAlphaF(resultAlpha)
         return color
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         self.updatePosition()
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.transparent)
