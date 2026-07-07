@@ -74,6 +74,8 @@ class WifiOverlay(CustomQWidget):
                 status_text = "\n[connecting...]"
             else:
                 status_text = "\n[connection failed]"
+        elif network.is_current:
+            status_text = "\n[connected]"
         label = f"{network.ssid}  |  Signal strength: {signal_text}  |  Security: {security_text}"
         label = f"{label}{status_text}"
         button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
@@ -136,7 +138,7 @@ class WifiOverlay(CustomQWidget):
             self.__connectingNetwork = None
             self.refreshNetworks()
             self.__statusLabel.setText(f"Connected to {network.ssid}")
-            await self.hideOverlay()
+            self._syncSelection()
         except Exception as error:
             self.__isConnecting = False
             self.__statusLabel.setText(f"Failed to connect: {error}")

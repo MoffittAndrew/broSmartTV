@@ -216,6 +216,7 @@ class WifiInterface:
             signal_strength=0,
             security=known_network.security if known_network is not None else "",
             password=known_network.password if known_network is not None else None,
+            is_current=True,
         )
         self.__current_network = current_network
         return current_network
