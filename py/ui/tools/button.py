@@ -102,14 +102,17 @@ class Button(CustomQLabel):
     
     ## Setters
     
-    def _setEnabled(self, a0: bool):
+    def setEnabled(self, a0: bool):
         enabled = bool(a0)
         self.__enabled = enabled
         super().setEnabled(enabled)
+        
+        if enabled:
+            self.setBorderColor(GUI.BUTTON.BORDER_COLOR)
+        else:
+            self.setBorderColor(GUI.BUTTON.BORDER_COLOR_DISABLED)
     
-    def resize(self, a0: int, a1: int):
-        w = a0
-        h = a1
+    def resize(self, w, h):
         if w >= GUI.BUTTON.MIN_WIDTH:
             w = int(w)
         if h >= GUI.BUTTON.MIN_HEIGHT:
@@ -132,7 +135,7 @@ class Button(CustomQLabel):
         self.__bgColor = color
         self.__needsDraw = True
     
-    def setText(self, a0: str):
+    def setText(self, a0):
         self.__text = str(a0)
         if self.getImg() is None:
             self.__needsDraw = True
@@ -174,11 +177,9 @@ class Button(CustomQLabel):
     
     def enable(self):
         self.setEnabled(True)
-        self.setBorderColor(GUI.BUTTON.BORDER_COLOR)
     
     def disable(self):
         self.setEnabled(False)
-        self.setBorderColor(GUI.BUTTON.BORDER_COLOR_DISABLED)
     
     def addMenuOption(self, menuOption = None):
         if menuOption is not None:
