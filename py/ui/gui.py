@@ -9,6 +9,9 @@ from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
 from PyQt5.QtCore import QSize, QPoint, Qt
 from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
 
+import asyncio
+import inspect
+
 
 class CustomQLabel(QLabel):
     def __init__(self, *args, **kwargs):
@@ -93,6 +96,11 @@ class CustomQWindow(QWidget):
         self.setInputInterface(inputInterface)
         self.__screenCastWidget = None
         self.__screenCastPreviousWidget = None
+        from ui.tools.onscreen_keyboard import OnScreenKeyboard
+        self.__onScreenKeyboard = OnScreenKeyboard(parent=self)
+        self.__textInputPreviousSelection = None
+        self.addWidget(self.__onScreenKeyboard)
+        self.__onScreenKeyboard.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -105,6 +113,9 @@ class CustomQWindow(QWidget):
 
     def getInputInterface(self):
         return self.__inputInterface
+
+    def getOnScreenKeyboard(self):
+        return self.__onScreenKeyboard
 
     def getAbsolutePos(self):
         return QPoint(0, 0)
@@ -142,6 +153,66 @@ class CustomQWindow(QWidget):
         widget.setParent(self)
         self.__layout.addWidget(widget)
         self.setLayout(self.__layout)
+
+    def openTextInput(
+        self,
+        prompt="Enter text",
+        initialText="",
+        masked=False,
+        maxLength=64,
+        onSubmit=None,
+        onCancel=None,
+    ):
+        inputInterface = self.getInputInterface()
+        if inputInterface is None:
+            return
+
+        self.__textInputPreviousSelection = inputInterface.getSelectedButton()
+
+        def submitBridge(text):
+            self._completeTextInput(
+                onSubmit=onSubmit,
+                onCancel=onCancel,
+                submittedText=text,
+                cancelled=False,
+            )
+
+        def cancelBridge():
+            self._completeTextInput(
+                onSubmit=onSubmit,
+                onCancel=onCancel,
+                submittedText=None,
+                cancelled=True,
+            )
+
+        self.getOnScreenKeyboard().openOverlay(
+            prompt=prompt,
+            initialText=initialText,
+            masked=masked,
+            maxLength=maxLength,
+            onSubmit=submitBridge,
+            onCancel=cancelBridge,
+        )
+        inputInterface.setSelectedButton(self.getOnScreenKeyboard().getPrimaryButton())
+
+    def _completeTextInput(self, onSubmit, onCancel, submittedText=None, cancelled=False):
+        inputInterface = self.getInputInterface()
+        self.getOnScreenKeyboard().closeOverlay()
+
+        if inputInterface is not None:
+            restoreButton = self.__textInputPreviousSelection
+            if restoreButton is None:
+                currentWidget = self.__layout.currentWidget()
+                if currentWidget is not None and hasattr(currentWidget, "getPrimaryButton"):
+                    restoreButton = currentWidget.getPrimaryButton()
+            if restoreButton is not None:
+                inputInterface.setSelectedButton(restoreButton)
+
+        callback = onCancel if cancelled else onSubmit
+        if callback is not None:
+            result = callback() if cancelled else callback(submittedText)
+            if inspect.isawaitable(result):
+                asyncio.ensure_future(result)
 
     def setScreenCastWidget(self, widget):
         self.__screenCastWidget = widget
@@ -189,6 +260,8 @@ class CustomQWindow(QWidget):
         super().resizeEvent(event)
         if self.__screenCastWidget is not None:
             self.__screenCastWidget.setGeometry(0, 0, self.width(), self.height())
+        if self.__onScreenKeyboard is not None:
+            self.__onScreenKeyboard.setGeometry(0, 0, self.width(), self.height())
 
     def show(self):
         super().show()
