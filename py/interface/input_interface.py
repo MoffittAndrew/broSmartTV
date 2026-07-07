@@ -6,6 +6,7 @@ from ui.gui import MAIN_WINDOW, CustomQLabel
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QScrollArea
 
 import asyncio
 from teardown import teardown_app
@@ -81,6 +82,7 @@ class InputInterface(CustomQLabel):
                 x, y = (pos.x(), pos.y())
                 roundness = button.getRoundness()
                 borderThickness = button.getBorderThickness()
+                self._scrollButtonIntoView(button)
             else:
                 rect = button.rect
                 width = rect["width"]
@@ -96,6 +98,19 @@ class InputInterface(CustomQLabel):
             self.show()
             self.raise_()
             self.update()
+
+    def _findParentScrollArea(self, widget):
+        parent = widget.parent()
+        while parent is not None:
+            if isinstance(parent, QScrollArea):
+                return parent
+            parent = parent.parent()
+        return None
+
+    def _scrollButtonIntoView(self, button):
+        scrollArea = self._findParentScrollArea(button)
+        if scrollArea is not None:
+            scrollArea.ensureWidgetVisible(button, 40, 40)
     
     def setRoundness(self, roundness):
         self.__roundness = roundness
