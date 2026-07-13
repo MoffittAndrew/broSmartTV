@@ -4,7 +4,6 @@ from globals import GUI
 from ui.gui import CustomQWidget
 
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
-from PyQt5.QtCore import Qt
 
 class BaseSection(CustomQWidget):
     def __init__(self, *args, **kwargs):
@@ -104,14 +103,42 @@ class BaseSection(CustomQWidget):
     def _measureWidth(self):
         max_width = 0
         for widget in self.getWidgets():
-            max_width = max(max_width, widget.width())
+            max_width = max(max_width, self._widgetWidth(widget))
         return max_width
 
     def _measureHeight(self):
         total_height = 0
         for widget in self.getWidgets():
-            total_height += widget.height()
+            total_height += self._widgetHeight(widget)
         return total_height
+
+    def _widgetWidth(self, widget):
+        if widget.minimumWidth() == widget.maximumWidth() and widget.minimumWidth() > 0:
+            return widget.minimumWidth()
+
+        sizeHint = widget.sizeHint()
+        if sizeHint is not None and sizeHint.width() > 0:
+            return sizeHint.width()
+
+        minSizeHint = widget.minimumSizeHint()
+        if minSizeHint is not None and minSizeHint.width() > 0:
+            return minSizeHint.width()
+
+        return max(0, widget.width())
+
+    def _widgetHeight(self, widget):
+        if widget.minimumHeight() == widget.maximumHeight() and widget.minimumHeight() > 0:
+            return widget.minimumHeight()
+
+        sizeHint = widget.sizeHint()
+        if sizeHint is not None and sizeHint.height() > 0:
+            return sizeHint.height()
+
+        minSizeHint = widget.minimumSizeHint()
+        if minSizeHint is not None and minSizeHint.height() > 0:
+            return minSizeHint.height()
+
+        return max(0, widget.height())
 
 
 class VSection(BaseSection):
@@ -169,7 +196,10 @@ class HSection(BaseSection):
 
         top = self.getMargins()[1]
         bottom = self.getMargins()[3]
-        height = max(0, self._measureHeight()) + top + bottom
+        content_height = 0
+        for widget in self.getWidgets():
+            content_height = max(content_height, self._widgetHeight(widget))
+        height = max(0, content_height) + top + bottom
 
         left = self.getMargins()[0]
         right = self.getMargins()[2]
@@ -179,7 +209,7 @@ class HSection(BaseSection):
             spacing = (len(self.getWidgets()) - 1) * self.getHorizontalSpacing()
             total_width = 0
             for widget in self.getWidgets():
-                total_width += widget.width()
+                total_width += self._widgetWidth(widget)
             width = total_width + spacing + left + right
 
         self.setFixedWidth(width)
@@ -190,7 +220,6 @@ class GridSection(BaseSection):
     def __init__(self, columns=1, widgets=None, spacing=GUI.SPACING.TIGHT, edgePolicy="last", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._layout = QGridLayout()
-        self._layout.setOriginCorner(Qt.TopLeftCorner)
         self.setLayout(self._layout)
         self._columns = 1
         self._rows = []
@@ -271,13 +300,13 @@ class GridSection(BaseSection):
         for row in rows:
             maxHeight = 0
             for widget in row:
-                maxHeight = max(maxHeight, widget.height())
+                maxHeight = max(maxHeight, self._widgetHeight(widget))
             rowHeights.append(maxHeight)
 
         columnWidths = [0] * self.getColumns()
         for row in rows:
             for columnIndex, widget in enumerate(row):
-                columnWidths[columnIndex] = max(columnWidths[columnIndex], widget.width())
+                columnWidths[columnIndex] = max(columnWidths[columnIndex], self._widgetWidth(widget))
 
         left, top, right, bottom = self.getMargins()
         usedColumns = [width for width in columnWidths if width > 0]
