@@ -93,7 +93,7 @@ class DISPLAY:
 class WIFI:
     KNOWN_NETWORKS_FILE = os.path.join(PATH, "known_networks.json")
 
-class BUTTON:
+class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
     TEXT_SIZE = 60
@@ -103,11 +103,11 @@ class BUTTON:
     BORDER_THICKNESS = 3
     BG_COLOR = Qt.black
 
-class NAVBAR:
+class _NAVBAR:
     BUTTON_WIDTH = 300
     BUTTON_HEIGHT = 100
 
-class TILE:
+class _TILE:
     WIDTH = 400
     HEIGHT = 300
     EDIT_NAME_TEXT = "edit url"
@@ -118,15 +118,15 @@ class TILE:
     TOGGLE_SEARCH_TEXT = "has search feature?"
     TOGGLE_PIRATE_TEXT = "pirate site?"
 
-class TILEGRID:
+class _TILEGRID:
     COLUMNS = 5
 
-class LAYOUT_SPACING:
+class _LAYOUT_SPACING:
     TIGHT = 10
     NORMAL = 24
     WIDE = 30
 
-class LAYOUT_MARGINS:
+class _LAYOUT_MARGINS:
     COMPACT = (40, 40, 40, 40)
     STANDARD = (80, 60, 80, 60)
     OVERLAY = (80, 40, 80, 40)
@@ -134,14 +134,14 @@ class LAYOUT_MARGINS:
 class GUI:
     BG_COLOR = Qt.black
     INPUT_INTERFACE_COLOR = Qt.red
-    BUTTON = BUTTON
-    NAVBAR = NAVBAR
-    TILE = TILE
-    TILEGRID = TILEGRID
-    SPACING = LAYOUT_SPACING
-    MARGINS = LAYOUT_MARGINS
+    BUTTON = _BUTTON
+    NAVBAR = _NAVBAR
+    TILE = _TILE
+    TILEGRID = _TILEGRID
+    SPACING = _LAYOUT_SPACING
+    MARGINS = _LAYOUT_MARGINS
 
-class IR_CODES:
+class _IR_CODES:
     ON = "KEY_POWER"
     OFF = "KEY_POWER_OFF"
     SELECT = "KEY_ENTER"
@@ -155,15 +155,15 @@ class IR_CODES:
     VOL_DOWN = "KEY_VOLUMEDOWN"
     SRC_ = "KEY_SRC_"
 
-class INPUT_CHANNELS:
+class _INPUT_CHANNELS:
     SEARCH = "SEARCH"
     HDMI = "HDMI"
     VGA = "VGA"
     COMPONENT = "COMPONENT"
 
 class PROJECTOR:
-    CODES = IR_CODES
-    CHANNELS = INPUT_CHANNELS
+    CODES = _IR_CODES
+    CHANNELS = _INPUT_CHANNELS
     CHANNEL_SWITCH_DELAY = 5
     INPUT_DELAY = 0.2
 
@@ -174,14 +174,14 @@ class REMOTE:
     CHECK_ALIVE_INTERVAL = 5
     SCAN_TIMEOUT = 300
 
-class INPUT_MODES:
+class _INPUT_MODES:
     GUI = 0
     PROJECTOR = 1
     WEB = 2
     OTHER = 3
 
 class INPUT:
-    MODES = INPUT_MODES
+    MODES = _INPUT_MODES
     RELEASED_PREFIX = "RELEASED_"
     NAV_PREFIX = "NAV_"
     HOME = "HOME"
