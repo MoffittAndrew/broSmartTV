@@ -1,10 +1,11 @@
 print("Importing onscreen keyboard...")
 
-from globals import DISPLAY
+from globals import DISPLAY, GUI
 from ui.tools.button import Button
 from ui.gui import CustomQWidget
+from ui.tools.section import HSection, GridSection
 
-from PyQt5.QtWidgets import QLabel, QGridLayout, QVBoxLayout
+from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 
 class OnScreenKeyboard(CustomQWidget):
@@ -49,19 +50,18 @@ class OnScreenKeyboard(CustomQWidget):
         self.__statusLabel = QLabel("")
         self.__statusLabel.setStyleSheet("font-size: 24px; color: #f5d56d;")
 
-        self.__keyGrid = QGridLayout()
-        self.__keyGrid.setHorizontalSpacing(10)
-        self.__keyGrid.setVerticalSpacing(10)
+        self.__keyGridSection = GridSection(columns=len(self.KEY_ROWS[0]), spacing=GUI.SPACING.TIGHT)
 
         self._buildKeyGrid()
 
         rootLayout = QVBoxLayout()
-        rootLayout.setContentsMargins(80, 40, 80, 40)
-        rootLayout.setSpacing(24)
+        rootLayout.setContentsMargins(*GUI.MARGINS.OVERLAY)
+        rootLayout.setSpacing(GUI.SPACING.NORMAL)
         rootLayout.addWidget(self.__promptLabel)
         rootLayout.addWidget(self.__textLabel)
         rootLayout.addWidget(self.__statusLabel)
-        rootLayout.addLayout(self.__keyGrid)
+        rootLayout.addWidget(self.__keyGridSection)
+        rootLayout.addWidget(self.__controlsSection)
         rootLayout.addStretch(1)
 
         self.setFixedWidth(DISPLAY.WIDTH)
@@ -83,48 +83,20 @@ class OnScreenKeyboard(CustomQWidget):
 
     def _buildKeyGrid(self):
         self.__keyButtons = []
-        previousRow = None
 
-        for rowIndex, row in enumerate(self.KEY_ROWS):
+        for row in self.KEY_ROWS:
             buttonRow = []
-            for columnIndex, keyText in enumerate(row):
+            for keyText in row:
                 button = self._makeKeyButton(keyText, width=160)
-                self.__keyGrid.addWidget(button, rowIndex, columnIndex)
                 buttonRow.append(button)
 
-                if columnIndex > 0:
-                    leftButton = buttonRow[columnIndex - 1]
-                    leftButton.setNavRight(button)
-                    button.setNavLeft(leftButton)
-
-                if previousRow is not None and columnIndex < len(previousRow):
-                    upButton = previousRow[columnIndex]
-                    upButton.setNavDown(button)
-                    button.setNavUp(upButton)
-
             self.__keyButtons.append(buttonRow)
-            previousRow = buttonRow
 
         self.__symbolButtons = []
-        symbolRowIndex = len(self.KEY_ROWS)
-        for columnIndex, keyText in enumerate(self.EXTRA_SYMBOL_ROW):
+        for keyText in self.EXTRA_SYMBOL_ROW:
             button = self._makeKeyButton(keyText, width=160)
-            self.__keyGrid.addWidget(button, symbolRowIndex, columnIndex)
             self.__symbolButtons.append(button)
 
-            if columnIndex > 0:
-                leftButton = self.__symbolButtons[columnIndex - 1]
-                leftButton.setNavRight(button)
-                button.setNavLeft(leftButton)
-
-            if previousRow is not None and columnIndex < len(previousRow):
-                upButton = previousRow[columnIndex]
-                upButton.setNavDown(button)
-                button.setNavUp(upButton)
-
-        previousRow = self.__symbolButtons
-
-        controlsRowIndex = len(self.KEY_ROWS) + 1
         self.__capsButton = self._makeActionButton("CAPS OFF", self._toggleCaps, width=320)
         self.__spaceButton = self._makeSpaceButton()
         self.__backspaceButton = self._makeActionButton("BKSP", self._backspace, width=320)
@@ -141,18 +113,18 @@ class OnScreenKeyboard(CustomQWidget):
             self.__enterButton,
         ]
 
-        self.__keyGrid.addWidget(self.__capsButton, controlsRowIndex, 0, 1, 2)
-        self.__keyGrid.addWidget(self.__spaceButton, controlsRowIndex, 2, 1, 4)
-        self.__keyGrid.addWidget(self.__backspaceButton, controlsRowIndex, 6, 1, 2)
-        self.__keyGrid.addWidget(self.__clearButton, controlsRowIndex, 8, 1, 1)
-        self.__keyGrid.addWidget(self.__cancelButton, controlsRowIndex, 9, 1, 1)
-        self.__keyGrid.addWidget(self.__enterButton, controlsRowIndex, 10, 1, 1)
+        self.__controlsSection = HSection(widgets=controlsRow, spacing=GUI.SPACING.TIGHT)
 
-        for index in range(len(controlsRow) - 1):
-            controlsRow[index].setNavRight(controlsRow[index + 1])
-            controlsRow[index + 1].setNavLeft(controlsRow[index])
+        allRows = []
+        allRows.extend(self.__keyButtons)
+        allRows.append(self.__symbolButtons)
 
-        bottomAlphaRow = previousRow
+        gridWidgets = []
+        for row in allRows:
+            gridWidgets.extend(row)
+        self.__keyGridSection.setWidgets(gridWidgets)
+
+        bottomAlphaRow = self.__symbolButtons
         controlByColumn = [
             self.__capsButton,
             self.__capsButton,

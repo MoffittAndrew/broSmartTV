@@ -3,13 +3,14 @@ print("Importing home screen...")
 from globals import GUI, DISPLAY
 from ui.gui import CustomQWidget
 from ui.tools.button import NavBarButton
+from ui.tools.section import HSection
 from ui.tilegrid import tileGrid
 from ui.settings_screen import settingsScreen
 from ui.search_screen import searchScreen
 from ui.filter_screen import filterScreen
 from ui.edit_screen import editScreen
 
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
+from PyQt5.QtWidgets import QVBoxLayout, QStackedLayout
 
 settingsButton = NavBarButton(text = "settings")
 searchButton = NavBarButton(text = "search")
@@ -37,16 +38,15 @@ _bodyWidgets = [
 tileGrid.setNavBarButton(homeButton)
 settingsScreen.setNavBarButton(settingsButton)
 
-class NavBar(CustomQWidget):
+class NavBar(HSection):
     def __init__(self, buttons:list = _buttons, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        self.setButtons(buttons)
+        super().__init__(widgets=buttons, spacing=GUI.SPACING.TIGHT, *args, **kwargs)
+        self.__currentButton = None
     
     ## Getters
     
     def getButtons(self):
-        return self.__buttons
+        return self.getWidgets()
     
     def getCurrentButton(self):
         return self.__currentButton
@@ -54,23 +54,7 @@ class NavBar(CustomQWidget):
     ## Setters
     
     def setButtons(self, buttons: list[NavBarButton]):
-        
-        if len(buttons) > 0:
-            for i in range(len(buttons) - 1):
-                buttons[i + 1].setNavLeft(buttons[i])
-                buttons[i].setNavRight(buttons[i + 1])
-        
-        self.__buttons = buttons
-        
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        for button in self.getButtons():
-            layout.addWidget(button)
-        
-        self.setFixedWidth(len(buttons) * GUI.NAVBAR.BUTTON_WIDTH)
-        self.setFixedHeight(GUI.NAVBAR.BUTTON_HEIGHT)
-        self.setLayout(layout)
+        self.setWidgets(buttons)
     
     def setCurrentButton(self, button):
         self.__currentButton = button
@@ -91,7 +75,10 @@ class HomeBody(CustomQWidget):
         self.setWidgets(widgets)
     
     def getPrimaryButton(self):
-        return self.__layout.currentWidget().getPrimaryButton()
+        currentWidget = self.__layout.currentWidget()
+        if currentWidget is None:
+            return None
+        return currentWidget.getPrimaryButton()
     
     def getWidgets(self):
         return self.__widgets
