@@ -7,6 +7,7 @@ import os
 import asyncio
 import json
 import ssl
+import time
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from globals import PATH, SCREEN_CAST
@@ -50,8 +51,14 @@ def _notifyDisconnected():
         _disconnect_handler()
 
 
+def _pc_tag(pc):
+    return f"pc-{id(pc):x}"
+
+
 async def _cleanup_peer(pc):
     global active_pc
+
+    tag = _pc_tag(pc)
 
     if pc in pcs:
         pcs.discard(pc)
@@ -61,8 +68,9 @@ async def _cleanup_peer(pc):
 
     try:
         await pc.close()
-    except Exception:
-        pass
+        print(f"[{tag}] Peer connection closed.")
+    except Exception as exc:
+        print(f"[{tag}] Peer cleanup close failed: {exc}")
 
 
 async def index(request):
@@ -73,7 +81,7 @@ async def offer(request):
     global active_pc
 
     if active_pc is not None and active_pc.connectionState not in ("closed", "failed"):
-        print("Rejecting new connection: stream busy")
+        print(f"Rejecting new connection: stream busy (active={_pc_tag(active_pc)}, state={active_pc.connectionState})")
         return web.Response(
             status=403,
             text="Stream busy — another client is currently connected."
@@ -85,25 +93,67 @@ async def offer(request):
     pc = RTCPeerConnection()
     pcs.add(pc)
     active_pc = pc
-    print("New PeerConnection created")
+    tag = _pc_tag(pc)
+    print(f"[{tag}] New PeerConnection created (remote={request.remote})")
 
     @pc.on("track")
     def on_track(track):
-        print(f"Track received: {track.kind}")
+        print(f"[{tag}] Track received: {track.kind}")
 
         if track.kind == "video":
             _notifyConnected()
+            print(f"[{tag}] Showing screen-cast view while waiting for frames.")
 
             async def read_frames():
+                frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
+                log_interval = SCREEN_CAST.FRAME_LOG_INTERVAL_SECONDS
+                start_time = time.monotonic()
+                last_frame_time = None
+                last_log_time = start_time
+                frame_count = 0
+
                 try:
                     while True:
-                        frame = await track.recv()
+                        try:
+                            frame = await asyncio.wait_for(track.recv(), timeout=frame_timeout)
+                        except asyncio.TimeoutError:
+                            if frame_count == 0:
+                                print(f"[{tag}] No video frames received within {frame_timeout}s; terminating stalled stream.")
+                            else:
+                                stalled_for = time.monotonic() - (last_frame_time or start_time)
+                                print(
+                                    f"[{tag}] Frame receive stalled for {stalled_for:.1f}s "
+                                    f"(timeout={frame_timeout}s, total_frames={frame_count}); terminating stream."
+                                )
+                            break
+
+                        now = time.monotonic()
+                        frame_count += 1
+                        last_frame_time = now
+
+                        if frame_count == 1:
+                            print(f"[{tag}] First video frame received after {now - start_time:.2f}s.")
+
+                        if now - last_log_time >= log_interval:
+                            elapsed = max(now - start_time, 1e-6)
+                            avg_fps = frame_count / elapsed
+                            print(
+                                f"[{tag}] Frame stats: frames={frame_count}, elapsed={elapsed:.1f}s, "
+                                f"avg_fps={avg_fps:.1f}."
+                            )
+                            last_log_time = now
+
                         frame_array = frame.to_ndarray(format="rgb24")
 
                         _notifyFrame(frame_array)
                 except Exception as exc:
-                    print("Stream ended:", exc)
+                    print(f"[{tag}] Stream ended with error: {exc}")
                 finally:
+                    total_elapsed = time.monotonic() - start_time
+                    print(
+                        f"[{tag}] Stream reader stopping (frames={frame_count}, elapsed={total_elapsed:.1f}s, "
+                        f"connectionState={pc.connectionState})."
+                    )
                     await _cleanup_peer(pc)
                     _notifyDisconnected()
 
@@ -113,14 +163,24 @@ async def offer(request):
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
-        print(f"Connection state changed: {pc.connectionState}")
+        print(f"[{tag}] Connection state changed: {pc.connectionState}")
         if pc.connectionState in ("failed", "closed", "disconnected"):
             await _cleanup_peer(pc)
             _notifyDisconnected()
 
+    @pc.on("iceconnectionstatechange")
+    async def on_iceconnectionstatechange():
+        print(f"[{tag}] ICE connection state changed: {pc.iceConnectionState}")
+
+    @pc.on("signalingstatechange")
+    def on_signalingstatechange():
+        print(f"[{tag}] Signaling state changed: {pc.signalingState}")
+
     await pc.setRemoteDescription(offer)
+    print(f"[{tag}] Remote description set (type={offer.type}).")
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+    print(f"[{tag}] Local description created (type={pc.localDescription.type}).")
 
     return web.Response(
         content_type="application/json",
@@ -132,7 +192,7 @@ async def offer(request):
 
 
 async def on_shutdown(screenCastServer):
-    print("Server shutting down, closing peer connections...")
+    print(f"Server shutting down, closing peer connections... (count={len(pcs)})")
     coros = [_cleanup_peer(pc) for pc in list(pcs)]
     await asyncio.gather(*coros)
     pcs.clear()
