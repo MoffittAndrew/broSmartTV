@@ -18,6 +18,7 @@ import traceback
 import qtinter
 
 from interface.remote_interface import remoteInterface
+from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
 
 reload_modules = [
     "globals",
@@ -27,6 +28,7 @@ reload_modules = [
 ]
 
 _restart_requested = False
+EXIT_ALREADY_RUNNING = 200
 
 
 def request_restart(reason, exc=None):
@@ -171,7 +173,10 @@ async def shutdown_background_tasks(tasks):
 
 def main():
     """Top-level launcher orchestration for Pi runtime."""
+    launch_lock_handle = None
     try:
+        launch_lock_handle = acquire_launch_lock()
+
         # Wait for the remote to connect
         asyncio.run(awaitFindRemote())
         with qtinter.using_asyncio_from_qt():
@@ -198,12 +203,17 @@ def main():
                     shutdown_background_tasks([projector_task, remote_task, update_task])
                 )
 
+    except LaunchAlreadyRunningError as e:
+        print(e)
+        exit(EXIT_ALREADY_RUNNING)
     except KeyboardInterrupt:
         print()
         print("Launch script manually cancelled by user")
         exit(130)
     except Exception as e:
         request_restart("Launcher crashed unexpectedly", e)
+    finally:
+        release_launch_lock(launch_lock_handle)
 
 if __name__ == "__main__":
     print("Starting launch.py...")
