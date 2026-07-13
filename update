@@ -40,7 +40,13 @@ ensure_internet() {
 
 read_screen_cast_port() {
     if [ -x "${venv_python}" ] && [ -f "${repo_dir}/py/globals.py" ]; then
-        "${venv_python}" -c "import sys; sys.path.insert(0, '${repo_dir}/py'); from globals import SCREEN_CAST; print(SCREEN_CAST.PORT)" 2>/dev/null && return 0
+        raw_port="$("${venv_python}" -c "import sys; sys.path.insert(0, '${repo_dir}/py'); from globals import SCREEN_CAST; print(SCREEN_CAST.PORT)" 2>/dev/null || true)"
+        resolved_port="$(printf '%s\n' "${raw_port}" | awk '/^[[:space:]]*[0-9]+[[:space:]]*$/ {gsub(/[[:space:]]/, "", $0); print; exit}')"
+
+        if [ -n "${resolved_port}" ] && [ "${resolved_port}" -ge 1 ] && [ "${resolved_port}" -le 65535 ]; then
+            echo "${resolved_port}"
+            return 0
+        fi
     fi
 
     # Fallback default used by globals.py when runtime config cannot be imported.
