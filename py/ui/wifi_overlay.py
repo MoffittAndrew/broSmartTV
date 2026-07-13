@@ -2,10 +2,11 @@ print("Importing wifi overlay...")
 
 import asyncio
 
-from globals import DISPLAY
+from globals import DISPLAY, GUI
 from interface.wifi_interface import wifiInterface
 from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
+from ui.tools.section import VSection
 
 from PyQt5.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -29,6 +30,10 @@ class WifiOverlay(CustomQWidget):
 
         self.__closeButton = Button(text="Back", callback=self.hideOverlay)
         self.__refreshButton = Button(text="Refresh", callback=self._onRefreshRequested)
+        self.__controlsSection = VSection(
+            widgets=[self.__closeButton, self.__refreshButton],
+            spacing=GUI.SPACING.WIDE,
+        )
 
         self.__scrollArea = QScrollArea()
         self.__scrollArea.setWidgetResizable(True)
@@ -36,12 +41,11 @@ class WifiOverlay(CustomQWidget):
         self._resetContentContainer()
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(80, 60, 80, 60)
-        layout.setSpacing(30)
+        layout.setContentsMargins(*GUI.MARGINS.STANDARD)
+        layout.setSpacing(GUI.SPACING.WIDE)
         layout.addWidget(self.__titleLabel)
         layout.addWidget(self.__statusLabel)
-        layout.addWidget(self.__closeButton)
-        layout.addWidget(self.__refreshButton)
+        layout.addWidget(self.__controlsSection)
         layout.addWidget(self.__scrollArea)
 
         self.setFixedWidth(DISPLAY.WIDTH)
@@ -152,7 +156,7 @@ class WifiOverlay(CustomQWidget):
         self.__contentWidget = QWidget()
         self.__contentLayout = QVBoxLayout(self.__contentWidget)
         self.__contentLayout.setContentsMargins(0, 0, 0, 0)
-        self.__contentLayout.setSpacing(28)
+        self.__contentLayout.setSpacing(GUI.SPACING.WIDE)
         self.__scrollArea.setWidget(self.__contentWidget)
 
     def _syncSelection(self):
