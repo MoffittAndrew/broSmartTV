@@ -37,7 +37,8 @@ class CustomQWidget(QWidget):
         return self.pos()
 
 
-class ScreenCastView(QLabel):
+class ScreenCastView(CustomQLabel):
+    # We want this to run as efficiently as possible for real-time screen casting
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
@@ -84,7 +85,7 @@ class ScreenCastView(QLabel):
             self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.FastTransformation))
 
 
-class CustomQWindow(QWidget):
+class CustomQWindow(CustomQWidget):
     def __init__(self, keyboard=None, inputInterface=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

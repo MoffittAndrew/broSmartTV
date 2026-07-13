@@ -121,6 +121,16 @@ class TILE:
 class TILEGRID:
     COLUMNS = 5
 
+class LAYOUT_SPACING:
+    TIGHT = 10
+    NORMAL = 24
+    WIDE = 30
+
+class LAYOUT_MARGINS:
+    COMPACT = (40, 40, 40, 40)
+    STANDARD = (80, 60, 80, 60)
+    OVERLAY = (80, 40, 80, 40)
+
 class GUI:
     BG_COLOR = Qt.black
     INPUT_INTERFACE_COLOR = Qt.red
@@ -128,6 +138,8 @@ class GUI:
     NAVBAR = NAVBAR
     TILE = TILE
     TILEGRID = TILEGRID
+    SPACING = LAYOUT_SPACING
+    MARGINS = LAYOUT_MARGINS
 
 class IR_CODES:
     ON = "KEY_POWER"
