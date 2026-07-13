@@ -3,7 +3,7 @@ print("Importing home screen...")
 from globals import GUI, DISPLAY
 from ui.gui import CustomQWidget
 from ui.tools.button import NavBarButton
-from ui.tools.tilegrid import tileGrid
+from ui.tilegrid import tileGrid
 from ui.settings_screen import settingsScreen
 from ui.search_screen import searchScreen
 from ui.filter_screen import filterScreen
