@@ -15,6 +15,7 @@ from globals import PATH, SCREEN_CAST
 pcs = set()
 active_pc = None  # only one active peer connection at a time
 _track_tasks = set()
+_cleaning_peers = set()
 
 _frame_handler = None
 _connection_handler = None
@@ -55,22 +56,51 @@ def _pc_tag(pc):
     return f"pc-{id(pc):x}"
 
 
+def _count_sdp_candidates(sdp):
+    if not sdp:
+        return 0
+    return sum(1 for line in sdp.splitlines() if line.startswith("a=candidate:"))
+
+
+async def _wait_for_ice_gathering_complete(pc, tag, timeout_seconds):
+    start = time.monotonic()
+    while pc.iceGatheringState != "complete":
+        if time.monotonic() - start >= timeout_seconds:
+            print(
+                f"[{tag}] ICE gathering wait timed out after {timeout_seconds}s "
+                f"(state={pc.iceGatheringState}); proceeding with current candidates."
+            )
+            return False
+        await asyncio.sleep(0.05)
+
+    elapsed = time.monotonic() - start
+    print(f"[{tag}] ICE gathering complete after {elapsed:.2f}s.")
+    return True
+
+
 async def _cleanup_peer(pc):
     global active_pc
 
+    if pc in _cleaning_peers:
+        return
+
+    _cleaning_peers.add(pc)
     tag = _pc_tag(pc)
 
-    if pc in pcs:
-        pcs.discard(pc)
-
-    if active_pc == pc:
-        active_pc = None
-
     try:
-        await pc.close()
-        print(f"[{tag}] Peer connection closed.")
-    except Exception as exc:
-        print(f"[{tag}] Peer cleanup close failed: {exc}")
+        if pc in pcs:
+            pcs.discard(pc)
+
+        if active_pc == pc:
+            active_pc = None
+
+        try:
+            await pc.close()
+            print(f"[{tag}] Peer connection closed.")
+        except Exception as exc:
+            print(f"[{tag}] Peer cleanup close failed: {exc}")
+    finally:
+        _cleaning_peers.discard(pc)
 
 
 async def index(request):
@@ -89,12 +119,14 @@ async def offer(request):
 
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+    offer_candidates = _count_sdp_candidates(offer.sdp)
 
     pc = RTCPeerConnection()
     pcs.add(pc)
     active_pc = pc
     tag = _pc_tag(pc)
     print(f"[{tag}] New PeerConnection created (remote={request.remote})")
+    print(f"[{tag}] Offer metadata: type={offer.type}, candidate_count={offer_candidates}.")
 
     @pc.on("track")
     def on_track(track):
@@ -180,7 +212,10 @@ async def offer(request):
     print(f"[{tag}] Remote description set (type={offer.type}).")
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+    await _wait_for_ice_gathering_complete(pc, tag, SCREEN_CAST.ICE_GATHER_TIMEOUT_SECONDS)
+    answer_candidates = _count_sdp_candidates(pc.localDescription.sdp)
     print(f"[{tag}] Local description created (type={pc.localDescription.type}).")
+    print(f"[{tag}] Answer metadata: candidate_count={answer_candidates}.")
 
     return web.Response(
         content_type="application/json",
