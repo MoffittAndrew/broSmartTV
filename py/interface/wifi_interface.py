@@ -88,7 +88,7 @@ class WifiInterface:
         stdout, stderr = await process.communicate()
         return subprocess.CompletedProcess(
             command,
-            process.returncode,
+            process.returncode if process.returncode is not None else 1,
             stdout.decode(errors="replace"),
             stderr.decode(errors="replace"),
         )
@@ -123,11 +123,13 @@ class WifiInterface:
         except ValueError:
             signal_value = 0
 
+        known_network = self.__known_networks.get(ssid)
+
         return Network(
             ssid=ssid,
             signal_strength=signal_value,
             security=security.strip(),
-            password=self.__known_networks.get(ssid).password if ssid in self.__known_networks else None,
+            password=known_network.password if known_network is not None else None,
             is_current=in_use.strip() == "*",
         )
 
@@ -159,6 +161,16 @@ class WifiInterface:
             if network.ssid:
                 known_networks[network.ssid] = network
         self.__known_networks = known_networks
+
+    def _parse_known_networks_payload(self, payload):
+        if isinstance(payload, dict):
+            records = payload.get("known_networks", [])
+            if isinstance(records, list):
+                return records
+            return []
+        if isinstance(payload, list):
+            return payload
+        return []
 
     def _serialize_known_networks(self):
         return {
@@ -204,6 +216,7 @@ class WifiInterface:
             signal_strength=0,
             security=known_network.security if known_network is not None else "",
             password=known_network.password if known_network is not None else None,
+            is_current=True,
         )
         self.__current_network = current_network
         return current_network
@@ -231,6 +244,9 @@ class WifiInterface:
         return self._parse_nmcli_wifi_list(result.stdout)
 
     async def connectToNetwork(self, network: Network, password=None):
+        print(
+            f"[wifi_interface] connect requested: ssid='{network.ssid if network is not None else None}', password_arg_provided={password is not None}"
+        )
         if network is None or not network.ssid.strip():
             raise ValueError("A network with a valid SSID is required.")
 
@@ -240,6 +256,7 @@ class WifiInterface:
             provided_password = known_network.password
 
         if network.requiresPassword and not provided_password:
+            print(f"[wifi_interface] connect rejected: ssid='{network.ssid}' requires password but none available")
             raise ValueError(f"Network '{network.ssid}' requires a password.")
 
         backend = self._require_backend(["nmcli"])
@@ -250,9 +267,28 @@ class WifiInterface:
         if provided_password:
             command.extend(["password", provided_password])
 
+        print(
+            f"[wifi_interface] running nmcli connect: ssid='{network.ssid}', using_password={bool(provided_password)}"
+        )
+
         result = await self.__async_command_runner(command)
+        if result.stdout:
+            print(f"[wifi_interface] nmcli stdout: {result.stdout.strip()}")
+        if result.stderr:
+            print(f"[wifi_interface] nmcli stderr: {result.stderr.strip()}")
+        print(f"[wifi_interface] nmcli return code: {result.returncode}")
         if result.returncode != 0:
-            raise RuntimeError((result.stderr or result.stdout or "").strip() or f"Failed to connect to '{network.ssid}'.")
+            error_text = (result.stderr or result.stdout or "").strip()
+            error_text_lower = error_text.lower()
+            if "not authorized to control networking" in error_text_lower or "not authorized" in error_text_lower:
+                print(
+                    "[wifi_interface] permission denied by NetworkManager. "
+                    "Grant this app/user permission to manage networking (polkit/sudoers)."
+                )
+                raise PermissionError(
+                    "Not authorized to control networking. Configure NetworkManager permissions for this app user."
+                )
+            raise RuntimeError(error_text or f"Failed to connect to '{network.ssid}'.")
 
         connected_network = Network(
             ssid=network.ssid,
@@ -261,7 +297,14 @@ class WifiInterface:
             password=provided_password,
         )
         self.__current_network = connected_network
-        self.saveKnownNetwork(connected_network)
+        known_network = self.__known_networks.get(connected_network.ssid)
+        if known_network is None or (
+            bool(connected_network.password)
+            and connected_network.password != known_network.password
+        ):
+            self.saveKnownNetwork(connected_network)
+            print(f"[wifi_interface] known network updated: ssid='{network.ssid}'")
+        print(f"[wifi_interface] connect success persisted: ssid='{network.ssid}'")
         return connected_network
 
     def saveKnownNetwork(self, network: Network):
@@ -280,18 +323,27 @@ class WifiInterface:
             json.dump(self._serialize_known_networks(), storage_file, indent=2, sort_keys=True)
 
     def loadKnownNetworks(self):
-        if not self.__storage_path.exists():
+        source_path = self.__storage_path
+        if not source_path.exists():
             self.__known_networks = {}
             return []
 
         try:
-            with self.__storage_path.open("r", encoding="utf-8") as storage_file:
+            with source_path.open("r", encoding="utf-8") as storage_file:
                 payload = json.load(storage_file)
         except (OSError, json.JSONDecodeError):
             self.__known_networks = {}
             return []
 
-        self._sync_known_networks_from_storage(payload if isinstance(payload, dict) else {})
+        records = self._parse_known_networks_payload(payload)
+        self._sync_known_networks_from_storage({"known_networks": records})
+
+        # If we loaded legacy data, migrate it to the current file name.
+        if source_path != self.__storage_path:
+            self._ensure_storage_parent()
+            with self.__storage_path.open("w", encoding="utf-8") as storage_file:
+                json.dump(self._serialize_known_networks(), storage_file, indent=2, sort_keys=True)
+
         return list(self.__known_networks.values())
 
     def getKnownNetworks(self):

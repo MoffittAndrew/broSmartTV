@@ -37,7 +37,8 @@ class CustomQWidget(QWidget):
         return self.pos()
 
 
-class ScreenCastView(QLabel):
+class ScreenCastView(CustomQLabel):
+    # We want this to run as efficiently as possible for real-time screen casting
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
@@ -78,13 +79,13 @@ class ScreenCastView(QLabel):
             self.setPixmap(self._pixmap)
         self.update()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
         if self._pixmap is not None and not self._pixmap.isNull():
             self.setPixmap(self._pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.FastTransformation))
 
 
-class CustomQWindow(QWidget):
+class CustomQWindow(CustomQWidget):
     def __init__(self, keyboard=None, inputInterface=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -286,8 +287,8 @@ class CustomQWindow(QWidget):
         else:
             return super().keyReleaseEvent(event, *args, **kwargs)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
         if self.__screenCastWidget is not None:
             self.__screenCastWidget.setGeometry(0, 0, self.width(), self.height())
         if self.__onScreenKeyboard is not None:

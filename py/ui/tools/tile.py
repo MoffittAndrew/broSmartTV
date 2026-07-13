@@ -3,7 +3,7 @@
 
 print("Importing tile class...")
 
-from globals import TILE
+from globals import GUI
 from ui.tools.button import Button#, ToggleButton
 from interface.input_interface import inputInterface
 #from web_interface import webInterface
@@ -11,17 +11,17 @@ from interface.input_interface import inputInterface
 class Tile(Button):
     def __init__(
         self,
-        index:int = None,
+        index:int = 0,
         name:str = "new tile",
         filepath:str = "",
         *args,
         **kwargs,
     ):
-        super().__init__(width = TILE.WIDTH, height = TILE.HEIGHT, *args, **kwargs)
+        super().__init__(width = GUI.TILE.WIDTH, height = GUI.TILE.HEIGHT, *args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_NAME_TEXT, callback = self.editName),
-            Button(text = TILE.EDIT_IMG_TEXT, callback = self.editImg),
+            Button(text = GUI.TILE.EDIT_NAME_TEXT, callback = self.editName),
+            Button(text = GUI.TILE.EDIT_IMG_TEXT, callback = self.editImg),
         ]
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)
@@ -101,7 +101,7 @@ class DeviceTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_INPUT_TEXT, callback = self.editInputChannel),
+            Button(text = GUI.TILE.EDIT_INPUT_TEXT, callback = self.editInputChannel),
         ]
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)

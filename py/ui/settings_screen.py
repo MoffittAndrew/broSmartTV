@@ -3,6 +3,7 @@ print("Importing settings screen...")
 from globals import DISPLAY, GUI
 from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
+from ui.tools.section import VSection
 from ui.wifi_overlay import WifiOverlay
 
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
@@ -26,12 +27,18 @@ class SettingsScreen(CustomQWidget):
         self.__switchNetworkButton = Button(text="Switch network", callback=self.openWifiOverlay)
         self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
 
+        self.__contentSection = VSection(spacing=GUI.SPACING.WIDE)
+        self.__contentSection.setMargins(*GUI.MARGINS.STANDARD)
+        self.__contentSection.setWidgets([
+            self.__heading,
+            self.__currentNetworkLabel,
+            self.__switchNetworkButton,
+        ])
+
         layout = QVBoxLayout()
-        layout.setContentsMargins(80, 60, 80, 60)
-        layout.setSpacing(30)
-        layout.addWidget(self.__heading)
-        layout.addWidget(self.__currentNetworkLabel)
-        layout.addWidget(self.__switchNetworkButton)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.__contentSection)
         layout.addStretch(1)
 
         self.setFixedWidth(DISPLAY.WIDTH)
