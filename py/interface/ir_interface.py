@@ -1,4 +1,4 @@
-print("[ir_interface] Importing infrared interface...")
+print("Importing infrared interface...")
 
 import subprocess
 
