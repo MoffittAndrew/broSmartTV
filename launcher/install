@@ -5,7 +5,7 @@ set -u
 # One-time/bootstrap installer for Raspberry Pi.
 # Responsibilities:
 # 1) Ensure /bro exists.
-# 2) Ensure smart TV repo exists at /bro/app and is on latest live branch.
+# 2) Ensure smart TV repo exists at /bro/app.
 # 3) Create /bro/.venv (without installing requirements).
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
@@ -65,8 +65,6 @@ sync_main_repo() {
     git config --local core.filemode false || \
         error_exit "Failed to configure git filemode handling for ${repo_name} repository."
     git fetch origin || error_exit "Failed to fetch ${repo_name} repository."
-    git switch live || error_exit "Failed to switch ${repo_name} repository to live."
-    git pull --ff-only origin live || error_exit "Failed to pull latest ${repo_name} live branch."
 }
 
 ensure_repo_exists() {
