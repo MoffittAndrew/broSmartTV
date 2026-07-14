@@ -9,7 +9,7 @@ import json
 import ssl
 import time
 from aiohttp import web
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
 
 pcs = set()
@@ -60,6 +60,12 @@ def _count_sdp_candidates(sdp):
     if not sdp:
         return 0
     return sum(1 for line in sdp.splitlines() if line.startswith("a=candidate:"))
+
+
+def _rtc_configuration():
+    return RTCConfiguration(
+        iceServers=[RTCIceServer(urls=url) for url in SCREEN_CAST.ICE_SERVERS]
+    )
 
 
 async def _wait_for_ice_gathering_complete(pc, tag, timeout_seconds):
@@ -121,7 +127,7 @@ async def offer(request):
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
     offer_candidates = _count_sdp_candidates(offer.sdp)
 
-    pc = RTCPeerConnection()
+    pc = RTCPeerConnection(configuration=_rtc_configuration())
     pcs.add(pc)
     active_pc = pc
     tag = _pc_tag(pc)
@@ -246,6 +252,7 @@ async def capture_settings(request):
         "width": SCREEN_CAST.CAPTURE_WIDTH,
         "height": SCREEN_CAST.CAPTURE_HEIGHT,
         "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
+        "iceServers": [{"urls": url} for url in SCREEN_CAST.ICE_SERVERS],
     })
 
 

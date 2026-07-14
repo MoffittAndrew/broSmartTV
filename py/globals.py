@@ -218,6 +218,10 @@ class SCREEN_CAST:
     FRAME_TIMEOUT_SECONDS = 30
     FRAME_LOG_INTERVAL_SECONDS = 5
     ICE_GATHER_TIMEOUT_SECONDS = 8
+    ICE_SERVERS = [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+    ]
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
 class WEB:

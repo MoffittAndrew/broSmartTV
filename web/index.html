@@ -24,6 +24,7 @@
     let isStreaming = false;
     let isStarting = false;
     let connectionTimeoutId = null;
+    let iceServers = [];
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 30000;
@@ -47,7 +48,13 @@
       try {
         const response = await fetch('/capture-settings');
         if (response.ok) {
-          captureSettings = await response.json();
+          const settings = await response.json();
+          captureSettings = {
+            width: settings.width,
+            height: settings.height,
+            frameRate: settings.frameRate,
+          };
+          iceServers = Array.isArray(settings.iceServers) ? settings.iceServers : [];
         }
       } catch (err) {
         console.error("Failed to load capture settings:", err);
@@ -279,7 +286,10 @@
         console.warn("Unable to tighten video track constraints:", err);
       }
 
-      pc = new RTCPeerConnection();
+      pc = new RTCPeerConnection({
+        iceServers,
+        iceCandidatePoolSize: 4,
+      });
       const currentPc = pc;
 
       // Handle disconnects (server-side closure or failure)
@@ -295,6 +305,14 @@
 
       currentPc.oniceconnectionstatechange = () => {
         console.log("ICE connection state:", currentPc.iceConnectionState);
+      };
+
+      currentPc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("ICE candidate gathered:", event.candidate.candidate);
+        } else {
+          console.log("ICE candidate gathering complete (null candidate event).");
+        }
       };
 
       for (const track of stream.getTracks()) {
