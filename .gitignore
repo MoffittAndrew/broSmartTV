@@ -218,6 +218,7 @@ tiles/web/
 tiles/imgs/
 
 # Local HTTPS material for screen casting
+certs/*.crt
 certs/*.key
 certs/*.pem
 
