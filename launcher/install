@@ -5,7 +5,7 @@ set -u
 # One-time/bootstrap installer for Raspberry Pi.
 # Responsibilities:
 # 1) Ensure /bro exists.
-# 2) Ensure smart TV repo exists at /bro/app and is on latest main.
+# 2) Ensure smart TV repo exists at /bro/app and is on latest live branch.
 # 3) Create /bro/.venv (without installing requirements).
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
@@ -48,7 +48,7 @@ sync_main_repo() {
 
     if [ ! -d "${repo_dir}/.git" ]; then
         log "Cloning ${repo_name} repository into ${repo_dir}..."
-        git clone --branch main --single-branch "${repo_url}" "${repo_dir}" || \
+        git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
             error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
         return
     fi
@@ -56,8 +56,8 @@ sync_main_repo() {
     log "Updating ${repo_name} repository in ${repo_dir}..."
     cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
     git fetch origin || error_exit "Failed to fetch ${repo_name} repository."
-    git switch main || error_exit "Failed to switch ${repo_name} repository to main."
-    git pull --ff-only origin main || error_exit "Failed to pull latest ${repo_name} main branch."
+    git switch live || error_exit "Failed to switch ${repo_name} repository to live."
+    git pull --ff-only origin live || error_exit "Failed to pull latest ${repo_name} live branch."
 }
 
 ensure_repo_exists() {
@@ -71,7 +71,7 @@ ensure_repo_exists() {
     fi
 
     log "Cloning ${repo_name} repository into ${repo_dir}..."
-    git clone --branch main --single-branch "${repo_url}" "${repo_dir}" || \
+    git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
         error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
 }
 
