@@ -184,6 +184,11 @@ ensure_screencast_cert_matches_wlan0_ip() {
 }
 
 stash_local_changes() {
+    if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+        log "No local changes to stash."
+        return 0
+    fi
+
     log "Stashing local changes..."
     git stash push --include-untracked || return 1
 }
@@ -192,6 +197,8 @@ update_repo() {
     git_branch="$1"
 
     cd "${APP_DIR}" || error_exit "Repository directory not found: ${APP_DIR}"
+
+    git config --local core.filemode false || return 1
 
     stash_local_changes || return 1
 
@@ -259,7 +266,9 @@ ensure_launcher_scripts_executable() {
         if [ ! -f "${script_path}" ]; then
             error_exit "Expected script not found: ${script_path}"
         fi
-        chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        if [ ! -x "${script_path}" ]; then
+            chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        fi
     done
 }
 

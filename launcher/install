@@ -54,11 +54,16 @@ sync_main_repo() {
         log "Cloning ${repo_name} repository into ${repo_dir}..."
         git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
             error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
+        cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
+        git config --local core.filemode false || \
+            error_exit "Failed to configure git filemode handling for ${repo_name} repository."
         return
     fi
 
     log "Updating ${repo_name} repository in ${repo_dir}..."
     cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
+    git config --local core.filemode false || \
+        error_exit "Failed to configure git filemode handling for ${repo_name} repository."
     git fetch origin || error_exit "Failed to fetch ${repo_name} repository."
     git switch live || error_exit "Failed to switch ${repo_name} repository to live."
     git pull --ff-only origin live || error_exit "Failed to pull latest ${repo_name} live branch."
