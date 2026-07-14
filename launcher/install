@@ -321,6 +321,21 @@ run_update() {
     update || error_exit "update command failed."
 }
 
+ensure_launcher_scripts_executable() {
+    install_script="${LAUNCHER_DIR}/install"
+    update_script="${LAUNCHER_DIR}/update"
+    launch_script="${LAUNCHER_DIR}/launch"
+
+    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+        if [ ! -f "${script_path}" ]; then
+            error_exit "Expected script not found: ${script_path}"
+        fi
+        if [ ! -x "${script_path}" ]; then
+            chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        fi
+    done
+}
+
 main() {
     log "Starting install script..."
 
@@ -334,6 +349,7 @@ main() {
     ensure_wlan0_static_ip
     ensure_networkmanager_permissions
     ensure_screencast_tls_cert
+    ensure_launcher_scripts_executable
     run_update
 
     log "Install complete."
