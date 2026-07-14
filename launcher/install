@@ -9,8 +9,9 @@ set -u
 # 3) Create /bro/.venv (without installing requirements).
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
-# 6) Ensure launch/update scripts are executable.
-# 7) Run update via the update command.
+# 6) Install and configure LIRC for projector IR control.
+# 7) Ensure launch/update scripts are executable.
+# 8) Run update via the update command.
 
 logprefix="[install]"
 log() {
@@ -36,6 +37,9 @@ STATIC_IP_CONFIG_NAME="bro-smart-tv"
 POLKIT_RULES_DIR="/etc/polkit-1/rules.d"
 NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmanager.rules"
 APP_RUNTIME_USER="bro"
+LIRC_CONF_PATH="/etc/lirc/lircd.conf"
+LIRC_PROJECTOR_INCLUDE='include "/bro/app/projector/*.conf"'
+LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/projector/*.conf"'
 
 # Override with env vars if needed.
 DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
@@ -98,6 +102,47 @@ ensure_openssl() {
 
     log "Installing OpenSSL for screen cast HTTPS certificate generation..."
     sudo apt-get install -y openssl || error_exit "Failed to install OpenSSL."
+}
+
+ensure_lirc_installed() {
+    if command -v irsend >/dev/null 2>&1; then
+        log "LIRC already installed."
+        return
+    fi
+
+    log "Installing LIRC for infrared projector control..."
+    sudo apt-get update || error_exit "Failed to refresh package lists before installing LIRC."
+    sudo apt-get install -y lirc || error_exit "Failed to install LIRC."
+}
+
+ensure_lirc_projector_include() {
+    if [ ! -f "${LIRC_CONF_PATH}" ]; then
+        error_exit "Missing LIRC configuration file ${LIRC_CONF_PATH}."
+    fi
+
+    log "Ensuring projector include is present in ${LIRC_CONF_PATH}."
+    sudo python3 - "${LIRC_CONF_PATH}" <<'PY' || \
+        error_exit "Failed to update ${LIRC_CONF_PATH}."
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+target = 'include "/bro/app/projector/*.conf"'
+legacy = 'include "/bro/git/projector/*.conf"'
+
+text = path.read_text()
+if target in text:
+    sys.exit(0)
+
+if legacy in text:
+    text = text.replace(legacy, target)
+else:
+    if not text.endswith("\n"):
+        text += "\n"
+    text += target + "\n"
+
+path.write_text(text)
+PY
 }
 
 ensure_launcher_on_path() {
@@ -279,6 +324,8 @@ main() {
     ensure_venv
 
     ensure_launcher_on_path
+    ensure_lirc_installed
+    ensure_lirc_projector_include
     ensure_wlan0_static_ip
     ensure_networkmanager_permissions
     ensure_screencast_tls_cert
