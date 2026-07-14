@@ -1,0 +1,290 @@
+#!/bin/bash
+
+set -u
+
+# One-time/bootstrap installer for Raspberry Pi.
+# Responsibilities:
+# 1) Ensure /bro exists.
+# 2) Ensure smart TV repo exists at /bro/app and is on latest live branch.
+# 3) Create /bro/.venv (without installing requirements).
+# 4) Add /bro/app/launcher to PATH.
+# 5) Provision one-time screen cast HTTPS state.
+# 6) Ensure launch/update scripts are executable.
+# 7) Run update via the update command.
+
+logprefix="[install]"
+log() {
+    echo "$logprefix $*"
+}
+
+error_exit() {
+    log "$*"
+    exit 1
+}
+
+BRO_DIR="/bro"
+APP_DIR="${BRO_DIR}/app"
+LAUNCHER_DIR="${APP_DIR}/launcher"
+VENV_DIR="${BRO_DIR}/.venv"
+VENV_PYTHON="${VENV_DIR}/bin/python"
+UPDATE_SCRIPT_PATH="${LAUNCHER_DIR}/update"
+LAUNCH_SCRIPT_PATH="${LAUNCHER_DIR}/launch"
+SCREENCAST_CERT_DIR="${APP_DIR}/certs"
+SCREENCAST_CERT_PATH="${SCREENCAST_CERT_DIR}/screen-cast.crt"
+SCREENCAST_KEY_PATH="${SCREENCAST_CERT_DIR}/screen-cast.key"
+STATIC_IP_CONFIG_NAME="bro-smart-tv"
+POLKIT_RULES_DIR="/etc/polkit-1/rules.d"
+NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmanager.rules"
+APP_RUNTIME_USER="bro"
+
+# Override with env vars if needed.
+DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
+APP_REPO_URL="${APP_REPO_URL:-$DEFAULT_APP_REPO_URL}"
+
+sync_main_repo() {
+    repo_dir="$1"
+    repo_url="$2"
+    repo_name="$3"
+
+    if [ ! -d "${repo_dir}/.git" ]; then
+        log "Cloning ${repo_name} repository into ${repo_dir}..."
+        git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
+            error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
+        return
+    fi
+
+    log "Updating ${repo_name} repository in ${repo_dir}..."
+    cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
+    git fetch origin || error_exit "Failed to fetch ${repo_name} repository."
+    git switch live || error_exit "Failed to switch ${repo_name} repository to live."
+    git pull --ff-only origin live || error_exit "Failed to pull latest ${repo_name} live branch."
+}
+
+ensure_repo_exists() {
+    repo_dir="$1"
+    repo_url="$2"
+    repo_name="$3"
+
+    if [ -d "${repo_dir}/.git" ]; then
+        log "${repo_name} repository already exists at ${repo_dir}."
+        return
+    fi
+
+    log "Cloning ${repo_name} repository into ${repo_dir}..."
+    git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
+        error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
+}
+
+ensure_bro_dir() {
+    log "Ensuring ${BRO_DIR} exists..."
+    mkdir -p "${BRO_DIR}" || error_exit "Failed to create ${BRO_DIR}."
+}
+
+ensure_venv() {
+    if [ -x "${VENV_PYTHON}" ]; then
+        log "Virtual environment already exists at ${VENV_DIR}."
+        return
+    fi
+
+    log "Creating virtual environment at ${VENV_DIR}..."
+    python3 -m venv --system-site-packages "${VENV_DIR}" || \
+        error_exit "Failed to create venv. Install python3-venv and retry."
+}
+
+ensure_openssl() {
+    if command -v openssl >/dev/null 2>&1; then
+        return
+    fi
+
+    log "Installing OpenSSL for screen cast HTTPS certificate generation..."
+    sudo apt-get install -y openssl || error_exit "Failed to install OpenSSL."
+}
+
+ensure_launcher_on_path() {
+    profile_file="${HOME}/.profile"
+    launcher_path_line='export PATH="$PATH:/bro/app/launcher"'
+
+    path_has_entry() {
+        entry="$1"
+        old_ifs="${IFS}"
+        IFS=':'
+        for path_part in ${PATH}; do
+            if [ "${path_part}" = "${entry}" ]; then
+                IFS="${old_ifs}"
+                return 0
+            fi
+        done
+        IFS="${old_ifs}"
+        return 1
+    }
+
+    if ! path_has_entry "${LAUNCHER_DIR}"; then
+        export PATH="${PATH}:${LAUNCHER_DIR}"
+    fi
+
+    if [ -f "${profile_file}" ] && grep -Fxq "${launcher_path_line}" "${profile_file}"; then
+        log "${LAUNCHER_DIR} already persisted in ${profile_file}."
+    else
+        log "Persisting ${LAUNCHER_DIR} on PATH via ${profile_file}..."
+        echo "${launcher_path_line}" >> "${profile_file}" || error_exit "Failed to update ${profile_file}."
+    fi
+}
+
+ensure_wlan0_static_ip() {
+    wlan0_cidr="$(ip -4 -o addr show dev wlan0 scope global | awk '{print $4; exit}')"
+    wlan0_gateway="$(ip route show default dev wlan0 | awk '{print $3; exit}')"
+    dns_servers_space="$(awk '/^nameserver / {print $2}' /etc/resolv.conf | paste -sd ' ' -)"
+    dns_servers_csv="$(awk '/^nameserver / {print $2}' /etc/resolv.conf | paste -sd ',' -)"
+
+    if [ -z "${wlan0_cidr}" ] || [ -z "${wlan0_gateway}" ]; then
+        error_exit "Could not determine the current wlan0 IPv4 address and gateway for static IP configuration."
+    fi
+
+    if command -v nmcli >/dev/null 2>&1; then
+        active_connection="$(nmcli -t -f NAME,DEVICE connection show --active | awk -F: '$2 == "wlan0" {print $1; exit}')"
+        if [ -n "${active_connection}" ]; then
+            log "Pinning current wlan0 IP via NetworkManager connection ${active_connection}..."
+            nmcli_args=(connection modify "${active_connection}" ipv4.method manual ipv4.addresses "${wlan0_cidr}" ipv4.gateway "${wlan0_gateway}" connection.autoconnect yes)
+            if [ -n "${dns_servers_csv}" ]; then
+                nmcli_args+=(ipv4.dns "${dns_servers_csv}")
+            fi
+            sudo nmcli "${nmcli_args[@]}" || error_exit "Failed to persist static wlan0 IP via NetworkManager."
+            log "Pinned wlan0 to ${wlan0_cidr} via NetworkManager."
+            return
+        fi
+    fi
+
+    dhcpcd_config_dir="/etc/dhcpcd.conf.d"
+    dhcpcd_config_path="${dhcpcd_config_dir}/${STATIC_IP_CONFIG_NAME}.conf"
+    if [ -f /etc/dhcpcd.conf ] || [ -d "${dhcpcd_config_dir}" ]; then
+        log "Pinning current wlan0 IP via dhcpcd config ${dhcpcd_config_path}..."
+        sudo mkdir -p "${dhcpcd_config_dir}" || error_exit "Failed to create ${dhcpcd_config_dir}."
+
+        dhcpcd_config="interface wlan0
+static ip_address=${wlan0_cidr}
+static routers=${wlan0_gateway}"
+        if [ -n "${dns_servers_space}" ]; then
+            dhcpcd_config="${dhcpcd_config}
+static domain_name_servers=${dns_servers_space}"
+        fi
+
+        printf '%s\n' "${dhcpcd_config}" | sudo tee "${dhcpcd_config_path}" >/dev/null || \
+            error_exit "Failed to write ${dhcpcd_config_path}."
+        log "Pinned wlan0 to ${wlan0_cidr} via dhcpcd."
+        return
+    fi
+
+    error_exit "Could not find a supported network manager for static wlan0 IP configuration."
+}
+
+ensure_networkmanager_permissions() {
+    if ! command -v nmcli >/dev/null 2>&1; then
+        log "Skipping NetworkManager permission rule setup because nmcli is not available."
+        return
+    fi
+
+    if [ ! -d "${POLKIT_RULES_DIR}" ]; then
+        error_exit "Missing polkit rules directory ${POLKIT_RULES_DIR}; cannot configure NetworkManager permissions."
+    fi
+
+    log "Ensuring NetworkManager polkit permissions for user ${APP_RUNTIME_USER}..."
+
+    rule_content="polkit.addRule(function(action, subject) {
+    if (subject.user === '${APP_RUNTIME_USER}' && (
+        action.id === 'org.freedesktop.NetworkManager.network-control' ||
+        action.id === 'org.freedesktop.NetworkManager.settings.modify.system'
+    )) {
+        return polkit.Result.YES;
+    }
+});"
+
+    printf '%s\n' "${rule_content}" | sudo tee "${NETWORKMANAGER_POLKIT_RULE_PATH}" >/dev/null || \
+        error_exit "Failed to write ${NETWORKMANAGER_POLKIT_RULE_PATH}."
+
+    sudo chmod 644 "${NETWORKMANAGER_POLKIT_RULE_PATH}" || \
+        error_exit "Failed to set permissions on ${NETWORKMANAGER_POLKIT_RULE_PATH}."
+
+    log "NetworkManager permissions rule ensured at ${NETWORKMANAGER_POLKIT_RULE_PATH}."
+}
+
+ensure_screencast_tls_cert() {
+    cert_exists=0
+    key_exists=0
+
+    [ -f "${SCREENCAST_CERT_PATH}" ] && cert_exists=1
+    [ -f "${SCREENCAST_KEY_PATH}" ] && key_exists=1
+
+    if [ "${cert_exists}" -eq 1 ] && [ "${key_exists}" -eq 1 ]; then
+        log "Screen cast TLS certificate already present."
+        return
+    fi
+
+    if [ "${cert_exists}" -ne "${key_exists}" ]; then
+        log "Screen cast TLS material is incomplete; regenerating ${SCREENCAST_CERT_PATH} and ${SCREENCAST_KEY_PATH}."
+        rm -f "${SCREENCAST_CERT_PATH}" "${SCREENCAST_KEY_PATH}" || \
+            error_exit "Failed to remove incomplete screen cast TLS material."
+    fi
+
+    ensure_openssl
+
+    mkdir -p "${SCREENCAST_CERT_DIR}" || error_exit "Failed to create certificate directory ${SCREENCAST_CERT_DIR}."
+
+    hostname_short="$(hostname -s 2>/dev/null || hostname)"
+    hostname_fqdn="$(hostname -f 2>/dev/null || echo "")"
+    primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
+    san_entries="DNS:localhost,IP:127.0.0.1"
+    if [ -n "${hostname_short}" ]; then
+        san_entries="${san_entries},DNS:${hostname_short},DNS:${hostname_short}.local"
+    fi
+    if [ -n "${hostname_fqdn}" ]; then
+        san_entries="${san_entries},DNS:${hostname_fqdn}"
+    fi
+    if [ -n "${primary_ip}" ]; then
+        san_entries="${san_entries},IP:${primary_ip}"
+    fi
+
+    log "Generating self-signed TLS certificate for screen cast server..."
+    openssl req \
+        -x509 \
+        -nodes \
+        -newkey rsa:2048 \
+        -sha256 \
+        -days 3650 \
+        -keyout "${SCREENCAST_KEY_PATH}" \
+        -out "${SCREENCAST_CERT_PATH}" \
+        -subj "/CN=${hostname_short:-bro-smart-tv}" \
+        -addext "subjectAltName=${san_entries}" || \
+        error_exit "Failed to generate screen cast TLS certificate."
+
+    chmod 600 "${SCREENCAST_KEY_PATH}" || error_exit "Failed to secure ${SCREENCAST_KEY_PATH}."
+    chmod 644 "${SCREENCAST_CERT_PATH}" || error_exit "Failed to set permissions on ${SCREENCAST_CERT_PATH}."
+
+    log "Generated screen cast TLS certificate at ${SCREENCAST_CERT_PATH}."
+    log "Browsers on client devices must still trust this certificate before screen sharing will work over HTTPS."
+}
+
+run_update() {
+    log "Running update command..."
+    command -v update >/dev/null 2>&1 || \
+        error_exit "update command not found in PATH after setup."
+    update || error_exit "update command failed."
+}
+
+main() {
+    log "Starting install script..."
+
+    ensure_bro_dir
+    sync_main_repo "${APP_DIR}" "${APP_REPO_URL}" "smart TV"
+    ensure_venv
+
+    ensure_launcher_on_path
+    ensure_wlan0_static_ip
+    ensure_networkmanager_permissions
+    ensure_screencast_tls_cert
+    run_update
+
+    log "Install complete."
+}
+
+main

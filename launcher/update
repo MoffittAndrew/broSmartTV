@@ -9,23 +9,25 @@ set -u
 # 3) Install/update Python dependencies in that venv.
 # 4) Restart dependent services.
 
-dir="/bro"
-repo_dir="${dir}/git"
-venv_dir="${dir}/.venv"
-venv_python="${venv_dir}/bin/python"
-venv_pip="${venv_dir}/bin/pip"
-screencast_cert_rel_path="certs/screen-cast.crt"
-screencast_cert_path="${repo_dir}/${screencast_cert_rel_path}"
-screencast_key_path="${repo_dir}/certs/screen-cast.key"
-screen_cast_port=""
-logprefix="[update]"
+DIR="/bro"
+APP_DIR="${DIR}/app"
+LAUNCHER_DIR="${APP_DIR}/launcher"
+VENV_DIR="${DIR}/.venv"
+VENV_PYTHON="${VENV_DIR}/bin/python"
+VENV_PIP="${VENV_DIR}/bin/pip"
+SCREENCAST_CERTS_PATH="${APP_DIR}/certs"
+SCREENCAST_CERT_REL_PATH="certs/screen-cast.crt"
+SCREENCAST_CERT_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.crt"
+SCREENCAST_KEY_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.key"
+SCREENCAST_DEFAULT_PORT="8080"
+LOGPREFIX="[update]"
 
 # Force Python tooling to ignore ~/.local user-site packages.
 export PYTHONNOUSERSITE=1
 unset PYTHONPATH
 
 log() {
-    echo "$logprefix $*"
+    echo "$LOGPREFIX $*"
 }
 
 error_exit() {
@@ -38,9 +40,9 @@ ensure_internet() {
     ping "github.com" -c 5 -w 10 >/dev/null
 }
 
-read_screen_cast_port() {
-    if [ -x "${venv_python}" ] && [ -f "${repo_dir}/py/globals.py" ]; then
-        raw_port="$("${venv_python}" -c "import sys; sys.path.insert(0, '${repo_dir}/py'); from globals import SCREEN_CAST; print(SCREEN_CAST.PORT)" 2>/dev/null || true)"
+read_screencast_port() {
+    if [ -x "${VENV_PYTHON}" ] && [ -f "${APP_DIR}/py/globals.py" ]; then
+        raw_port="$("${VENV_PYTHON}" -c "import sys; sys.path.insert(0, '${APP_DIR}/py'); from globals import SCREEN_CAST; print(SCREEN_CAST.PORT)" 2>/dev/null || true)"
         resolved_port="$(printf '%s\n' "${raw_port}" | awk '/^[[:space:]]*[0-9]+[[:space:]]*$/ {gsub(/[[:space:]]/, "", $0); print; exit}')"
 
         if [ -n "${resolved_port}" ] && [ "${resolved_port}" -ge 1 ] && [ "${resolved_port}" -le 65535 ]; then
@@ -50,39 +52,40 @@ read_screen_cast_port() {
     fi
 
     # Fallback default used by globals.py when runtime config cannot be imported.
-    echo "8080"
+    echo "${SCREENCAST_DEFAULT_PORT}"
 }
 
 ensure_screencast_firewall_rule() {
-    screen_cast_port="$(read_screen_cast_port || true)"
-    if [ -z "${screen_cast_port}" ]; then
-        log "Warning: Could not resolve screencast port; skipping firewall rule setup."
+    screencast_port=""
+    screencast_port="$(read_screencast_port || true)"
+    if [ -z "${screencast_port}" ]; then
+        log "Warning: Could not resolve screencast port, skipping firewall rule setup."
         return 0
     fi
 
-    if sudo iptables -C INPUT -i wlan0 -p tcp --dport "${screen_cast_port}" -j ACCEPT >/dev/null 2>&1; then
-        log "Screencast firewall rule for port ${screen_cast_port} already present."
+    if sudo iptables -C INPUT -i wlan0 -p tcp --dport "${screencast_port}" -j ACCEPT >/dev/null 2>&1; then
+        log "Screencast firewall rule for port ${screencast_port} already present."
         return 0
     fi
 
-    if sudo iptables -I INPUT 1 -i wlan0 -p tcp --dport "${screen_cast_port}" -j ACCEPT >/dev/null 2>&1; then
-        log "Added temporary screencast firewall rule for port ${screen_cast_port}."
+    if sudo iptables -I INPUT 1 -i wlan0 -p tcp --dport "${screencast_port}" -j ACCEPT >/dev/null 2>&1; then
+        log "Added temporary screencast firewall rule for port ${screencast_port}."
         return 0
     fi
 
-    log "Warning: Failed to add screencast firewall rule for port ${screen_cast_port}; continuing."
+    log "Warning: Failed to add screencast firewall rule for port ${screencast_port}, continuing."
     return 0
 }
 
 read_target_branch() {
-    if [ ! -f "${dir}/branch" ]; then
-        log "No branch file found at ${dir}/branch; defaulting to 'live'."
-        echo "live" > "${dir}/branch"
+    if [ ! -f "${LAUNCHER_DIR}/branch" ]; then
+        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'."
+        echo "live" > "${LAUNCHER_DIR}/branch"
     fi
 
-    branch="$(tr -d '\r' < "${dir}/branch" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    branch="$(tr -d '\r' < "${LAUNCHER_DIR}/branch" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     if [ -z "${branch}" ]; then
-        log "Branch file is empty; defaulting to 'live'."
+        log "Branch file is empty, defaulting to 'live'."
         branch="live"
     fi
 
@@ -90,12 +93,12 @@ read_target_branch() {
 }
 
 ensure_venv() {
-    if [ -x "${venv_python}" ]; then
+    if [ -x "${VENV_PYTHON}" ]; then
         return
     fi
 
-    log "Creating Python virtual environment at ${venv_dir}..."
-    python3 -m venv --system-site-packages "${venv_dir}" || \
+    log "Creating Python virtual environment at ${VENV_DIR}..."
+    python3 -m venv --system-site-packages "${VENV_DIR}" || \
         error_exit "Failed to create venv. Ensure python3-venv is installed."
 }
 
@@ -109,9 +112,9 @@ ensure_openssl() {
         return 0
     fi
 
-    log "OpenSSL missing; installing for automatic screen cast cert refresh..."
+    log "OpenSSL missing, installing for automatic screen cast cert refresh..."
     sudo apt-get install -y openssl >/dev/null 2>&1 || {
-        log "Warning: Failed to install OpenSSL; skipping automatic screen cast cert refresh."
+        log "Warning: Failed to install OpenSSL, skipping automatic screen cast cert refresh."
         return 1
     }
 
@@ -123,7 +126,7 @@ regenerate_screencast_cert() {
 
     ensure_openssl || return 0
 
-    mkdir -p "$(dirname "${screencast_cert_path}")" || return 1
+    mkdir -p "$(dirname "${SCREENCAST_CERT_PATH}")" || return 1
 
     hostname_short="$(hostname -s 2>/dev/null || hostname)"
     hostname_fqdn="$(hostname -f 2>/dev/null || echo "")"
@@ -146,24 +149,24 @@ regenerate_screencast_cert() {
         -newkey rsa:2048 \
         -sha256 \
         -days 3650 \
-        -keyout "${screencast_key_path}" \
-        -out "${screencast_cert_path}" \
+        -keyout "${SCREENCAST_KEY_PATH}" \
+        -out "${SCREENCAST_CERT_PATH}" \
         -subj "/CN=${hostname_short:-bro-smart-tv}" \
         -addext "subjectAltName=${san_entries}" || return 1
 
-    chmod 600 "${screencast_key_path}" >/dev/null 2>&1 || true
-    chmod 644 "${screencast_cert_path}" >/dev/null 2>&1 || true
+    chmod 600 "${SCREENCAST_KEY_PATH}" >/dev/null 2>&1 || true
+    chmod 644 "${SCREENCAST_CERT_PATH}" >/dev/null 2>&1 || true
 }
 
 ensure_screencast_cert_matches_wlan0_ip() {
     current_ip="$(ip -4 -o addr show dev wlan0 scope global | awk '{print $4; exit}' | cut -d/ -f1)"
     if [ -z "${current_ip}" ]; then
-        log "Warning: Could not read wlan0 IPv4 address; skipping automatic cert refresh."
+        log "Warning: Could not read wlan0 IPv4 address, skipping automatic cert refresh."
         return 0
     fi
 
-    if [ ! -f "${screencast_cert_path}" ] || [ ! -f "${screencast_key_path}" ]; then
-        log "Screen cast cert/key missing; generating certificate for current wlan0 IP ${current_ip}."
+    if [ ! -f "${SCREENCAST_CERT_PATH}" ] || [ ! -f "${SCREENCAST_KEY_PATH}" ]; then
+        log "Screen cast cert/key missing, generating certificate for current wlan0 IP ${current_ip}."
         regenerate_screencast_cert "${current_ip}" || return 1
         return 0
     fi
@@ -172,7 +175,7 @@ ensure_screencast_cert_matches_wlan0_ip() {
         return 0
     fi
 
-    if openssl x509 -in "${screencast_cert_path}" -noout -ext subjectAltName 2>/dev/null | grep -Fq "IP Address:${current_ip}"; then
+    if openssl x509 -in "${SCREENCAST_CERT_PATH}" -noout -ext subjectAltName 2>/dev/null | grep -Fq "IP Address:${current_ip}"; then
         return 0
     fi
 
@@ -182,15 +185,15 @@ ensure_screencast_cert_matches_wlan0_ip() {
 }
 
 stash_local_changes_except_cert() {
-    if [ ! -f "${screencast_cert_path}" ]; then
+    if [ ! -f "${SCREENCAST_CERT_PATH}" ]; then
         log "Stashing any local changes..."
         git stash push --include-untracked || return 1
         return
     fi
 
-    if [ -n "$(git status --porcelain --untracked-files=all -- . ":(exclude)${screencast_cert_rel_path}")" ]; then
-        log "Stashing local changes except ${screencast_cert_rel_path}..."
-        git stash push --include-untracked -- . ":(exclude)${screencast_cert_rel_path}" || return 1
+    if [ -n "$(git status --porcelain --untracked-files=all -- . ":(exclude)${SCREENCAST_CERT_REL_PATH}")" ]; then
+        log "Stashing local changes except ${SCREENCAST_CERT_REL_PATH}..."
+        git stash push --include-untracked -- . ":(exclude)${SCREENCAST_CERT_REL_PATH}" || return 1
         return
     fi
 
@@ -200,32 +203,32 @@ stash_local_changes_except_cert() {
 commit_and_push_screencast_cert() {
     git_branch="$1"
 
-    if [ ! -f "${screencast_cert_path}" ]; then
-        log "Screen cast certificate not found at ${screencast_cert_path}; skipping certificate sync."
+    if [ ! -f "${SCREENCAST_CERT_PATH}" ]; then
+        log "Screen cast certificate not found at ${SCREENCAST_CERT_PATH}, skipping certificate sync."
         return
     fi
 
     log "Checking screen cast certificate status..."
-    git add --force "${screencast_cert_rel_path}" || return 1
+    git add --force "${SCREENCAST_CERT_REL_PATH}" || return 1
 
-    if git diff --cached --quiet -- "${screencast_cert_rel_path}"; then
+    if git diff --cached --quiet -- "${SCREENCAST_CERT_REL_PATH}"; then
         log "Screen cast certificate already matches ${git_branch}."
         return
     fi
 
     log "Committing updated screen cast certificate..."
-    if ! git commit -m "Update screen cast certificate" -- "${screencast_cert_rel_path}"; then
-        log "Warning: Failed to commit updated screen cast certificate; continuing without cert sync."
-        git reset --mixed HEAD -- "${screencast_cert_rel_path}" >/dev/null 2>&1 || true
+    if ! git commit -m "Update screen cast certificate" -- "${SCREENCAST_CERT_REL_PATH}"; then
+        log "Warning: Failed to commit updated screen cast certificate, continuing without cert sync."
+        git reset --mixed HEAD -- "${SCREENCAST_CERT_REL_PATH}" >/dev/null 2>&1 || true
         return
     fi
 
     log "Pushing updated screen cast certificate to origin/${git_branch}..."
     if ! git push origin "HEAD:${git_branch}"; then
-        log "Warning: Failed to push updated screen cast certificate; continuing without cert sync."
+        log "Warning: Failed to push updated screen cast certificate, continuing without cert sync."
         if git rev-parse --verify HEAD >/dev/null 2>&1; then
             git reset --soft HEAD~1 >/dev/null 2>&1 || true
-            git reset --mixed HEAD -- "${screencast_cert_rel_path}" >/dev/null 2>&1 || true
+            git reset --mixed HEAD -- "${SCREENCAST_CERT_REL_PATH}" >/dev/null 2>&1 || true
         fi
         return
     fi
@@ -234,7 +237,7 @@ commit_and_push_screencast_cert() {
 update_repo() {
     git_branch="$1"
 
-    cd "${repo_dir}" || error_exit "Repository directory not found: ${repo_dir}"
+    cd "${APP_DIR}" || error_exit "Repository directory not found: ${APP_DIR}"
 
     stash_local_changes_except_cert || return 1
 
@@ -260,14 +263,14 @@ update_repo() {
 }
 
 resolve_requirements_file() {
-    if [ -f "${repo_dir}/requirements.txt" ]; then
-        echo "${repo_dir}/requirements.txt"
+    if [ -f "${APP_DIR}/requirements.txt" ]; then
+        echo "${APP_DIR}/requirements.txt"
         return
     fi
 
     # Compatibility path for mono-repo checkouts where app lives in subdir.
-    if [ -f "${repo_dir}/broSmartTV/requirements.txt" ]; then
-        echo "${repo_dir}/broSmartTV/requirements.txt"
+    if [ -f "${APP_DIR}/broSmartTV/requirements.txt" ]; then
+        echo "${APP_DIR}/broSmartTV/requirements.txt"
         return
     fi
 
@@ -278,15 +281,15 @@ install_python_dependencies() {
     requirements_file="$1"
 
     log "Installing Python requirements in venv..."
-    "${venv_python}" -m pip install --upgrade pip setuptools wheel
+    "${VENV_PYTHON}" -m pip install --upgrade pip setuptools wheel
     # Ignore user-site installs so dependencies are installed into /bro/.venv.
-    "${venv_python}" -m pip install --prefer-binary -r "${requirements_file}"
+    "${VENV_PYTHON}" -m pip install --prefer-binary -r "${requirements_file}"
 }
 
 verify_runtime_dependencies() {
     log "Verifying runtime dependencies inside venv..."
-    "${venv_python}" -c "import os, qtinter, sys; sys.exit(0 if os.path.realpath(qtinter.__file__).startswith(os.path.realpath('${venv_dir}')) else 1)" || \
-        error_exit "qtinter is not being imported from ${venv_dir}; check user-site/package contamination."
+    "${VENV_PYTHON}" -c "import os, qtinter, sys; sys.exit(0 if os.path.realpath(qtinter.__file__).startswith(os.path.realpath('${VENV_DIR}')) else 1)" || \
+        error_exit "qtinter is not being imported from ${VENV_DIR}, check user-site/package contamination."
 }
 
 restart_services() {
@@ -297,7 +300,7 @@ restart_services() {
 main() {
     log "Starting update script..."
 
-    cd "${dir}" || error_exit "Directory not found: ${dir}"
+    cd "${DIR}" || error_exit "Directory not found: ${DIR}"
 
     # Apply screencast firewall access early so it is attempted even if later update steps fail.
     ensure_screencast_firewall_rule
@@ -315,7 +318,7 @@ main() {
     ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
     update_repo "${target_branch}" || error_exit "Failed to update repository."
     requirements_file="$(resolve_requirements_file)" || \
-        error_exit "Could not find requirements.txt in ${repo_dir} or ${repo_dir}/broSmartTV."
+        error_exit "Could not find requirements.txt in ${APP_DIR} or ${APP_DIR}/broSmartTV."
     log "Using requirements file: ${requirements_file}"
     install_python_dependencies "${requirements_file}" || error_exit "Failed to install Python dependencies."
     verify_runtime_dependencies
