@@ -297,6 +297,19 @@ restart_services() {
     sudo systemctl restart lircd
 }
 
+ensure_launcher_scripts_executable() {
+    install_script="${LAUNCHER_DIR}/install"
+    update_script="${LAUNCHER_DIR}/update"
+    launch_script="${LAUNCHER_DIR}/launch"
+
+    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+        if [ ! -f "${script_path}" ]; then
+            error_exit "Expected script not found: ${script_path}"
+        fi
+        chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+    done
+}
+
 main() {
     log "Starting update script..."
 
@@ -317,6 +330,7 @@ main() {
     ensure_venv
     ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
     update_repo "${target_branch}" || error_exit "Failed to update repository."
+    ensure_launcher_scripts_executable
     requirements_file="$(resolve_requirements_file)" || \
         error_exit "Could not find requirements.txt in ${APP_DIR} or ${APP_DIR}/broSmartTV."
     log "Using requirements file: ${requirements_file}"
