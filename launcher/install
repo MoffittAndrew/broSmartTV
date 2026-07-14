@@ -5,11 +5,11 @@ set -u
 # One-time/bootstrap installer for Raspberry Pi.
 # Responsibilities:
 # 1) Ensure /bro exists.
-# 2) Create /bro/.venv (without installing requirements).
-# 3) Ensure launcher repo exists at /bro/launcher and is on latest main.
-# 4) Ensure smart TV repo exists at /bro/git.
-# 5) Add /bro/launcher and /bro/git to PATH.
-# 6) Provision one-time screen cast HTTPS state.
+# 2) Ensure smart TV repo exists at /bro/app and is on latest main.
+# 3) Create /bro/.venv (without installing requirements).
+# 4) Add /bro/app/launcher to PATH.
+# 5) Provision one-time screen cast HTTPS state.
+# 6) Ensure launch/update scripts are executable.
 # 7) Run update via the update command.
 
 logprefix="[install]"
@@ -23,11 +23,11 @@ error_exit() {
 }
 
 BRO_DIR="/bro"
-LAUNCHER_DIR="${BRO_DIR}/launcher"
-APP_DIR="${BRO_DIR}/git"
+APP_DIR="${BRO_DIR}/app"
+LAUNCHER_DIR="${APP_DIR}/launcher"
 VENV_DIR="${BRO_DIR}/.venv"
 VENV_PYTHON="${VENV_DIR}/bin/python"
-UPDATE_SCRIPT_PATH="${APP_DIR}/update"
+UPDATE_SCRIPT_PATH="${LAUNCHER_DIR}/update"
 LAUNCH_SCRIPT_PATH="${LAUNCHER_DIR}/launch"
 SCREENCAST_CERT_DIR="${APP_DIR}/certs"
 SCREENCAST_CERT_PATH="${SCREENCAST_CERT_DIR}/screen-cast.crt"
@@ -38,9 +38,7 @@ NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmana
 APP_RUNTIME_USER="bro"
 
 # Override with env vars if needed.
-DEFAULT_LAUNCHER_REPO_URL="https://github.com/MoffittAndrew/broSmartTV-launcher.git"
 DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
-LAUNCHER_REPO_URL="${LAUNCHER_REPO_URL:-$DEFAULT_LAUNCHER_REPO_URL}"
 APP_REPO_URL="${APP_REPO_URL:-$DEFAULT_APP_REPO_URL}"
 
 sync_main_repo() {
@@ -102,10 +100,9 @@ ensure_openssl() {
     sudo apt-get install -y openssl || error_exit "Failed to install OpenSSL."
 }
 
-ensure_on_path() {
+ensure_launcher_on_path() {
     profile_file="${HOME}/.profile"
-    launcher_path_line='export PATH="$PATH:/bro/launcher"'
-    app_path_line='export PATH="$PATH:/bro/git"'
+    launcher_path_line='export PATH="$PATH:/bro/app/launcher"'
 
     path_has_entry() {
         entry="$1"
@@ -125,22 +122,11 @@ ensure_on_path() {
         export PATH="${PATH}:${LAUNCHER_DIR}"
     fi
 
-    if ! path_has_entry "${APP_DIR}"; then
-        export PATH="${PATH}:${APP_DIR}"
-    fi
-
     if [ -f "${profile_file}" ] && grep -Fxq "${launcher_path_line}" "${profile_file}"; then
         log "${LAUNCHER_DIR} already persisted in ${profile_file}."
     else
         log "Persisting ${LAUNCHER_DIR} on PATH via ${profile_file}..."
         echo "${launcher_path_line}" >> "${profile_file}" || error_exit "Failed to update ${profile_file}."
-    fi
-
-    if [ -f "${profile_file}" ] && grep -Fxq "${app_path_line}" "${profile_file}"; then
-        log "${APP_DIR} already persisted in ${profile_file}."
-    else
-        log "Persisting ${APP_DIR} on PATH via ${profile_file}..."
-        echo "${app_path_line}" >> "${profile_file}" || error_exit "Failed to update ${profile_file}."
     fi
 }
 
@@ -287,12 +273,10 @@ main() {
     log "Starting install script..."
 
     ensure_bro_dir
+    sync_main_repo "${APP_DIR}" "${APP_REPO_URL}" "smart TV"
     ensure_venv
 
-    sync_main_repo "${LAUNCHER_DIR}" "${LAUNCHER_REPO_URL}" "launcher"
-    ensure_repo_exists "${APP_DIR}" "${APP_REPO_URL}" "smart TV"
-
-    ensure_on_path
+    ensure_launcher_on_path
     ensure_wlan0_static_ip
     ensure_networkmanager_permissions
     ensure_screencast_tls_cert

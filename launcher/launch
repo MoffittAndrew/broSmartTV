@@ -17,13 +17,15 @@ fail() {
     exit 1
 }
 
-dir="/bro"
-venv_dir="${dir}/.venv"
-venv_python="${venv_dir}/bin/python"
-already_running_exit_code=200
+DIR="/bro"
+APP_DIR="${DIR}/app"
+LAUNCHER_DIR="${APP_DIR}/launcher"
+VENV_DIR="${DIR}/.venv"
+VENV_PYTHON="${VENV_DIR}/bin/python"
+EXIT_CODE_ALREADY_RUNNING=200
 
 export QT_QPA_PLATFORM=eglfs
-export QT_QPA_EGLFS_KMS_CONFIG=launcher/eglfs_kms_conf.json
+export QT_QPA_EGLFS_KMS_CONFIG="${LAUNCHER_DIR}/eglfs_kms_conf.json"
 # Ensure runtime imports come from /bro/.venv and not ~/.local user-site.
 export PYTHONNOUSERSITE=1
 unset PYTHONPATH
@@ -31,18 +33,18 @@ unset PYTHONPATH
 main() {
     log "Starting launch script..."
 
-    cd "${dir}" || fail "Directory not found: ${dir}"
+    cd "${DIR}" || fail "Directory not found: ${DIR}"
 
-    [ -x "${venv_python}" ] || \
-        fail "Missing ${venv_python}. Run the install script first."
-    [ -f "${dir}/git/py/launch.py" ] || \
-        fail "Missing ${dir}/git/py/launch.py. Run the install script first."
+    [ -x "${VENV_PYTHON}" ] || \
+        fail "Missing ${VENV_PYTHON}. Run the install script first."
+    [ -f "${APP_DIR}/py/launch.py" ] || \
+        fail "Missing ${APP_DIR}/py/launch.py. Run the install script first."
 
-    log "Using Python executable: ${venv_python}"
-    "${venv_python}" -c "import sys; print('${logprefix} Python sys.executable:', sys.executable)"
+    log "Using Python executable: ${VENV_PYTHON}"
+    "${VENV_PYTHON}" -c "import sys; print('${logprefix} Python sys.executable:', sys.executable)"
 
     while true; do
-        "${venv_python}" git/py/launch.py
+        "${VENV_PYTHON}" "${APP_DIR}/py/launch.py"
         exit_code=$?
 
         if [ $exit_code -eq 130 ]; then
@@ -50,7 +52,7 @@ main() {
             exit 1
         fi
 
-        if [ $exit_code -eq $already_running_exit_code ]; then
+        if [ $exit_code -eq $EXIT_CODE_ALREADY_RUNNING ]; then
             log "Another launcher instance is already running; aborting."
             exit 1
         fi
