@@ -16,7 +16,6 @@ VENV_DIR="${DIR}/.venv"
 VENV_PYTHON="${VENV_DIR}/bin/python"
 VENV_PIP="${VENV_DIR}/bin/pip"
 SCREENCAST_CERTS_PATH="${APP_DIR}/certs"
-SCREENCAST_CERT_REL_PATH="certs/screen-cast.crt"
 SCREENCAST_CERT_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.crt"
 SCREENCAST_KEY_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.key"
 SCREENCAST_DEFAULT_PORT="8080"
@@ -79,13 +78,13 @@ ensure_screencast_firewall_rule() {
 
 read_target_branch() {
     if [ ! -f "${LAUNCHER_DIR}/branch" ]; then
-        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'."
+        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'." >&2
         echo "live" > "${LAUNCHER_DIR}/branch"
     fi
 
     branch="$(tr -d '\r' < "${LAUNCHER_DIR}/branch" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     if [ -z "${branch}" ]; then
-        log "Branch file is empty, defaulting to 'live'."
+        log "Branch file is empty, defaulting to 'live'." >&2
         branch="live"
     fi
 
@@ -184,54 +183,14 @@ ensure_screencast_cert_matches_wlan0_ip() {
     return 0
 }
 
-stash_local_changes_except_cert() {
-    if [ ! -f "${SCREENCAST_CERT_PATH}" ]; then
-        log "Stashing any local changes..."
-        git stash push --include-untracked || return 1
-        return
+stash_local_changes() {
+    if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+        log "No local changes to stash."
+        return 0
     fi
 
-    if [ -n "$(git status --porcelain --untracked-files=all -- . ":(exclude)${SCREENCAST_CERT_REL_PATH}")" ]; then
-        log "Stashing local changes except ${SCREENCAST_CERT_REL_PATH}..."
-        git stash push --include-untracked -- . ":(exclude)${SCREENCAST_CERT_REL_PATH}" || return 1
-        return
-    fi
-
-    log "No non-certificate local changes to stash."
-}
-
-commit_and_push_screencast_cert() {
-    git_branch="$1"
-
-    if [ ! -f "${SCREENCAST_CERT_PATH}" ]; then
-        log "Screen cast certificate not found at ${SCREENCAST_CERT_PATH}, skipping certificate sync."
-        return
-    fi
-
-    log "Checking screen cast certificate status..."
-    git add --force "${SCREENCAST_CERT_REL_PATH}" || return 1
-
-    if git diff --cached --quiet -- "${SCREENCAST_CERT_REL_PATH}"; then
-        log "Screen cast certificate already matches ${git_branch}."
-        return
-    fi
-
-    log "Committing updated screen cast certificate..."
-    if ! git commit -m "Update screen cast certificate" -- "${SCREENCAST_CERT_REL_PATH}"; then
-        log "Warning: Failed to commit updated screen cast certificate, continuing without cert sync."
-        git reset --mixed HEAD -- "${SCREENCAST_CERT_REL_PATH}" >/dev/null 2>&1 || true
-        return
-    fi
-
-    log "Pushing updated screen cast certificate to origin/${git_branch}..."
-    if ! git push origin "HEAD:${git_branch}"; then
-        log "Warning: Failed to push updated screen cast certificate, continuing without cert sync."
-        if git rev-parse --verify HEAD >/dev/null 2>&1; then
-            git reset --soft HEAD~1 >/dev/null 2>&1 || true
-            git reset --mixed HEAD -- "${SCREENCAST_CERT_REL_PATH}" >/dev/null 2>&1 || true
-        fi
-        return
-    fi
+    log "Stashing local changes..."
+    git stash push --include-untracked || return 1
 }
 
 update_repo() {
@@ -239,7 +198,9 @@ update_repo() {
 
     cd "${APP_DIR}" || error_exit "Repository directory not found: ${APP_DIR}"
 
-    stash_local_changes_except_cert || return 1
+    git config --local core.filemode false || return 1
+
+    stash_local_changes || return 1
 
     log "Fetching remote refs..."
     git fetch --prune origin || return 1
@@ -259,7 +220,6 @@ update_repo() {
     git pull --ff-only origin "${git_branch}" || return 1
 
     ensure_screencast_cert_matches_wlan0_ip || return 1
-    commit_and_push_screencast_cert "${git_branch}"
 }
 
 resolve_requirements_file() {
@@ -306,7 +266,9 @@ ensure_launcher_scripts_executable() {
         if [ ! -f "${script_path}" ]; then
             error_exit "Expected script not found: ${script_path}"
         fi
-        chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        if [ ! -x "${script_path}" ]; then
+            chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        fi
     done
 }
 
@@ -318,17 +280,18 @@ main() {
     # Apply screencast firewall access early so it is attempted even if later update steps fail.
     ensure_screencast_firewall_rule
 
+    target_branch="$(read_target_branch)"
+    requirements_file=""
+
+    ensure_venv
+    ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
+
     if ! ensure_internet; then
         log "Error when checking for updates, please check internet connection."
         log "Exiting update script..."
         exit 1
     fi
 
-    target_branch="$(read_target_branch)"
-    requirements_file=""
-
-    ensure_venv
-    ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
     update_repo "${target_branch}" || error_exit "Failed to update repository."
     ensure_launcher_scripts_executable
     requirements_file="$(resolve_requirements_file)" || \

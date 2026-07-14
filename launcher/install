@@ -5,12 +5,13 @@ set -u
 # One-time/bootstrap installer for Raspberry Pi.
 # Responsibilities:
 # 1) Ensure /bro exists.
-# 2) Ensure smart TV repo exists at /bro/app and is on latest live branch.
+# 2) Ensure smart TV repo exists at /bro/app.
 # 3) Create /bro/.venv (without installing requirements).
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
-# 6) Ensure launch/update scripts are executable.
-# 7) Run update via the update command.
+# 6) Install and configure LIRC for projector IR control.
+# 7) Ensure launch/update scripts are executable.
+# 8) Run update via the update command.
 
 logprefix="[install]"
 log() {
@@ -36,6 +37,9 @@ STATIC_IP_CONFIG_NAME="bro-smart-tv"
 POLKIT_RULES_DIR="/etc/polkit-1/rules.d"
 NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmanager.rules"
 APP_RUNTIME_USER="bro"
+LIRC_CONF_PATH="/etc/lirc/lircd.conf"
+LIRC_PROJECTOR_INCLUDE='include "/bro/app/projector/*.conf"'
+LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/projector/*.conf"'
 
 # Override with env vars if needed.
 DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
@@ -50,14 +54,17 @@ sync_main_repo() {
         log "Cloning ${repo_name} repository into ${repo_dir}..."
         git clone --branch live --single-branch "${repo_url}" "${repo_dir}" || \
             error_exit "Failed to clone ${repo_name} repository from ${repo_url}."
+        cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
+        git config --local core.filemode false || \
+            error_exit "Failed to configure git filemode handling for ${repo_name} repository."
         return
     fi
 
     log "Updating ${repo_name} repository in ${repo_dir}..."
     cd "${repo_dir}" || error_exit "Cannot enter repository directory: ${repo_dir}"
+    git config --local core.filemode false || \
+        error_exit "Failed to configure git filemode handling for ${repo_name} repository."
     git fetch origin || error_exit "Failed to fetch ${repo_name} repository."
-    git switch live || error_exit "Failed to switch ${repo_name} repository to live."
-    git pull --ff-only origin live || error_exit "Failed to pull latest ${repo_name} live branch."
 }
 
 ensure_repo_exists() {
@@ -98,6 +105,47 @@ ensure_openssl() {
 
     log "Installing OpenSSL for screen cast HTTPS certificate generation..."
     sudo apt-get install -y openssl || error_exit "Failed to install OpenSSL."
+}
+
+ensure_lirc_installed() {
+    if command -v irsend >/dev/null 2>&1; then
+        log "LIRC already installed."
+        return
+    fi
+
+    log "Installing LIRC for infrared projector control..."
+    sudo apt-get update || error_exit "Failed to refresh package lists before installing LIRC."
+    sudo apt-get install -y lirc || error_exit "Failed to install LIRC."
+}
+
+ensure_lirc_projector_include() {
+    if [ ! -f "${LIRC_CONF_PATH}" ]; then
+        error_exit "Missing LIRC configuration file ${LIRC_CONF_PATH}."
+    fi
+
+    log "Ensuring projector include is present in ${LIRC_CONF_PATH}."
+    sudo python3 - "${LIRC_CONF_PATH}" <<'PY' || \
+        error_exit "Failed to update ${LIRC_CONF_PATH}."
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+target = 'include "/bro/app/projector/*.conf"'
+legacy = 'include "/bro/git/projector/*.conf"'
+
+text = path.read_text()
+if target in text:
+    sys.exit(0)
+
+if legacy in text:
+    text = text.replace(legacy, target)
+else:
+    if not text.endswith("\n"):
+        text += "\n"
+    text += target + "\n"
+
+path.write_text(text)
+PY
 }
 
 ensure_launcher_on_path() {
@@ -271,6 +319,21 @@ run_update() {
     update || error_exit "update command failed."
 }
 
+ensure_launcher_scripts_executable() {
+    install_script="${LAUNCHER_DIR}/install"
+    update_script="${LAUNCHER_DIR}/update"
+    launch_script="${LAUNCHER_DIR}/launch"
+
+    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+        if [ ! -f "${script_path}" ]; then
+            error_exit "Expected script not found: ${script_path}"
+        fi
+        if [ ! -x "${script_path}" ]; then
+            chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        fi
+    done
+}
+
 main() {
     log "Starting install script..."
 
@@ -279,9 +342,12 @@ main() {
     ensure_venv
 
     ensure_launcher_on_path
+    ensure_lirc_installed
+    ensure_lirc_projector_include
     ensure_wlan0_static_ip
     ensure_networkmanager_permissions
     ensure_screencast_tls_cert
+    ensure_launcher_scripts_executable
     run_update
 
     log "Install complete."
