@@ -78,13 +78,13 @@ ensure_screencast_firewall_rule() {
 
 read_target_branch() {
     if [ ! -f "${LAUNCHER_DIR}/branch" ]; then
-        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'."
+        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'." >&2
         echo "live" > "${LAUNCHER_DIR}/branch"
     fi
 
     branch="$(tr -d '\r' < "${LAUNCHER_DIR}/branch" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     if [ -z "${branch}" ]; then
-        log "Branch file is empty, defaulting to 'live'."
+        log "Branch file is empty, defaulting to 'live'." >&2
         branch="live"
     fi
 
