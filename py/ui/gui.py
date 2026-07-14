@@ -37,7 +37,7 @@ class CustomQWidget(QWidget):
         return self.pos()
 
 
-class ScreenCastView(CustomQLabel):
+class ScreenCastView(QLabel):
     # We want this to run as efficiently as possible for real-time screen casting
     def __init__(self, parent=None):
         super().__init__(parent)

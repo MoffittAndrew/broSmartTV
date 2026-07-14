@@ -210,11 +210,15 @@ __marimo__/
 
 ### Project-specific
 
+# Don't commit specific branch settings
+launcher/branch
+
 # We want to manage the projector and device tiles, but not the others
 tiles/web/
 tiles/imgs/
 
 # Local HTTPS material for screen casting
+certs/*.crt
 certs/*.key
 certs/*.pem
 

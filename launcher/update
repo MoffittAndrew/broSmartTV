@@ -1,0 +1,310 @@
+#!/bin/bash
+
+set -u
+
+# Update script for Raspberry Pi runtime.
+# Responsibilities:
+# 1) Pull latest code from the selected branch.
+# 2) Ensure runtime venv exists at /bro/.venv.
+# 3) Install/update Python dependencies in that venv.
+# 4) Restart dependent services.
+
+DIR="/bro"
+APP_DIR="${DIR}/app"
+LAUNCHER_DIR="${APP_DIR}/launcher"
+VENV_DIR="${DIR}/.venv"
+VENV_PYTHON="${VENV_DIR}/bin/python"
+VENV_PIP="${VENV_DIR}/bin/pip"
+SCREENCAST_CERTS_PATH="${APP_DIR}/certs"
+SCREENCAST_CERT_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.crt"
+SCREENCAST_KEY_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.key"
+SCREENCAST_DEFAULT_PORT="8080"
+LOGPREFIX="[update]"
+
+# Force Python tooling to ignore ~/.local user-site packages.
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
+
+log() {
+    echo "$LOGPREFIX $*"
+}
+
+error_exit() {
+    log "$*"
+    exit 1
+}
+
+ensure_internet() {
+    log "Checking connection to github.com..."
+    ping "github.com" -c 5 -w 10 >/dev/null
+}
+
+read_screencast_port() {
+    if [ -x "${VENV_PYTHON}" ] && [ -f "${APP_DIR}/py/globals.py" ]; then
+        raw_port="$("${VENV_PYTHON}" -c "import sys; sys.path.insert(0, '${APP_DIR}/py'); from globals import SCREEN_CAST; print(SCREEN_CAST.PORT)" 2>/dev/null || true)"
+        resolved_port="$(printf '%s\n' "${raw_port}" | awk '/^[[:space:]]*[0-9]+[[:space:]]*$/ {gsub(/[[:space:]]/, "", $0); print; exit}')"
+
+        if [ -n "${resolved_port}" ] && [ "${resolved_port}" -ge 1 ] && [ "${resolved_port}" -le 65535 ]; then
+            echo "${resolved_port}"
+            return 0
+        fi
+    fi
+
+    # Fallback default used by globals.py when runtime config cannot be imported.
+    echo "${SCREENCAST_DEFAULT_PORT}"
+}
+
+ensure_screencast_firewall_rule() {
+    screencast_port=""
+    screencast_port="$(read_screencast_port || true)"
+    if [ -z "${screencast_port}" ]; then
+        log "Warning: Could not resolve screencast port, skipping firewall rule setup."
+        return 0
+    fi
+
+    if sudo iptables -C INPUT -i wlan0 -p tcp --dport "${screencast_port}" -j ACCEPT >/dev/null 2>&1; then
+        log "Screencast firewall rule for port ${screencast_port} already present."
+        return 0
+    fi
+
+    if sudo iptables -I INPUT 1 -i wlan0 -p tcp --dport "${screencast_port}" -j ACCEPT >/dev/null 2>&1; then
+        log "Added temporary screencast firewall rule for port ${screencast_port}."
+        return 0
+    fi
+
+    log "Warning: Failed to add screencast firewall rule for port ${screencast_port}, continuing."
+    return 0
+}
+
+read_target_branch() {
+    if [ ! -f "${LAUNCHER_DIR}/branch" ]; then
+        log "No branch file found at ${LAUNCHER_DIR}/branch, defaulting to 'live'." >&2
+        echo "live" > "${LAUNCHER_DIR}/branch"
+    fi
+
+    branch="$(tr -d '\r' < "${LAUNCHER_DIR}/branch" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    if [ -z "${branch}" ]; then
+        log "Branch file is empty, defaulting to 'live'." >&2
+        branch="live"
+    fi
+
+    echo "${branch}"
+}
+
+ensure_venv() {
+    if [ -x "${VENV_PYTHON}" ]; then
+        return
+    fi
+
+    log "Creating Python virtual environment at ${VENV_DIR}..."
+    python3 -m venv --system-site-packages "${VENV_DIR}" || \
+        error_exit "Failed to create venv. Ensure python3-venv is installed."
+}
+
+ensure_system_pyqt5() {
+    log "Ensuring system PyQt5 is installed..."
+    python3 -c "import PyQt5" >/dev/null 2>&1 || sudo apt-get install -y python3-pyqt5
+}
+
+ensure_openssl() {
+    if command -v openssl >/dev/null 2>&1; then
+        return 0
+    fi
+
+    log "OpenSSL missing, installing for automatic screen cast cert refresh..."
+    sudo apt-get install -y openssl >/dev/null 2>&1 || {
+        log "Warning: Failed to install OpenSSL, skipping automatic screen cast cert refresh."
+        return 1
+    }
+
+    command -v openssl >/dev/null 2>&1
+}
+
+regenerate_screencast_cert() {
+    current_ip="$1"
+
+    ensure_openssl || return 0
+
+    mkdir -p "$(dirname "${SCREENCAST_CERT_PATH}")" || return 1
+
+    hostname_short="$(hostname -s 2>/dev/null || hostname)"
+    hostname_fqdn="$(hostname -f 2>/dev/null || echo "")"
+
+    san_entries="DNS:localhost,IP:127.0.0.1"
+    if [ -n "${hostname_short}" ]; then
+        san_entries="${san_entries},DNS:${hostname_short},DNS:${hostname_short}.local"
+    fi
+    if [ -n "${hostname_fqdn}" ]; then
+        san_entries="${san_entries},DNS:${hostname_fqdn}"
+    fi
+    if [ -n "${current_ip}" ]; then
+        san_entries="${san_entries},IP:${current_ip}"
+    fi
+
+    log "Regenerating screen cast TLS certificate for wlan0 IP ${current_ip}..."
+    openssl req \
+        -x509 \
+        -nodes \
+        -newkey rsa:2048 \
+        -sha256 \
+        -days 3650 \
+        -keyout "${SCREENCAST_KEY_PATH}" \
+        -out "${SCREENCAST_CERT_PATH}" \
+        -subj "/CN=${hostname_short:-bro-smart-tv}" \
+        -addext "subjectAltName=${san_entries}" || return 1
+
+    chmod 600 "${SCREENCAST_KEY_PATH}" >/dev/null 2>&1 || true
+    chmod 644 "${SCREENCAST_CERT_PATH}" >/dev/null 2>&1 || true
+}
+
+ensure_screencast_cert_matches_wlan0_ip() {
+    current_ip="$(ip -4 -o addr show dev wlan0 scope global | awk '{print $4; exit}' | cut -d/ -f1)"
+    if [ -z "${current_ip}" ]; then
+        log "Warning: Could not read wlan0 IPv4 address, skipping automatic cert refresh."
+        return 0
+    fi
+
+    if [ ! -f "${SCREENCAST_CERT_PATH}" ] || [ ! -f "${SCREENCAST_KEY_PATH}" ]; then
+        log "Screen cast cert/key missing, generating certificate for current wlan0 IP ${current_ip}."
+        regenerate_screencast_cert "${current_ip}" || return 1
+        return 0
+    fi
+
+    if ! ensure_openssl; then
+        return 0
+    fi
+
+    if openssl x509 -in "${SCREENCAST_CERT_PATH}" -noout -ext subjectAltName 2>/dev/null | grep -Fq "IP Address:${current_ip}"; then
+        return 0
+    fi
+
+    log "Detected wlan0 IP change (or missing SAN entry) for screen cast cert."
+    regenerate_screencast_cert "${current_ip}" || return 1
+    return 0
+}
+
+stash_local_changes() {
+    if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+        log "No local changes to stash."
+        return 0
+    fi
+
+    log "Stashing local changes..."
+    git stash push --include-untracked || return 1
+}
+
+update_repo() {
+    git_branch="$1"
+
+    cd "${APP_DIR}" || error_exit "Repository directory not found: ${APP_DIR}"
+
+    git config --local core.filemode false || return 1
+
+    stash_local_changes || return 1
+
+    log "Fetching remote refs..."
+    git fetch --prune origin || return 1
+
+    if git show-ref --verify --quiet "refs/heads/${git_branch}"; then
+        log "Switching git branch to ${git_branch}..."
+        git switch "${git_branch}" || return 1
+    elif git show-ref --verify --quiet "refs/remotes/origin/${git_branch}"; then
+        log "Creating local branch ${git_branch} from origin/${git_branch}..."
+        git switch -c "${git_branch}" --track "origin/${git_branch}" || return 1
+    else
+        log "Branch '${git_branch}' was not found locally or on origin."
+        return 1
+    fi
+
+    log "Checking for software updates..."
+    git pull --ff-only origin "${git_branch}" || return 1
+
+    ensure_screencast_cert_matches_wlan0_ip || return 1
+}
+
+resolve_requirements_file() {
+    if [ -f "${APP_DIR}/requirements.txt" ]; then
+        echo "${APP_DIR}/requirements.txt"
+        return
+    fi
+
+    # Compatibility path for mono-repo checkouts where app lives in subdir.
+    if [ -f "${APP_DIR}/broSmartTV/requirements.txt" ]; then
+        echo "${APP_DIR}/broSmartTV/requirements.txt"
+        return
+    fi
+
+    return 1
+}
+
+install_python_dependencies() {
+    requirements_file="$1"
+
+    log "Installing Python requirements in venv..."
+    "${VENV_PYTHON}" -m pip install --upgrade pip setuptools wheel
+    # Ignore user-site installs so dependencies are installed into /bro/.venv.
+    "${VENV_PYTHON}" -m pip install --prefer-binary -r "${requirements_file}"
+}
+
+verify_runtime_dependencies() {
+    log "Verifying runtime dependencies inside venv..."
+    "${VENV_PYTHON}" -c "import os, qtinter, sys; sys.exit(0 if os.path.realpath(qtinter.__file__).startswith(os.path.realpath('${VENV_DIR}')) else 1)" || \
+        error_exit "qtinter is not being imported from ${VENV_DIR}, check user-site/package contamination."
+}
+
+restart_services() {
+    log "Restarting lircd..."
+    sudo systemctl restart lircd
+}
+
+ensure_launcher_scripts_executable() {
+    install_script="${LAUNCHER_DIR}/install"
+    update_script="${LAUNCHER_DIR}/update"
+    launch_script="${LAUNCHER_DIR}/launch"
+
+    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+        if [ ! -f "${script_path}" ]; then
+            error_exit "Expected script not found: ${script_path}"
+        fi
+        if [ ! -x "${script_path}" ]; then
+            chmod a+x "${script_path}" || error_exit "Failed to make ${script_path} executable."
+        fi
+    done
+}
+
+main() {
+    log "Starting update script..."
+
+    cd "${DIR}" || error_exit "Directory not found: ${DIR}"
+
+    # Apply screencast firewall access early so it is attempted even if later update steps fail.
+    ensure_screencast_firewall_rule
+
+    target_branch="$(read_target_branch)"
+    requirements_file=""
+
+    ensure_venv
+    ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
+
+    if ! ensure_internet; then
+        log "Error when checking for updates, please check internet connection."
+        log "Exiting update script..."
+        exit 1
+    fi
+
+    update_repo "${target_branch}" || error_exit "Failed to update repository."
+    ensure_launcher_scripts_executable
+    requirements_file="$(resolve_requirements_file)" || \
+        error_exit "Could not find requirements.txt in ${APP_DIR} or ${APP_DIR}/broSmartTV."
+    log "Using requirements file: ${requirements_file}"
+    install_python_dependencies "${requirements_file}" || error_exit "Failed to install Python dependencies."
+    verify_runtime_dependencies
+
+    log "Software updated, restarting services..."
+    restart_services || error_exit "Failed to restart lircd."
+
+    log "Done!"
+    log "Exiting update script..."
+}
+
+main
