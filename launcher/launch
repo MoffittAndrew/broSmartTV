@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -u
+
+# Launcher script for Raspberry Pi.
+# Responsibilities:
+# 1) Run launch.py from the prepared venv.
+# 2) Restart on crashes unless manually cancelled.
+
+logprefix="[launch]"
+log() {
+    echo "$logprefix $*"
+}
+
+fail() {
+    log "$*"
+    exit 1
+}
+
+dir="/bro"
+venv_dir="${dir}/.venv"
+venv_python="${venv_dir}/bin/python"
+already_running_exit_code=200
+
+export QT_QPA_PLATFORM=eglfs
+export QT_QPA_EGLFS_KMS_CONFIG=launcher/eglfs_kms_conf.json
+# Ensure runtime imports come from /bro/.venv and not ~/.local user-site.
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
+
+main() {
+    log "Starting launch script..."
+
+    cd "${dir}" || fail "Directory not found: ${dir}"
+
+    [ -x "${venv_python}" ] || \
+        fail "Missing ${venv_python}. Run the install script first."
+    [ -f "${dir}/git/py/launch.py" ] || \
+        fail "Missing ${dir}/git/py/launch.py. Run the install script first."
+
+    log "Using Python executable: ${venv_python}"
+    "${venv_python}" -c "import sys; print('${logprefix} Python sys.executable:', sys.executable)"
+
+    while true; do
+        "${venv_python}" git/py/launch.py
+        exit_code=$?
+
+        if [ $exit_code -eq 130 ]; then
+            log "Launch script was manually cancelled; not restarting."
+            exit 1
+        fi
+
+        if [ $exit_code -eq $already_running_exit_code ]; then
+            log "Another launcher instance is already running; aborting."
+            exit 1
+        fi
+
+        log "launch.py exited with code ${exit_code}; restarting in 5s..."
+        sleep 5
+    done
+}
+
+main
