@@ -7,12 +7,14 @@
 <body>
   <button id="startBtn">Start Screen Share</button>
   <button id="qualityBtn" style="display:none;">Quality: Auto</button>
+  <button id="codecBtn">Codec: Auto</button>
   <div id="status"></div>
 
   <script>
 
     const startBtn = document.getElementById("startBtn");
     const qualityBtn = document.getElementById("qualityBtn");
+    const codecBtn = document.getElementById("codecBtn");
     const statusDiv = document.getElementById("status");
 
     let pc = null;
@@ -55,6 +57,7 @@
     // This avoids fragile quality ladders while enforcing the no-below-720p rule.
     let currentQualityMode = "high";
     let qualityControlMode = "auto";
+    let codecPreferenceMode = "auto";
     let activeProfile = null;
     let fpsSamples = [];
     let lastQualityChangeAtMs = 0;
@@ -93,6 +96,22 @@
       qualityBtn.textContent = "Quality: Auto";
     }
 
+    function updateCodecButtonText() {
+      if (codecPreferenceMode === "vp8") {
+        codecBtn.textContent = "Codec: VP8";
+        return;
+      }
+      if (codecPreferenceMode === "h264") {
+        codecBtn.textContent = "Codec: H264";
+        return;
+      }
+      if (codecPreferenceMode === "vp9") {
+        codecBtn.textContent = "Codec: VP9";
+        return;
+      }
+      codecBtn.textContent = "Codec: Auto";
+    }
+
     function showQualityButton() {
       qualityBtn.style.display = "inline-block";
       updateQualityButtonText();
@@ -110,6 +129,41 @@
         return "floor";
       }
       return "auto";
+    }
+
+    function getNextCodecPreferenceMode(currentMode) {
+      if (currentMode === "auto") {
+        return "vp8";
+      }
+      if (currentMode === "vp8") {
+        return "h264";
+      }
+      if (currentMode === "h264") {
+        return "vp9";
+      }
+      return "auto";
+    }
+
+    function getPreferredVideoCodecs(mode) {
+      if (mode === "auto" || typeof RTCRtpSender === "undefined" || typeof RTCRtpSender.getCapabilities !== "function") {
+        return [];
+      }
+
+      const caps = RTCRtpSender.getCapabilities("video");
+      if (!caps || !Array.isArray(caps.codecs)) {
+        return [];
+      }
+
+      const targetMime = mode === "vp8"
+        ? "video/VP8"
+        : (mode === "h264" ? "video/H264" : "video/VP9");
+
+      const primary = caps.codecs.filter((codec) => codec.mimeType === targetMime);
+      const fallback = caps.codecs.filter(
+        (codec) => codec.mimeType !== targetMime && codec.mimeType !== "video/rtx" && codec.mimeType !== "video/red" && codec.mimeType !== "video/ulpfec",
+      );
+
+      return [...primary, ...fallback];
     }
 
     function clearConnectionTimeout() {
@@ -402,6 +456,8 @@
             const frameWidth = videoStat.frameWidth || currentWidth;
             const frameHeight = videoStat.frameHeight || currentHeight;
             const bytesSent = typeof videoStat.bytesSent === "number" ? videoStat.bytesSent : null;
+            const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
+            const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : "unknown";
             console.log(
               "Sender stats:",
               {
@@ -410,6 +466,8 @@
                 frameHeight,
                 qualityLimitationReason,
                 bytesSent,
+                codecPreferenceMode,
+                negotiatedCodec,
               },
             );
           }
@@ -632,6 +690,15 @@
         const sender = currentPc.addTrack(track, stream);
         if (track.kind === "video") {
           videoSender = sender;
+
+          // Codec preference is applied before offer creation. This is the
+          // least invasive way to test decoder load on Raspberry Pi without
+          // introducing receiver-side complexity.
+          const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
+          const preferredCodecs = getPreferredVideoCodecs(codecPreferenceMode);
+          if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === "function") {
+            videoTransceiver.setCodecPreferences(preferredCodecs);
+          }
         }
         if (track.kind === "video" && sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
           const parameters = sender.getParameters();
@@ -721,6 +788,15 @@
       await startStreaming({ isAdaptiveRestart: false });
     };
 
+    codecBtn.onclick = () => {
+      if (isStreaming || isStarting) {
+        return;
+      }
+
+      codecPreferenceMode = getNextCodecPreferenceMode(codecPreferenceMode);
+      updateCodecButtonText();
+    };
+
     qualityBtn.onclick = async () => {
       if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
         return;
@@ -729,6 +805,8 @@
       const nextMode = getNextQualityControlMode(qualityControlMode);
       await applyQualityControlMode(nextMode);
     };
+
+    updateCodecButtonText();
   </script>
 </body>
 </html>
