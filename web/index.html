@@ -276,6 +276,62 @@
       });
     }
 
+    function preferredVideoCodecs() {
+      if (!window.RTCRtpSender || typeof RTCRtpSender.getCapabilities !== "function") {
+        return null;
+      }
+
+      const capabilities = RTCRtpSender.getCapabilities("video");
+      if (!capabilities || !Array.isArray(capabilities.codecs)) {
+        return null;
+      }
+
+      const withRank = capabilities.codecs.map((codec, index) => {
+        const mimeType = (codec.mimeType || "").toLowerCase();
+        const isVp9 = mimeType === "video/vp9";
+        const isH264 = mimeType === "video/h264";
+        const rank = isVp9 ? 0 : (isH264 ? 1 : 2);
+        return { codec, rank, index };
+      });
+
+      withRank.sort((a, b) => {
+        if (a.rank !== b.rank) {
+          return a.rank - b.rank;
+        }
+        return a.index - b.index;
+      });
+
+      return withRank.map((entry) => entry.codec);
+    }
+
+    function applyCodecPreferenceOrder(peerConnection) {
+      if (!peerConnection || typeof peerConnection.getTransceivers !== "function") {
+        return;
+      }
+
+      const orderedCodecs = preferredVideoCodecs();
+      if (!orderedCodecs || orderedCodecs.length === 0) {
+        return;
+      }
+
+      const videoTransceivers = peerConnection
+        .getTransceivers()
+        .filter((transceiver) => transceiver.sender && transceiver.sender.track && transceiver.sender.track.kind === "video");
+
+      for (const transceiver of videoTransceivers) {
+        if (typeof transceiver.setCodecPreferences !== "function") {
+          continue;
+        }
+
+        try {
+          transceiver.setCodecPreferences(orderedCodecs);
+          console.log("Applied codec preference order: VP9 first, H264 fallback.");
+        } catch (err) {
+          console.warn("Unable to apply codec preference order:", err);
+        }
+      }
+    }
+
     function stopFpsMonitor(resetStatus = true) {
       if (fpsMonitor) {
         clearInterval(fpsMonitor);
@@ -736,6 +792,12 @@
           });
         }
       }
+
+      // Critical design decision: for screenshare legibility at low latency, we
+      // prefer VP9 first, then H264 fallback, before allowing other codecs.
+      // This is applied prior to offer creation so SDP negotiation reflects the
+      // intended order from the start of the session.
+      applyCodecPreferenceOrder(currentPc);
 
       const offer = await currentPc.createOffer();
       await currentPc.setLocalDescription(offer);
