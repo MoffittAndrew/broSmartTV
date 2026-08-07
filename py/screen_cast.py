@@ -248,11 +248,25 @@ async def status(request):
 
 
 async def capture_settings(request):
+    # The web sender consumes adaptive policy from this endpoint so quality
+    # behavior remains centralized and consistent across clients.
     return web.json_response({
         "width": SCREEN_CAST.CAPTURE_WIDTH,
         "height": SCREEN_CAST.CAPTURE_HEIGHT,
         "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
         "iceServers": [{"urls": url} for url in SCREEN_CAST.ICE_SERVERS],
+        "adaptLowFpsThreshold": SCREEN_CAST.ADAPT_LOW_FPS_THRESHOLD,
+        "adaptLowSampleWindow": SCREEN_CAST.ADAPT_LOW_SAMPLE_WINDOW,
+        "adaptLowSampleRequired": SCREEN_CAST.ADAPT_LOW_SAMPLE_REQUIRED,
+        "adaptRecoveryFpsThreshold": SCREEN_CAST.ADAPT_RECOVERY_FPS_THRESHOLD,
+        "adaptRecoverySampleWindow": SCREEN_CAST.ADAPT_RECOVERY_SAMPLE_WINDOW,
+        "adaptRecoverySampleRequired": SCREEN_CAST.ADAPT_RECOVERY_SAMPLE_REQUIRED,
+        "adaptDowngradeCooldownSeconds": SCREEN_CAST.ADAPT_DOWNGRADE_COOLDOWN_SECONDS,
+        "adaptUpgradeCooldownSeconds": SCREEN_CAST.ADAPT_UPGRADE_COOLDOWN_SECONDS,
+        "adaptMinWidth": SCREEN_CAST.ADAPT_MIN_WIDTH,
+        "adaptMinHeight": SCREEN_CAST.ADAPT_MIN_HEIGHT,
+        "adaptMaxWidth": SCREEN_CAST.ADAPT_MAX_WIDTH,
+        "adaptMaxHeight": SCREEN_CAST.ADAPT_MAX_HEIGHT,
     })
 
 

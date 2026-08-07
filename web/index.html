@@ -10,55 +10,70 @@
 
   <script>
 
-    const startBtn = document.getElementById('startBtn');
-    const statusDiv = document.getElementById('status');
+    const startBtn = document.getElementById("startBtn");
+    const statusDiv = document.getElementById("status");
 
     let pc = null;
     let stream = null;
-    let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
-    let fpsMonitor = null;
     let videoSender = null;
+    let fpsMonitor = null;
+    let connectionTimeoutId = null;
+    let adaptiveRestartTimerId = null;
+
+    let isStreaming = false;
+    let isStarting = false;
+    let isAdaptiveRestartInProgress = false;
+
     let currentFps = "unknown";
     let currentWidth = "unknown";
     let currentHeight = "unknown";
-    let isStreaming = false;
-    let isStarting = false;
-    let connectionTimeoutId = null;
+
+    let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
     let iceServers = [];
 
-    const ICE_GATHER_TIMEOUT_MS = 8000;
-    const CONNECTION_TIMEOUT_MS = 30000;
+    // Adaptive policy values are loaded from /capture-settings so server-side
+    // configuration remains the single source of truth.
+    let adaptivePolicy = {
+      lowFpsThreshold: 30,
+      lowSampleWindow: 5,
+      lowSampleRequired: 5,
+      recoveryFpsThreshold: 35,
+      recoverySampleWindow: 20,
+      recoverySampleRequired: 18,
+      downgradeCooldownSeconds: 20,
+      upgradeCooldownSeconds: 60,
+      minWidth: 1280,
+      minHeight: 720,
+      maxWidth: 1920,
+      maxHeight: 1080,
+    };
 
-    function describeCaptureSettings(track) {
-      const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
-      const width = settings.width ?? 'unknown';
-      const height = settings.height ?? 'unknown';
-      const frameRate = settings.frameRate ?? 'unknown';
-      return `${width}x${height} @ ${frameRate}fps`;
-    }
+    // We intentionally run only two quality modes in this phase:
+    // - high: 1080p target
+    // - floor: 720p target
+    // This avoids fragile quality ladders while enforcing the no-below-720p rule.
+    let currentQualityMode = "high";
+    let activeProfile = null;
+    let fpsSamples = [];
+    let lastQualityChangeAtMs = 0;
+    let adaptiveRestartTargetProfile = null;
+
+    const ICE_GATHER_TIMEOUT_MS = 8000;
+    const CONNECTION_TIMEOUT_MS = 10000;
 
     function countSdpCandidates(sdp) {
       if (!sdp) {
         return 0;
       }
-      return sdp.split('\n').filter((line) => line.startsWith('a=candidate:')).length;
+      return sdp.split("\n").filter((line) => line.startsWith("a=candidate:")).length;
     }
 
-    async function loadCaptureSettings() {
-      try {
-        const response = await fetch('/capture-settings');
-        if (response.ok) {
-          const settings = await response.json();
-          captureSettings = {
-            width: settings.width,
-            height: settings.height,
-            frameRate: settings.frameRate,
-          };
-          iceServers = Array.isArray(settings.iceServers) ? settings.iceServers : [];
-        }
-      } catch (err) {
-        console.error("Failed to load capture settings:", err);
+    function clampInt(value, fallback) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return fallback;
       }
+      return Math.round(parsed);
     }
 
     function updateStreamingStatus() {
@@ -80,8 +95,100 @@
       }, CONNECTION_TIMEOUT_MS);
     }
 
+    function clearAdaptiveRestartTimer() {
+      if (adaptiveRestartTimerId !== null) {
+        clearTimeout(adaptiveRestartTimerId);
+        adaptiveRestartTimerId = null;
+      }
+    }
+
+    function maxSampleWindowSize() {
+      return Math.max(adaptivePolicy.lowSampleWindow, adaptivePolicy.recoverySampleWindow);
+    }
+
+    function pushFpsSample(fpsValue) {
+      if (!Number.isFinite(fpsValue)) {
+        return;
+      }
+      fpsSamples.push(Math.round(fpsValue));
+      const maxSize = maxSampleWindowSize();
+      if (fpsSamples.length > maxSize) {
+        fpsSamples = fpsSamples.slice(fpsSamples.length - maxSize);
+      }
+    }
+
+    function countWindowByPredicate(windowSize, predicate) {
+      if (fpsSamples.length < windowSize) {
+        return null;
+      }
+      const recent = fpsSamples.slice(fpsSamples.length - windowSize);
+      return recent.filter(predicate).length;
+    }
+
+    function profileForMode(mode) {
+      if (mode === "floor") {
+        return {
+          width: adaptivePolicy.minWidth,
+          height: adaptivePolicy.minHeight,
+          frameRate: captureSettings.frameRate,
+        };
+      }
+
+      return {
+        width: adaptivePolicy.maxWidth,
+        height: adaptivePolicy.maxHeight,
+        frameRate: captureSettings.frameRate,
+      };
+    }
+
+    function modeFromProfile(profile) {
+      if (!profile) {
+        return "high";
+      }
+      if (profile.width <= adaptivePolicy.minWidth && profile.height <= adaptivePolicy.minHeight) {
+        return "floor";
+      }
+      return "high";
+    }
+
+    async function loadCaptureSettings() {
+      try {
+        const response = await fetch("/capture-settings");
+        if (!response.ok) {
+          return;
+        }
+
+        const settings = await response.json();
+
+        captureSettings = {
+          width: clampInt(settings.width, captureSettings.width),
+          height: clampInt(settings.height, captureSettings.height),
+          frameRate: clampInt(settings.frameRate, captureSettings.frameRate),
+        };
+
+        iceServers = Array.isArray(settings.iceServers) ? settings.iceServers : [];
+
+        adaptivePolicy = {
+          lowFpsThreshold: clampInt(settings.adaptLowFpsThreshold, adaptivePolicy.lowFpsThreshold),
+          lowSampleWindow: clampInt(settings.adaptLowSampleWindow, adaptivePolicy.lowSampleWindow),
+          lowSampleRequired: clampInt(settings.adaptLowSampleRequired, adaptivePolicy.lowSampleRequired),
+          recoveryFpsThreshold: clampInt(settings.adaptRecoveryFpsThreshold, adaptivePolicy.recoveryFpsThreshold),
+          recoverySampleWindow: clampInt(settings.adaptRecoverySampleWindow, adaptivePolicy.recoverySampleWindow),
+          recoverySampleRequired: clampInt(settings.adaptRecoverySampleRequired, adaptivePolicy.recoverySampleRequired),
+          downgradeCooldownSeconds: clampInt(settings.adaptDowngradeCooldownSeconds, adaptivePolicy.downgradeCooldownSeconds),
+          upgradeCooldownSeconds: clampInt(settings.adaptUpgradeCooldownSeconds, adaptivePolicy.upgradeCooldownSeconds),
+          minWidth: clampInt(settings.adaptMinWidth, adaptivePolicy.minWidth),
+          minHeight: clampInt(settings.adaptMinHeight, adaptivePolicy.minHeight),
+          maxWidth: clampInt(settings.adaptMaxWidth, adaptivePolicy.maxWidth),
+          maxHeight: clampInt(settings.adaptMaxHeight, adaptivePolicy.maxHeight),
+        };
+      } catch (err) {
+        console.error("Failed to load capture settings:", err);
+      }
+    }
+
     async function waitForIceGatheringComplete(peerConnection, timeoutMs = ICE_GATHER_TIMEOUT_MS) {
-      if (!peerConnection || peerConnection.iceGatheringState === 'complete') {
+      if (!peerConnection || peerConnection.iceGatheringState === "complete") {
         return;
       }
 
@@ -94,13 +201,13 @@
           }
           settled = true;
           clearTimeout(timeoutId);
-          peerConnection.removeEventListener('icegatheringstatechange', handleStateChange);
+          peerConnection.removeEventListener("icegatheringstatechange", handleStateChange);
           resolve();
         };
 
         const handleStateChange = () => {
-          console.log('ICE gathering state:', peerConnection.iceGatheringState);
-          if (peerConnection.iceGatheringState === 'complete') {
+          console.log("ICE gathering state:", peerConnection.iceGatheringState);
+          if (peerConnection.iceGatheringState === "complete") {
             finish();
           }
         };
@@ -110,7 +217,7 @@
           finish();
         }, timeoutMs);
 
-        peerConnection.addEventListener('icegatheringstatechange', handleStateChange);
+        peerConnection.addEventListener("icegatheringstatechange", handleStateChange);
       });
     }
 
@@ -124,12 +231,72 @@
         currentWidth = "unknown";
         currentHeight = "unknown";
       }
+      fpsSamples = [];
       videoSender = null;
+    }
+
+    async function evaluateAdaptiveQuality() {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress || adaptiveRestartTargetProfile) {
+        return;
+      }
+
+      const nowMs = Date.now();
+
+      // Critical invariant: downshift aggressively to protect motion smoothness.
+      // We intentionally use 5/5 low samples so quality drops quickly when
+      // playback experience degrades.
+      if (currentQualityMode === "high") {
+        const lowCount = countWindowByPredicate(
+          adaptivePolicy.lowSampleWindow,
+          (sample) => sample < adaptivePolicy.lowFpsThreshold,
+        );
+
+        if (lowCount !== null && lowCount >= adaptivePolicy.lowSampleRequired) {
+          const elapsedSinceLastChangeMs = nowMs - lastQualityChangeAtMs;
+          const cooldownMs = adaptivePolicy.downgradeCooldownSeconds * 1000;
+          if (lastQualityChangeAtMs !== 0 && elapsedSinceLastChangeMs < cooldownMs) {
+            return;
+          }
+
+          const target = profileForMode("floor");
+          await requestAdaptiveRestart(
+            target,
+            "floor",
+            `fps below ${adaptivePolicy.lowFpsThreshold} for ${adaptivePolicy.lowSampleRequired}/${adaptivePolicy.lowSampleWindow} samples`,
+          );
+        }
+
+        return;
+      }
+
+      // Critical invariant: recovery requires stronger evidence than downgrade.
+      // This asymmetric hysteresis prevents quality flapping on marginal links.
+      if (currentQualityMode === "floor") {
+        const recoveryCount = countWindowByPredicate(
+          adaptivePolicy.recoverySampleWindow,
+          (sample) => sample >= adaptivePolicy.recoveryFpsThreshold,
+        );
+
+        if (recoveryCount !== null && recoveryCount >= adaptivePolicy.recoverySampleRequired) {
+          const elapsedSinceLastChangeMs = nowMs - lastQualityChangeAtMs;
+          const cooldownMs = adaptivePolicy.upgradeCooldownSeconds * 1000;
+          if (lastQualityChangeAtMs !== 0 && elapsedSinceLastChangeMs < cooldownMs) {
+            return;
+          }
+
+          const target = profileForMode("high");
+          await requestAdaptiveRestart(
+            target,
+            "high",
+            `fps recovered above ${adaptivePolicy.recoveryFpsThreshold} for ${adaptivePolicy.recoverySampleRequired}/${adaptivePolicy.recoverySampleWindow} samples`,
+          );
+        }
+      }
     }
 
     function startFpsMonitor(sender) {
       stopFpsMonitor(false);
-      if (!sender || typeof sender.getStats !== 'function') {
+      if (!sender || typeof sender.getStats !== "function") {
         return;
       }
 
@@ -141,7 +308,7 @@
           const stats = await sender.getStats();
           let videoStat = null;
           stats.forEach((report) => {
-            if (!videoStat && report.type === 'outbound-rtp' && report.kind === 'video') {
+            if (!videoStat && report.type === "outbound-rtp" && report.kind === "video") {
               videoStat = report;
             }
           });
@@ -153,15 +320,21 @@
           }
 
           const timestamp = videoStat.timestamp;
-          const framesEncoded = typeof videoStat.framesEncoded === 'number'
+          const framesEncoded = typeof videoStat.framesEncoded === "number"
             ? videoStat.framesEncoded
-            : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
+            : (typeof videoStat.framesSent === "number" ? videoStat.framesSent : null);
 
           if (lastTimestamp !== null && lastFramesEncoded !== null && framesEncoded !== null) {
             const elapsedSeconds = (timestamp - lastTimestamp) / 1000;
             if (elapsedSeconds > 0) {
               const fps = (framesEncoded - lastFramesEncoded) / elapsedSeconds;
-              currentFps = Number.isFinite(fps) ? String(Math.round(fps)) : "unknown";
+              if (Number.isFinite(fps)) {
+                const rounded = Math.round(fps);
+                currentFps = String(rounded);
+                pushFpsSample(rounded);
+              } else {
+                currentFps = "unknown";
+              }
             }
           }
 
@@ -171,6 +344,7 @@
           }
 
           updateStreamingStatus();
+          await evaluateAdaptiveQuality();
         } catch (err) {
           console.warn("Failed to read outbound video stats:", err);
           currentFps = "unknown";
@@ -179,21 +353,21 @@
       }, 1000);
     }
 
-    async function requestDisplayMedia() {
+    async function requestDisplayMedia(profile) {
       const constraints = {
         video: {
-          width: { ideal: captureSettings.width },
-          height: { ideal: captureSettings.height },
-          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
+          width: { ideal: profile.width },
+          height: { ideal: profile.height },
+          frameRate: { ideal: profile.frameRate, max: profile.frameRate },
         },
         audio: false,
       };
 
-      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === "function") {
         return navigator.mediaDevices.getDisplayMedia(constraints);
       }
 
-      if (typeof navigator.getDisplayMedia === 'function') {
+      if (typeof navigator.getDisplayMedia === "function") {
         return navigator.getDisplayMedia(constraints);
       }
 
@@ -207,7 +381,7 @@
 
     async function checkAvailability() {
       try {
-        const res = await fetch('/status');
+        const res = await fetch("/status");
         if (res.ok) {
           const data = await res.json();
           return data.available;
@@ -218,39 +392,81 @@
       return false;
     }
 
-    async function stopStream(reason = "stopped") {
+    async function stopStream(reason = "stopped", options = {}) {
+      const preserveAdaptiveIntent = options.preserveAdaptiveIntent === true;
+
       clearConnectionTimeout();
+      if (!preserveAdaptiveIntent) {
+        clearAdaptiveRestartTimer();
+        adaptiveRestartTargetProfile = null;
+        isAdaptiveRestartInProgress = false;
+      }
+
       stopFpsMonitor();
       isStreaming = false;
       isStarting = false;
+
       if (stream) {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((track) => track.stop());
         stream = null;
       }
+
       if (pc) {
         pc.close();
         pc = null;
       }
+
       startBtn.textContent = "Start Screen Share";
       startBtn.disabled = false;
       statusDiv.textContent = `🛑 Stream ${reason}`;
       console.log("Stream stopped:", reason);
     }
 
-    startBtn.onclick = async () => {
-      if (isStreaming) {
-        await stopStream("stopped by user");
+    async function requestAdaptiveRestart(targetProfile, targetMode, reason) {
+      if (!isStreaming || isStarting || adaptiveRestartTargetProfile || isAdaptiveRestartInProgress) {
         return;
       }
 
-      if (isStarting) {
+      // Critical invariant: user intent always wins. The only place we preserve
+      // restart intent across stop() is this controlled adaptive branch.
+      adaptiveRestartTargetProfile = targetProfile;
+      isAdaptiveRestartInProgress = true;
+      lastQualityChangeAtMs = Date.now();
+
+      console.warn(`Adaptive quality switch -> ${targetMode}: ${reason}`);
+      await stopStream(`adaptive restart (${reason})`, { preserveAdaptiveIntent: true });
+
+      clearAdaptiveRestartTimer();
+      adaptiveRestartTimerId = setTimeout(async () => {
+        const pendingProfile = adaptiveRestartTargetProfile;
+        adaptiveRestartTargetProfile = null;
+        currentQualityMode = targetMode;
+        await startStreaming({ profile: pendingProfile, isAdaptiveRestart: true });
+      }, 300);
+    }
+
+    async function startStreaming(options = {}) {
+      let selectedProfile = options.profile || null;
+      const isAdaptiveRestart = options.isAdaptiveRestart === true;
+
+      if (isStarting || isStreaming) {
         return;
       }
 
       isStarting = true;
       startBtn.disabled = true;
 
-      await loadCaptureSettings();
+      if (!isAdaptiveRestart) {
+        await loadCaptureSettings();
+        activeProfile = profileForMode("high");
+      }
+
+      if (!selectedProfile) {
+        selectedProfile = profileForMode(currentQualityMode);
+      }
+
+      const profile = selectedProfile || activeProfile || profileForMode("high");
+      activeProfile = profile;
 
       const available = await checkAvailability();
       if (!available) {
@@ -258,14 +474,16 @@
         startBtn.disabled = false;
         alert("Stream is currently busy. Try again later.");
         statusDiv.textContent = "❌ Stream busy";
+        isAdaptiveRestartInProgress = false;
         return;
       }
 
       try {
-        stream = await requestDisplayMedia();
+        stream = await requestDisplayMedia(profile);
       } catch (err) {
         isStarting = false;
         startBtn.disabled = false;
+        isAdaptiveRestartInProgress = false;
         console.error("User cancelled or error:", err);
         if (!window.isSecureContext) {
           statusDiv.textContent = "❌ Screen share blocked: open this page via HTTPS or localhost";
@@ -278,9 +496,9 @@
       const videoTrack = stream.getVideoTracks()[0];
       try {
         await videoTrack.applyConstraints({
-          width: { ideal: captureSettings.width },
-          height: { ideal: captureSettings.height },
-          frameRate: { ideal: captureSettings.frameRate, max: captureSettings.frameRate },
+          width: { ideal: profile.width },
+          height: { ideal: profile.height },
+          frameRate: { ideal: profile.frameRate, max: profile.frameRate },
         });
       } catch (err) {
         console.warn("Unable to tighten video track constraints:", err);
@@ -292,14 +510,13 @@
       });
       const currentPc = pc;
 
-      // Handle disconnects (server-side closure or failure)
       currentPc.onconnectionstatechange = () => {
         console.log("Connection state:", currentPc.connectionState);
         if (currentPc.connectionState === "connected") {
           clearConnectionTimeout();
         }
         if (["disconnected", "failed", "closed"].includes(currentPc.connectionState)) {
-          stopStream("disconnected");
+          stopStream("disconnected", { preserveAdaptiveIntent: !!adaptiveRestartTargetProfile });
         }
       };
 
@@ -317,15 +534,15 @@
 
       for (const track of stream.getTracks()) {
         const sender = currentPc.addTrack(track, stream);
-        if (track.kind === 'video') {
+        if (track.kind === "video") {
           videoSender = sender;
         }
-        if (track.kind === 'video' && sender && typeof sender.getParameters === 'function' && typeof sender.setParameters === 'function') {
+        if (track.kind === "video" && sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
           const parameters = sender.getParameters();
           parameters.encodings = parameters.encodings && parameters.encodings.length > 0
             ? parameters.encodings
             : [{}];
-          parameters.encodings[0].maxFramerate = captureSettings.frameRate;
+          parameters.encodings[0].maxFramerate = profile.frameRate;
           sender.setParameters(parameters).catch((err) => {
             console.warn("Unable to apply sender framerate parameters:", err);
           });
@@ -349,7 +566,8 @@
         if (!response.ok) {
           const message = await response.text();
           alert(message);
-          stopStream("rejected");
+          await stopStream("rejected");
+          isAdaptiveRestartInProgress = false;
           return;
         }
 
@@ -358,31 +576,52 @@
         console.log("Answer candidate count:", countSdpCandidates(answer.sdp));
       } catch (err) {
         console.error("Offer/answer exchange failed:", err);
-        stopStream("connection failed");
+        await stopStream("connection failed");
+        isAdaptiveRestartInProgress = false;
         return;
       }
 
       isStreaming = true;
       isStarting = false;
+      isAdaptiveRestartInProgress = false;
       startBtn.disabled = false;
       startBtn.textContent = "Stop Screen Share";
-      currentFps = "starting...";
+      currentFps = "starting";
 
-      // Optional: stop if the user manually stops sharing
       videoTrack.onended = () => {
         stopStream("ended by user");
       };
 
-      const settings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
-      currentWidth = settings.width ?? 'unknown';
-      currentHeight = settings.height ?? 'unknown';
-      currentFps = settings.frameRate ?? currentFps;
+      const settings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
+      currentWidth = settings.width ?? profile.width ?? "unknown";
+      currentHeight = settings.height ?? profile.height ?? "unknown";
+      currentFps = Number.isFinite(settings.frameRate) ? String(Math.round(settings.frameRate)) : currentFps;
 
-      const actualCapture = describeCaptureSettings(videoTrack);
-      console.log("Capture settings:", actualCapture);
+      currentQualityMode = modeFromProfile(profile);
+      console.log(`Capture settings: ${currentWidth}x${currentHeight} @ ${currentFps}fps`);
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
+    }
+
+    startBtn.onclick = async () => {
+      if (isStreaming) {
+        // Critical invariant: manual stop must always override adaptive logic.
+        // We explicitly cancel pending adaptive restarts here.
+        await stopStream("stopped by user");
+        return;
+      }
+
+      if (isStarting) {
+        return;
+      }
+
+      clearAdaptiveRestartTimer();
+      adaptiveRestartTargetProfile = null;
+      isAdaptiveRestartInProgress = false;
+      currentQualityMode = "high";
+      activeProfile = null;
+      await startStreaming({ isAdaptiveRestart: false });
     };
   </script>
 </body>

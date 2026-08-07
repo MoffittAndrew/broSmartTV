@@ -215,6 +215,32 @@ class SCREEN_CAST:
     CAPTURE_WIDTH = 1920
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 60
+
+    # Adaptive downshift trigger: if FPS remains below 30 for 5 consecutive
+    # one-second samples, prioritize smoothness over fidelity by switching to
+    # the 720p floor profile.
+    ADAPT_LOW_FPS_THRESHOLD = 30
+    ADAPT_LOW_SAMPLE_WINDOW = 5
+    ADAPT_LOW_SAMPLE_REQUIRED = 5
+
+    # Adaptive recovery trigger: require sustained health before stepping back
+    # up to 1080p to avoid oscillating quality under marginal conditions.
+    ADAPT_RECOVERY_FPS_THRESHOLD = 35
+    ADAPT_RECOVERY_SAMPLE_WINDOW = 20
+    ADAPT_RECOVERY_SAMPLE_REQUIRED = 18
+
+    # Directional cooldowns are intentionally asymmetric: upgrades wait longer
+    # than downgrades so FPS protection reacts quickly while quality recovery
+    # remains conservative.
+    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 20
+    ADAPT_UPGRADE_COOLDOWN_SECONDS = 60
+
+    # Hard bounds for this phase: never below 720p and never above 1080p.
+    ADAPT_MIN_WIDTH = 1280
+    ADAPT_MIN_HEIGHT = 720
+    ADAPT_MAX_WIDTH = 1920
+    ADAPT_MAX_HEIGHT = 1080
+
     FRAME_TIMEOUT_SECONDS = 10
     FRAME_LOG_INTERVAL_SECONDS = 5
     ICE_GATHER_TIMEOUT_SECONDS = 8
