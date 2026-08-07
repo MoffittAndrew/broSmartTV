@@ -23,18 +23,6 @@ _frame_handler = None
 _connection_handler = None
 _disconnect_handler = None
 
-# Receiver telemetry allows us to distinguish sender-side limitations from
-# decode/render-side limitations when diagnosing low effective FPS.
-receiver_stats = {
-    "connected": False,
-    "frames": 0,
-    "stream_start_time": None,
-    "last_frame_time": None,
-    "recent_window_start": None,
-    "recent_window_frames": 0,
-    "recent_fps": 0.0,
-}
-
 
 def log(message):
     print(f"{LOG_PREFIX} {message}")
@@ -63,13 +51,11 @@ def _notifyFrame(frame):
 def _notifyConnected():
     if _connection_handler is not None:
         _connection_handler()
-    receiver_stats["connected"] = True
 
 
 def _notifyDisconnected():
     if _disconnect_handler is not None:
         _disconnect_handler()
-    receiver_stats["connected"] = False
 
 
 def _count_sdp_candidates(sdp):
@@ -160,12 +146,6 @@ async def offer(request):
                 frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
                 log_interval = SCREEN_CAST.FRAME_LOG_INTERVAL_SECONDS
                 start_time = time.monotonic()
-                receiver_stats["stream_start_time"] = start_time
-                receiver_stats["frames"] = 0
-                receiver_stats["last_frame_time"] = None
-                receiver_stats["recent_window_start"] = start_time
-                receiver_stats["recent_window_frames"] = 0
-                receiver_stats["recent_fps"] = 0.0
                 last_frame_time = None
                 last_log_time = start_time
                 frame_count = 0
@@ -188,19 +168,6 @@ async def offer(request):
                         now = time.monotonic()
                         frame_count += 1
                         last_frame_time = now
-                        receiver_stats["frames"] = frame_count
-                        receiver_stats["last_frame_time"] = now
-
-                        if receiver_stats["recent_window_start"] is None:
-                            receiver_stats["recent_window_start"] = now
-                            receiver_stats["recent_window_frames"] = 0
-
-                        receiver_stats["recent_window_frames"] += 1
-                        recent_elapsed = now - receiver_stats["recent_window_start"]
-                        if recent_elapsed >= 1.0:
-                            receiver_stats["recent_fps"] = receiver_stats["recent_window_frames"] / max(recent_elapsed, 1e-6)
-                            receiver_stats["recent_window_start"] = now
-                            receiver_stats["recent_window_frames"] = 0
 
                         if frame_count == 1:
                             log(f"First video frame received after {now - start_time:.2f}s.")
@@ -280,22 +247,6 @@ async def status(request):
     return web.json_response({"available": not busy})
 
 
-async def receiver_status(request):
-    now = time.monotonic()
-    start_time = receiver_stats["stream_start_time"]
-    elapsed = (now - start_time) if start_time is not None else 0.0
-    frames = receiver_stats["frames"]
-    avg_fps = (frames / elapsed) if elapsed > 0 else 0.0
-
-    return web.json_response({
-        "connected": receiver_stats["connected"],
-        "frames": frames,
-        "avgFps": round(avg_fps, 2),
-        "recentFps": round(receiver_stats["recent_fps"], 2),
-        "seconds": round(elapsed, 2),
-    })
-
-
 async def capture_settings(request):
     # The web sender consumes adaptive policy from this endpoint so quality
     # behavior remains centralized and consistent across clients.
@@ -303,9 +254,6 @@ async def capture_settings(request):
         "width": SCREEN_CAST.CAPTURE_WIDTH,
         "height": SCREEN_CAST.CAPTURE_HEIGHT,
         "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
-        "maxBitrateHighBps": SCREEN_CAST.MAX_BITRATE_HIGH_BPS,
-        "maxBitrateFloorBps": SCREEN_CAST.MAX_BITRATE_FLOOR_BPS,
-        "degradationPreference": SCREEN_CAST.DEGRADATION_PREFERENCE,
         "iceServers": [{"urls": url} for url in SCREEN_CAST.ICE_SERVERS],
         "adaptLowFpsThreshold": SCREEN_CAST.ADAPT_LOW_FPS_THRESHOLD,
         "adaptLowSampleWindow": SCREEN_CAST.ADAPT_LOW_SAMPLE_WINDOW,
@@ -327,7 +275,6 @@ screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
-screenCastServer.router.add_get("/receiver-status", receiver_status)
 screenCastServer.router.add_get("/capture-settings", capture_settings)
 
 

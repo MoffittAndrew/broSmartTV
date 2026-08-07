@@ -19,10 +19,6 @@
     let stream = null;
     let videoSender = null;
     let fpsMonitor = null;
-    let senderTelemetryMonitor = null;
-    let receiverTelemetryMonitor = null;
-    let lastSenderTelemetryBytes = null;
-    let lastSenderTelemetryTimestamp = null;
     let connectionTimeoutId = null;
 
     let isStreaming = false;
@@ -34,9 +30,6 @@
     let currentHeight = "unknown";
 
     let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
-    let maxBitrateHighBps = 8_000_000;
-    let maxBitrateFloorBps = 4_000_000;
-    let degradationPreference = "maintain-framerate";
     let iceServers = [];
 
     // Adaptive policy values are loaded from /capture-settings so server-side
@@ -86,23 +79,6 @@
 
     function updateStreamingStatus() {
       statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
-    }
-
-    function maxBitrateForMode(mode) {
-      return mode === "floor" ? maxBitrateFloorBps : maxBitrateHighBps;
-    }
-
-    function stopTelemetryMonitors() {
-      if (senderTelemetryMonitor) {
-        clearInterval(senderTelemetryMonitor);
-        senderTelemetryMonitor = null;
-      }
-      if (receiverTelemetryMonitor) {
-        clearInterval(receiverTelemetryMonitor);
-        receiverTelemetryMonitor = null;
-      }
-      lastSenderTelemetryBytes = null;
-      lastSenderTelemetryTimestamp = null;
     }
 
     function updateQualityButtonText() {
@@ -215,12 +191,6 @@
           frameRate: clampInt(settings.frameRate, captureSettings.frameRate),
         };
 
-        maxBitrateHighBps = clampInt(settings.maxBitrateHighBps, maxBitrateHighBps);
-        maxBitrateFloorBps = clampInt(settings.maxBitrateFloorBps, maxBitrateFloorBps);
-        degradationPreference = typeof settings.degradationPreference === "string"
-          ? settings.degradationPreference
-          : degradationPreference;
-
         iceServers = Array.isArray(settings.iceServers) ? settings.iceServers : [];
 
         adaptivePolicy = {
@@ -274,62 +244,6 @@
 
         peerConnection.addEventListener("icegatheringstatechange", handleStateChange);
       });
-    }
-
-    function preferredVideoCodecs() {
-      if (!window.RTCRtpSender || typeof RTCRtpSender.getCapabilities !== "function") {
-        return null;
-      }
-
-      const capabilities = RTCRtpSender.getCapabilities("video");
-      if (!capabilities || !Array.isArray(capabilities.codecs)) {
-        return null;
-      }
-
-      const withRank = capabilities.codecs.map((codec, index) => {
-        const mimeType = (codec.mimeType || "").toLowerCase();
-        const isVp9 = mimeType === "video/vp9";
-        const isH264 = mimeType === "video/h264";
-        const rank = isVp9 ? 0 : (isH264 ? 1 : 2);
-        return { codec, rank, index };
-      });
-
-      withRank.sort((a, b) => {
-        if (a.rank !== b.rank) {
-          return a.rank - b.rank;
-        }
-        return a.index - b.index;
-      });
-
-      return withRank.map((entry) => entry.codec);
-    }
-
-    function applyCodecPreferenceOrder(peerConnection) {
-      if (!peerConnection || typeof peerConnection.getTransceivers !== "function") {
-        return;
-      }
-
-      const orderedCodecs = preferredVideoCodecs();
-      if (!orderedCodecs || orderedCodecs.length === 0) {
-        return;
-      }
-
-      const videoTransceivers = peerConnection
-        .getTransceivers()
-        .filter((transceiver) => transceiver.sender && transceiver.sender.track && transceiver.sender.track.kind === "video");
-
-      for (const transceiver of videoTransceivers) {
-        if (typeof transceiver.setCodecPreferences !== "function") {
-          continue;
-        }
-
-        try {
-          transceiver.setCodecPreferences(orderedCodecs);
-          console.log("Applied codec preference order: VP9 first, H264 fallback.");
-        } catch (err) {
-          console.warn("Unable to apply codec preference order:", err);
-        }
-      }
     }
 
     function stopFpsMonitor(resetStatus = true) {
@@ -430,98 +344,6 @@
       }
 
       await requestAdaptiveQualitySwitch(profileForMode(targetMode), targetMode, `manual mode ${mode}`);
-    }
-
-    async function applySenderPolicy(sender, mode) {
-      if (!sender || typeof sender.getParameters !== "function" || typeof sender.setParameters !== "function") {
-        return;
-      }
-
-      const maxBitrate = maxBitrateForMode(mode);
-      const parameters = sender.getParameters();
-      parameters.degradationPreference = degradationPreference;
-      parameters.encodings = parameters.encodings && parameters.encodings.length > 0
-        ? parameters.encodings
-        : [{}];
-      parameters.encodings[0].maxFramerate = captureSettings.frameRate;
-      parameters.encodings[0].maxBitrate = maxBitrate;
-
-      await sender.setParameters(parameters);
-    }
-
-    function startTelemetryMonitors(sender) {
-      stopTelemetryMonitors();
-
-      if (sender && typeof sender.getStats === "function") {
-        senderTelemetryMonitor = setInterval(async () => {
-          try {
-            const stats = await sender.getStats();
-            let videoStat = null;
-            stats.forEach((report) => {
-              const reportKind = report.kind || report.mediaType;
-              if (!videoStat && report.type === "outbound-rtp" && reportKind === "video") {
-                videoStat = report;
-              }
-            });
-
-            if (!videoStat) {
-              return;
-            }
-
-            let bitrateKbps = null;
-            if (Number.isFinite(videoStat.bytesSent) && Number.isFinite(videoStat.timestamp)) {
-              if (lastSenderTelemetryBytes !== null && lastSenderTelemetryTimestamp !== null) {
-                const byteDelta = videoStat.bytesSent - lastSenderTelemetryBytes;
-                const secDelta = (videoStat.timestamp - lastSenderTelemetryTimestamp) / 1000;
-                if (secDelta > 0) {
-                  bitrateKbps = (byteDelta * 8) / 1000 / secDelta;
-                }
-              }
-              lastSenderTelemetryBytes = videoStat.bytesSent;
-              lastSenderTelemetryTimestamp = videoStat.timestamp;
-            }
-
-            const limitation = videoStat.qualityLimitationReason || "unknown";
-            const drops = Number.isFinite(videoStat.framesDropped) ? videoStat.framesDropped : "n/a";
-            const statFps = Number.isFinite(videoStat.framesPerSecond) ? Math.round(videoStat.framesPerSecond) : "n/a";
-            const captureTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
-            const captureSettings = captureTrack && typeof captureTrack.getSettings === "function"
-              ? captureTrack.getSettings()
-              : {};
-            const captureW = captureSettings.width ?? "unknown";
-            const captureH = captureSettings.height ?? "unknown";
-            const captureFps = Number.isFinite(captureSettings.frameRate)
-              ? Math.round(captureSettings.frameRate)
-              : "unknown";
-
-            console.log(
-              `[telemetry][sender] mode=${qualityControlMode}/${currentQualityMode} ` +
-              `capture=${captureW}x${captureH}@${captureFps}fps ` +
-              `resolution=${currentWidth}x${currentHeight} fps=${currentFps} senderFps=${statFps} ` +
-              `bitrate(kbps)=${bitrateKbps !== null ? Math.round(bitrateKbps) : "n/a"} ` +
-              `qualityLimit=${limitation} framesDropped=${drops}`,
-            );
-          } catch (err) {
-            console.warn("Sender telemetry failed:", err);
-          }
-        }, 2000);
-      }
-
-      receiverTelemetryMonitor = setInterval(async () => {
-        try {
-          const response = await fetch("/receiver-status");
-          if (!response.ok) {
-            return;
-          }
-          const receiver = await response.json();
-          console.log(
-            `[telemetry][receiver] connected=${receiver.connected} frames=${receiver.frames} ` +
-            `recentFps=${receiver.recentFps} avgFps=${receiver.avgFps} seconds=${receiver.seconds}`,
-          );
-        } catch (err) {
-          console.warn("Receiver telemetry failed:", err);
-        }
-      }, 2000);
     }
 
     function startFpsMonitor(sender) {
@@ -627,7 +449,6 @@
       isAdaptiveRestartInProgress = false;
 
       stopFpsMonitor();
-      stopTelemetryMonitors();
       isStreaming = false;
       isStarting = false;
 
@@ -673,7 +494,14 @@
           frameRate: { ideal: targetProfile.frameRate, max: targetProfile.frameRate },
         });
 
-        await applySenderPolicy(videoSender, targetMode);
+        if (videoSender && typeof videoSender.getParameters === "function" && typeof videoSender.setParameters === "function") {
+          const parameters = videoSender.getParameters();
+          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+            ? parameters.encodings
+            : [{}];
+          parameters.encodings[0].maxFramerate = targetProfile.frameRate;
+          await videoSender.setParameters(parameters);
+        }
 
         const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
         currentWidth = settings.width ?? targetProfile.width;
@@ -786,18 +614,17 @@
         if (track.kind === "video") {
           videoSender = sender;
         }
-        if (track.kind === "video") {
-          applySenderPolicy(sender, modeFromProfile(profile)).catch((err) => {
-            console.warn("Unable to apply sender policy:", err);
+        if (track.kind === "video" && sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
+          const parameters = sender.getParameters();
+          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+            ? parameters.encodings
+            : [{}];
+          parameters.encodings[0].maxFramerate = profile.frameRate;
+          sender.setParameters(parameters).catch((err) => {
+            console.warn("Unable to apply sender framerate parameters:", err);
           });
         }
       }
-
-      // Critical design decision: for screenshare legibility at low latency, we
-      // prefer VP9 first, then H264 fallback, before allowing other codecs.
-      // This is applied prior to offer creation so SDP negotiation reflects the
-      // intended order from the start of the session.
-      applyCodecPreferenceOrder(currentPc);
 
       const offer = await currentPc.createOffer();
       await currentPc.setLocalDescription(offer);
@@ -853,7 +680,6 @@
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
-      startTelemetryMonitors(videoSender);
     }
 
     startBtn.onclick = async () => {

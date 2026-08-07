@@ -216,16 +216,6 @@ class SCREEN_CAST:
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 60
 
-    # Sender-side encoder policy defaults. These values are consumed by the
-    # web sender to make bitrate behavior explicit rather than relying on
-    # browser defaults that can vary widely across platforms.
-    MAX_BITRATE_HIGH_BPS = 8_000_000
-    MAX_BITRATE_FLOOR_BPS = 4_000_000
-
-    # For shared control, smoothness is prioritized over visual detail, so we
-    # prefer maintaining frame rate when bandwidth or encoder CPU is limited.
-    DEGRADATION_PREFERENCE = "maintain-framerate"
-
     # Adaptive downshift trigger: if FPS remains below 30 for 10 consecutive
     # one-second samples, prioritize smoothness over fidelity by switching to
     # the 720p floor profile.
