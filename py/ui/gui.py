@@ -6,11 +6,12 @@ from globals import DISPLAY, INPUT, GUI
 
 from PyQt5 import sip
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
-from PyQt5.QtCore import QSize, QPoint, Qt
+from PyQt5.QtCore import QSize, QPoint, Qt, QTimer
 from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
 
 import asyncio
 import inspect
+import time
 
 
 class CustomQLabel(QLabel):
@@ -42,12 +43,39 @@ class ScreenCastView(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
+        self._pending_frame = None
+        self._render_scheduled = False
+        self._received_frames_since_log = 0
+        self._rendered_frames_since_log = 0
+        self._last_receiver_log_at = time.monotonic()
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet("background-color: black;")
         self.setScaledContents(False)
         self.hide()
 
     def setFrame(self, frame):
+        if frame is None:
+            return
+
+        # Receiver-side CPU is currently the most likely bottleneck on Pi. We
+        # therefore coalesce incoming frames down to "latest only" instead of
+        # forcing Qt to spend time rendering stale frames that the user will
+        # never meaningfully see. This favors lower latency and better motion
+        # smoothness over exhaustive per-frame rendering.
+        self._pending_frame = frame
+        self._received_frames_since_log += 1
+
+        if not self._render_scheduled:
+            self._render_scheduled = True
+            QTimer.singleShot(0, self._renderPendingFrame)
+
+        self._maybeLogReceiverStats()
+
+    def _renderPendingFrame(self):
+        self._render_scheduled = False
+
+        frame = self._pending_frame
+        self._pending_frame = None
         if frame is None:
             return
 
@@ -77,7 +105,39 @@ class ScreenCastView(QLabel):
             self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
         else:
             self.setPixmap(self._pixmap)
+
+        self._rendered_frames_since_log += 1
         self.update()
+
+        # If newer frames arrived while we were rendering, process only the
+        # latest one on the next Qt turn rather than recursively rendering the
+        # entire backlog.
+        if self._pending_frame is not None and not self._render_scheduled:
+            self._render_scheduled = True
+            QTimer.singleShot(0, self._renderPendingFrame)
+
+        self._maybeLogReceiverStats()
+
+    def _maybeLogReceiverStats(self):
+        now = time.monotonic()
+        elapsed = now - self._last_receiver_log_at
+        if elapsed < 5:
+            return
+
+        received = self._received_frames_since_log
+        rendered = self._rendered_frames_since_log
+        dropped = max(received - rendered, 0)
+        received_fps = received / elapsed if elapsed > 0 else 0
+        rendered_fps = rendered / elapsed if elapsed > 0 else 0
+        print(
+            "[screencast-view] receiver stats: "
+            f"received_fps={received_fps:.1f}, rendered_fps={rendered_fps:.1f}, "
+            f"coalesced_frames={dropped}"
+        )
+
+        self._received_frames_since_log = 0
+        self._rendered_frames_since_log = 0
+        self._last_receiver_log_at = now
 
     def resizeEvent(self, a0):
         super().resizeEvent(a0)

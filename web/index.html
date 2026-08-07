@@ -354,6 +354,7 @@
 
       let lastTimestamp = null;
       let lastFramesEncoded = null;
+      let lastSenderLogAt = 0;
 
       fpsMonitor = setInterval(async () => {
         try {
@@ -393,6 +394,24 @@
           if (framesEncoded !== null) {
             lastTimestamp = timestamp;
             lastFramesEncoded = framesEncoded;
+          }
+
+          if (timestamp - lastSenderLogAt >= 5000) {
+            lastSenderLogAt = timestamp;
+            const qualityLimitationReason = videoStat.qualityLimitationReason || "unknown";
+            const frameWidth = videoStat.frameWidth || currentWidth;
+            const frameHeight = videoStat.frameHeight || currentHeight;
+            const bytesSent = typeof videoStat.bytesSent === "number" ? videoStat.bytesSent : null;
+            console.log(
+              "Sender stats:",
+              {
+                fps: currentFps,
+                frameWidth,
+                frameHeight,
+                qualityLimitationReason,
+                bytesSent,
+              },
+            );
           }
 
           updateStreamingStatus();
