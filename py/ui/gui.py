@@ -6,7 +6,7 @@ from globals import DISPLAY, INPUT, GUI
 
 from PyQt5 import sip
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
-from PyQt5.QtCore import QSize, QPoint, Qt
+from PyQt5.QtCore import QSize, QPoint, Qt, QTimer
 from PyQt5.QtGui import QKeyEvent, QImage, QPixmap
 
 import asyncio
@@ -42,6 +42,16 @@ class ScreenCastView(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
+        self._pending_frame = None
+
+        # Critical design decision: render from a latest-frame buffer on a fixed
+        # timer instead of converting every incoming frame immediately. This
+        # avoids UI conversion/scaling work from throttling WebRTC frame intake
+        # and keeps latency lower by dropping stale frames under load.
+        self._render_timer = QTimer(self)
+        self._render_timer.setInterval(33)  # ~30 FPS display target
+        self._render_timer.timeout.connect(self._renderPendingFrame)
+
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet("background-color: black;")
         self.setScaledContents(False)
@@ -50,6 +60,18 @@ class ScreenCastView(QLabel):
     def setFrame(self, frame):
         if frame is None:
             return
+
+        self._pending_frame = frame
+        if not self._render_timer.isActive():
+            self._render_timer.start()
+
+    def _renderPendingFrame(self):
+        if self._pending_frame is None:
+            self._render_timer.stop()
+            return
+
+        frame = self._pending_frame
+        self._pending_frame = None
 
         height, width = frame.shape[:2]
         target_size = self.size()

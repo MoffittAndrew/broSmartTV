@@ -402,7 +402,8 @@
             const stats = await sender.getStats();
             let videoStat = null;
             stats.forEach((report) => {
-              if (!videoStat && report.type === "outbound-rtp" && report.kind === "video") {
+              const reportKind = report.kind || report.mediaType;
+              if (!videoStat && report.type === "outbound-rtp" && reportKind === "video") {
                 videoStat = report;
               }
             });
@@ -426,10 +427,21 @@
 
             const limitation = videoStat.qualityLimitationReason || "unknown";
             const drops = Number.isFinite(videoStat.framesDropped) ? videoStat.framesDropped : "n/a";
+            const statFps = Number.isFinite(videoStat.framesPerSecond) ? Math.round(videoStat.framesPerSecond) : "n/a";
+            const captureTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+            const captureSettings = captureTrack && typeof captureTrack.getSettings === "function"
+              ? captureTrack.getSettings()
+              : {};
+            const captureW = captureSettings.width ?? "unknown";
+            const captureH = captureSettings.height ?? "unknown";
+            const captureFps = Number.isFinite(captureSettings.frameRate)
+              ? Math.round(captureSettings.frameRate)
+              : "unknown";
 
             console.log(
               `[telemetry][sender] mode=${qualityControlMode}/${currentQualityMode} ` +
-              `resolution=${currentWidth}x${currentHeight} fps=${currentFps} ` +
+              `capture=${captureW}x${captureH}@${captureFps}fps ` +
+              `resolution=${currentWidth}x${currentHeight} fps=${currentFps} senderFps=${statFps} ` +
               `bitrate(kbps)=${bitrateKbps !== null ? Math.round(bitrateKbps) : "n/a"} ` +
               `qualityLimit=${limitation} framesDropped=${drops}`,
             );
