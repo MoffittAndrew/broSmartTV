@@ -144,11 +144,17 @@
       };
     }
 
-    function updateCaptureSourceGeometry(settings) {
+    function updateCaptureSourceGeometry(settings, options = {}) {
       let didChange = false;
+      const allowDecrease = options.allowDecrease === true;
 
       const nextAspectRatio = getAspectRatioFromSettings(settings);
-      if (Number.isFinite(nextAspectRatio) && nextAspectRatio > 0 && nextAspectRatio !== captureSourceAspectRatio) {
+      if (
+        Number.isFinite(nextAspectRatio)
+        && nextAspectRatio > 0
+        && nextAspectRatio !== captureSourceAspectRatio
+        && (captureSourceAspectRatio === null || allowDecrease || nextAspectRatio > captureSourceAspectRatio)
+      ) {
         captureSourceAspectRatio = nextAspectRatio;
         didChange = true;
       }
@@ -157,14 +163,20 @@
       const height = Number(settings && settings.height);
       if (Number.isFinite(width) && width > 0) {
         const nextWidth = clampInt(width, captureSourceWidth || captureSettings.width);
-        if (nextWidth !== captureSourceWidth) {
+        if (
+          nextWidth !== captureSourceWidth
+          && (captureSourceWidth === null || nextWidth > captureSourceWidth || allowDecrease)
+        ) {
           captureSourceWidth = nextWidth;
           didChange = true;
         }
       }
       if (Number.isFinite(height) && height > 0) {
         const nextHeight = clampInt(height, captureSourceHeight || captureSettings.height);
-        if (nextHeight !== captureSourceHeight) {
+        if (
+          nextHeight !== captureSourceHeight
+          && (captureSourceHeight === null || nextHeight > captureSourceHeight || allowDecrease)
+        ) {
           captureSourceHeight = nextHeight;
           didChange = true;
         }
