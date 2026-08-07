@@ -181,9 +181,10 @@ async def offer(request):
                             )
                             last_log_time = now
 
-                        frame_array = frame.to_ndarray(format="rgb24")
-
-                        _notifyFrame(frame_array)
+                        # Send raw frames to the UI callback so receiver-side
+                        # coalescing can drop stale frames before expensive
+                        # RGB numpy conversion is performed.
+                        _notifyFrame(frame)
                 except Exception as exc:
                     log(f"Stream ended with error: {exc}")
                 finally:

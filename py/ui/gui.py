@@ -79,6 +79,11 @@ class ScreenCastView(QLabel):
         if frame is None:
             return
 
+        # Some senders pass av.VideoFrame objects while others may pass numpy
+        # arrays. Convert only the frame that will actually be rendered.
+        if hasattr(frame, "to_ndarray"):
+            frame = frame.to_ndarray(format="rgb24")
+
         height, width = frame.shape[:2]
         target_size = self.size()
         if frame.ndim == 3:
