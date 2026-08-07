@@ -34,7 +34,9 @@
 
     let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
     let iceServers = [];
-  let captureSourceAspectRatio = null;
+    let captureSourceAspectRatio = null;
+    let captureSourceWidth = null;
+    let captureSourceHeight = null;
 
     // Adaptive policy values are loaded from /capture-settings so server-side
     // configuration remains the single source of truth.
@@ -68,7 +70,10 @@
     const CONNECTION_TIMEOUT_MS = 10000;
     const STARTUP_WARMUP_ENABLED = true;
     const STARTUP_WARMUP_INITIAL_DELAY_MS = 1200;
+    const STARTUP_WARMUP_MIN_SAMPLES = 3;
+    const STARTUP_WARMUP_TRIGGER_FPS = 30;
     const STARTUP_WARMUP_FLOOR_DURATION_MS = 10000;
+    const STARTUP_WARMUP_LOW_DURATION_MS = 10000;
     const STARTUP_WARMUP_USE_480P = true;
     const STARTUP_WARMUP_480P_WIDTH = 854;
     const STARTUP_WARMUP_480P_HEIGHT = 480;
@@ -138,17 +143,63 @@
       };
     }
 
+    function updateCaptureSourceGeometry(settings) {
+      captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
+
+      const width = Number(settings && settings.width);
+      const height = Number(settings && settings.height);
+      if (Number.isFinite(width) && width > 0) {
+        captureSourceWidth = clampInt(width, captureSourceWidth || captureSettings.width);
+      }
+      if (Number.isFinite(height) && height > 0) {
+        captureSourceHeight = clampInt(height, captureSourceHeight || captureSettings.height);
+      }
+    }
+
+    function getHighProfileBase() {
+      return {
+        width: captureSourceWidth && captureSourceWidth > 0
+          ? Math.min(adaptivePolicy.maxWidth, captureSourceWidth)
+          : adaptivePolicy.maxWidth,
+        height: captureSourceHeight && captureSourceHeight > 0
+          ? Math.min(adaptivePolicy.maxHeight, captureSourceHeight)
+          : adaptivePolicy.maxHeight,
+        frameRate: captureSettings.frameRate,
+      };
+    }
+
+    function getLowProfileBase() {
+      const highProfile = getHighProfileBase();
+
+      if (
+        captureSourceWidth && captureSourceHeight
+        && (captureSourceWidth < adaptivePolicy.minWidth || captureSourceHeight < adaptivePolicy.minHeight)
+      ) {
+        return {
+          width: Math.max(2, roundToEven(highProfile.width / 2, highProfile.width)),
+          height: Math.max(2, roundToEven(highProfile.height / 2, highProfile.height)),
+          frameRate: captureSettings.frameRate,
+        };
+      }
+
+      return {
+        width: adaptivePolicy.minWidth,
+        height: adaptivePolicy.minHeight,
+        frameRate: captureSettings.frameRate,
+      };
+    }
+
     function updateStreamingStatus() {
       statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
     }
 
     function updateQualityButtonText() {
       if (qualityControlMode === "high") {
-        qualityBtn.textContent = "Quality: 1080p";
+        qualityBtn.textContent = "Quality: High";
         return;
       }
       if (qualityControlMode === "floor") {
-        qualityBtn.textContent = "Quality: 720p";
+        qualityBtn.textContent = "Quality: Low";
         return;
       }
       qualityBtn.textContent = "Quality: Auto";
@@ -288,20 +339,22 @@
       return recent.filter(predicate).length;
     }
 
-    function profileForMode(mode) {
-      if (mode === "floor") {
-        return {
-          width: adaptivePolicy.minWidth,
-          height: adaptivePolicy.minHeight,
-          frameRate: captureSettings.frameRate,
-        };
+    function averageFpsSample(sampleCount) {
+      if (fpsSamples.length < sampleCount) {
+        return null;
       }
 
-      return {
-        width: adaptivePolicy.maxWidth,
-        height: adaptivePolicy.maxHeight,
-        frameRate: captureSettings.frameRate,
-      };
+      const recent = fpsSamples.slice(fpsSamples.length - sampleCount);
+      const total = recent.reduce((sum, sample) => sum + sample, 0);
+      return total / recent.length;
+    }
+
+    function profileForMode(mode) {
+      if (mode === "floor") {
+        return resolveAspectMatchedProfile(getLowProfileBase());
+      }
+
+      return resolveAspectMatchedProfile(getHighProfileBase());
     }
 
     function startupWarmupProfile() {
@@ -525,14 +578,45 @@
           return;
         }
 
+        const startupAverageFps = averageFpsSample(STARTUP_WARMUP_MIN_SAMPLES);
+        if (startupAverageFps === null) {
+          console.log("Startup warmup skipped: not enough FPS samples yet.");
+          return;
+        }
+
+        if (startupAverageFps >= STARTUP_WARMUP_TRIGGER_FPS) {
+          console.log(
+            `Startup warmup skipped: initial average FPS ${startupAverageFps.toFixed(1)} is healthy.`,
+          );
+          return;
+        }
+
         const warmupProfile = startupWarmupProfile();
         console.warn(
-          `Startup warmup: temporarily switching to ${warmupProfile.width}x${warmupProfile.height} before returning to 1080p.`,
+          `Startup warmup: initial average FPS ${startupAverageFps.toFixed(1)} is low, switching to ${warmupProfile.width}x${warmupProfile.height}.`,
         );
         await requestAdaptiveQualitySwitch(warmupProfile, "floor", "startup warmup to floor");
 
         await new Promise((resolve) => {
           setTimeout(resolve, STARTUP_WARMUP_FLOOR_DURATION_MS);
+        });
+
+        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+          return;
+        }
+
+        if (qualityControlMode === "floor") {
+          return;
+        }
+
+        const lowProfile = profileForMode("floor");
+        console.warn(
+          `Startup warmup: stepping up to low quality at ${lowProfile.width}x${lowProfile.height} before returning to high.`,
+        );
+        await requestAdaptiveQualitySwitch(lowProfile, "floor", "startup warmup return to low");
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, STARTUP_WARMUP_LOW_DURATION_MS);
         });
 
         if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
@@ -675,6 +759,8 @@
       isStreaming = false;
       isStarting = false;
       captureSourceAspectRatio = null;
+      captureSourceWidth = null;
+      captureSourceHeight = null;
 
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -731,7 +817,7 @@
         }
 
         const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-        captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
+        updateCaptureSourceGeometry(settings);
         currentWidth = settings.width ?? resolvedProfile.width;
         currentHeight = settings.height ?? resolvedProfile.height;
         if (Number.isFinite(settings.frameRate)) {
@@ -800,8 +886,8 @@
 
       const videoTrack = stream.getVideoTracks()[0];
       const initialSettings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-      captureSourceAspectRatio = getAspectRatioFromSettings(initialSettings);
-      const resolvedProfile = resolveAspectMatchedProfile(profile);
+      updateCaptureSourceGeometry(initialSettings);
+      const resolvedProfile = profileForMode(currentQualityMode);
       try {
         await videoTrack.applyConstraints({
           width: { ideal: resolvedProfile.width },
@@ -912,18 +998,18 @@
       };
 
       const settings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-  captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
-  currentWidth = settings.width ?? resolvedProfile.width ?? "unknown";
-  currentHeight = settings.height ?? resolvedProfile.height ?? "unknown";
+      updateCaptureSourceGeometry(settings);
+      currentWidth = settings.width ?? resolvedProfile.width ?? "unknown";
+      currentHeight = settings.height ?? resolvedProfile.height ?? "unknown";
       currentFps = Number.isFinite(settings.frameRate) ? String(Math.round(settings.frameRate)) : currentFps;
 
-  currentQualityMode = modeFromProfile(resolvedProfile);
-  activeProfile = resolvedProfile;
+      currentQualityMode = modeFromProfile(resolvedProfile);
+      activeProfile = resolvedProfile;
       console.log(`Capture settings: ${currentWidth}x${currentHeight} @ ${currentFps}fps`);
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
-  await maybeRunStartupWarmup(resolvedProfile);
+      await maybeRunStartupWarmup(resolvedProfile);
     }
 
     startBtn.onclick = async () => {
