@@ -34,6 +34,7 @@
 
     let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
     let iceServers = [];
+  let captureSourceAspectRatio = null;
 
     // Adaptive policy values are loaded from /capture-settings so server-side
     // configuration remains the single source of truth.
@@ -85,6 +86,56 @@
         return fallback;
       }
       return Math.round(parsed);
+    }
+
+    function roundToEven(value, fallback) {
+      const rounded = clampInt(value, fallback);
+      if (rounded <= 0) {
+        return fallback;
+      }
+      return rounded % 2 === 0 ? rounded : rounded - 1;
+    }
+
+    function getAspectRatioFromSettings(settings) {
+      if (!settings) {
+        return null;
+      }
+
+      const explicitAspectRatio = Number(settings.aspectRatio);
+      if (Number.isFinite(explicitAspectRatio) && explicitAspectRatio > 0) {
+        return explicitAspectRatio;
+      }
+
+      const width = Number(settings.width);
+      const height = Number(settings.height);
+      if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+        return width / height;
+      }
+
+      return null;
+    }
+
+    function resolveAspectMatchedProfile(profile) {
+      if (!profile || !Number.isFinite(captureSourceAspectRatio) || captureSourceAspectRatio <= 0) {
+        return profile;
+      }
+
+      const maxWidth = clampInt(profile.width, captureSettings.width);
+      const maxHeight = clampInt(profile.height, captureSettings.height);
+
+      let width = maxWidth;
+      let height = roundToEven(width / captureSourceAspectRatio, maxHeight);
+
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = roundToEven(height * captureSourceAspectRatio, maxWidth);
+      }
+
+      return {
+        width: Math.max(2, Math.min(maxWidth, width)),
+        height: Math.max(2, Math.min(maxHeight, height)),
+        frameRate: profile.frameRate,
+      };
     }
 
     function updateStreamingStatus() {
@@ -143,16 +194,13 @@
         return "vp8";
       }
       if (currentMode === "vp8") {
-        return "h264";
-      }
-      if (currentMode === "h264") {
         return "vp9";
       }
       return "auto";
     }
 
     function getPreferredVideoCodecs(mode) {
-      if (mode === "auto" || typeof RTCRtpSender === "undefined" || typeof RTCRtpSender.getCapabilities !== "function") {
+      if (typeof RTCRtpSender === "undefined" || typeof RTCRtpSender.getCapabilities !== "function") {
         return [];
       }
 
@@ -161,16 +209,38 @@
         return [];
       }
 
-      const targetMime = mode === "vp8"
-        ? "video/VP8"
-        : (mode === "h264" ? "video/H264" : "video/VP9");
+      const nonMediaMimes = new Set(["video/rtx", "video/red", "video/ulpfec"]);
+      const mediaCodecs = caps.codecs.filter((codec) => !nonMediaMimes.has((codec.mimeType || "").toLowerCase()));
+      if (mediaCodecs.length === 0) {
+        return [];
+      }
 
-      const primary = caps.codecs.filter((codec) => codec.mimeType === targetMime);
-      const fallback = caps.codecs.filter(
-        (codec) => codec.mimeType !== targetMime && codec.mimeType !== "video/rtx" && codec.mimeType !== "video/red" && codec.mimeType !== "video/ulpfec",
-      );
+      // Keep H264 as last-resort fallback. Auto and manual VP8/VP9 both prefer
+      // VPx first to avoid forcing H264 unless negotiation requires it.
+      const preferredOrder = mode === "vp9"
+        ? ["video/VP9", "video/VP8", "video/H264"]
+        : (mode === "h264"
+          ? ["video/H264", "video/VP8", "video/VP9"]
+          : ["video/VP8", "video/VP9", "video/H264"]);
 
-      return [...primary, ...fallback];
+      const orderedMediaCodecs = [];
+      for (const mimeType of preferredOrder) {
+        for (const codec of mediaCodecs) {
+          if (codec.mimeType === mimeType) {
+            orderedMediaCodecs.push(codec);
+          }
+        }
+      }
+
+      // If browser exposes an unexpected video codec type, keep it after known
+      // codecs so preference remains explicit but negotiation stays robust.
+      for (const codec of mediaCodecs) {
+        if (!orderedMediaCodecs.includes(codec)) {
+          orderedMediaCodecs.push(codec);
+        }
+      }
+
+      return orderedMediaCodecs;
     }
 
     function clearConnectionTimeout() {
@@ -239,13 +309,13 @@
       // Normal runtime adaptation still never goes below 720p; this lower
       // profile is only a short startup accelerator.
       if (STARTUP_WARMUP_USE_480P) {
-        return {
+        return resolveAspectMatchedProfile({
           width: STARTUP_WARMUP_480P_WIDTH,
           height: STARTUP_WARMUP_480P_HEIGHT,
           frameRate: captureSettings.frameRate,
-        };
+        });
       }
-      return profileForMode("floor");
+      return resolveAspectMatchedProfile(profileForMode("floor"));
     }
 
     function modeFromProfile(profile) {
@@ -562,8 +632,6 @@
     async function requestDisplayMedia(profile) {
       const constraints = {
         video: {
-          width: { ideal: profile.width },
-          height: { ideal: profile.height },
           frameRate: { ideal: profile.frameRate, max: profile.frameRate },
         },
         audio: false,
@@ -606,6 +674,7 @@
       stopFpsMonitor();
       isStreaming = false;
       isStarting = false;
+      captureSourceAspectRatio = null;
 
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -643,10 +712,13 @@
           return;
         }
 
+        const resolvedProfile = resolveAspectMatchedProfile(targetProfile);
+
         await videoTrack.applyConstraints({
-          width: { ideal: targetProfile.width },
-          height: { ideal: targetProfile.height },
-          frameRate: { ideal: targetProfile.frameRate, max: targetProfile.frameRate },
+          width: { ideal: resolvedProfile.width },
+          height: { ideal: resolvedProfile.height },
+          aspectRatio: { ideal: captureSourceAspectRatio },
+          frameRate: { ideal: resolvedProfile.frameRate, max: resolvedProfile.frameRate },
         });
 
         if (videoSender && typeof videoSender.getParameters === "function" && typeof videoSender.setParameters === "function") {
@@ -654,13 +726,14 @@
           parameters.encodings = parameters.encodings && parameters.encodings.length > 0
             ? parameters.encodings
             : [{}];
-          parameters.encodings[0].maxFramerate = targetProfile.frameRate;
+          parameters.encodings[0].maxFramerate = resolvedProfile.frameRate;
           await videoSender.setParameters(parameters);
         }
 
         const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-        currentWidth = settings.width ?? targetProfile.width;
-        currentHeight = settings.height ?? targetProfile.height;
+        captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
+        currentWidth = settings.width ?? resolvedProfile.width;
+        currentHeight = settings.height ?? resolvedProfile.height;
         if (Number.isFinite(settings.frameRate)) {
           currentFps = String(Math.round(settings.frameRate));
         }
@@ -668,7 +741,7 @@
         // Clear stale samples so decisions reflect post-switch behavior.
         fpsSamples = [];
         currentQualityMode = targetMode;
-        activeProfile = targetProfile;
+        activeProfile = resolvedProfile;
         updateStreamingStatus();
       } catch (err) {
         console.warn(`Adaptive quality switch failed (${targetMode}):`, err);
@@ -726,11 +799,15 @@
       }
 
       const videoTrack = stream.getVideoTracks()[0];
+      const initialSettings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
+      captureSourceAspectRatio = getAspectRatioFromSettings(initialSettings);
+      const resolvedProfile = resolveAspectMatchedProfile(profile);
       try {
         await videoTrack.applyConstraints({
-          width: { ideal: profile.width },
-          height: { ideal: profile.height },
-          frameRate: { ideal: profile.frameRate, max: profile.frameRate },
+          width: { ideal: resolvedProfile.width },
+          height: { ideal: resolvedProfile.height },
+          aspectRatio: { ideal: captureSourceAspectRatio },
+          frameRate: { ideal: resolvedProfile.frameRate, max: resolvedProfile.frameRate },
         });
       } catch (err) {
         console.warn("Unable to tighten video track constraints:", err);
@@ -783,7 +860,7 @@
           parameters.encodings = parameters.encodings && parameters.encodings.length > 0
             ? parameters.encodings
             : [{}];
-          parameters.encodings[0].maxFramerate = profile.frameRate;
+          parameters.encodings[0].maxFramerate = resolvedProfile.frameRate;
           sender.setParameters(parameters).catch((err) => {
             console.warn("Unable to apply sender framerate parameters:", err);
           });
@@ -835,16 +912,18 @@
       };
 
       const settings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-      currentWidth = settings.width ?? profile.width ?? "unknown";
-      currentHeight = settings.height ?? profile.height ?? "unknown";
+  captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
+  currentWidth = settings.width ?? resolvedProfile.width ?? "unknown";
+  currentHeight = settings.height ?? resolvedProfile.height ?? "unknown";
       currentFps = Number.isFinite(settings.frameRate) ? String(Math.round(settings.frameRate)) : currentFps;
 
-      currentQualityMode = modeFromProfile(profile);
+  currentQualityMode = modeFromProfile(resolvedProfile);
+  activeProfile = resolvedProfile;
       console.log(`Capture settings: ${currentWidth}x${currentHeight} @ ${currentFps}fps`);
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
-      await maybeRunStartupWarmup(profile);
+  await maybeRunStartupWarmup(resolvedProfile);
     }
 
     startBtn.onclick = async () => {
