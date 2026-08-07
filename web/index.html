@@ -22,6 +22,7 @@
     let videoSender = null;
     let fpsMonitor = null;
     let connectionTimeoutId = null;
+    let startupWarmupTimerId = null;
 
     let isStreaming = false;
     let isStarting = false;
@@ -64,6 +65,9 @@
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
+    const STARTUP_WARMUP_ENABLED = true;
+    const STARTUP_WARMUP_INITIAL_DELAY_MS = 1200;
+    const STARTUP_WARMUP_FLOOR_DURATION_MS = 1800;
 
     function countSdpCandidates(sdp) {
       if (!sdp) {
@@ -170,6 +174,13 @@
       if (connectionTimeoutId !== null) {
         clearTimeout(connectionTimeoutId);
         connectionTimeoutId = null;
+      }
+    }
+
+    function clearStartupWarmupTimer() {
+      if (startupWarmupTimerId !== null) {
+        clearTimeout(startupWarmupTimerId);
+        startupWarmupTimerId = null;
       }
     }
 
@@ -380,6 +391,7 @@
     }
 
     async function applyQualityControlMode(mode) {
+      clearStartupWarmupTimer();
       qualityControlMode = mode;
       updateQualityButtonText();
 
@@ -398,6 +410,51 @@
       }
 
       await requestAdaptiveQualitySwitch(profileForMode(targetMode), targetMode, `manual mode ${mode}`);
+    }
+
+    async function maybeRunStartupWarmup(initialProfile) {
+      if (!STARTUP_WARMUP_ENABLED) {
+        return;
+      }
+      if (!initialProfile) {
+        return;
+      }
+      if (initialProfile.width <= adaptivePolicy.minWidth || initialProfile.height <= adaptivePolicy.minHeight) {
+        return;
+      }
+      if (qualityControlMode === "floor") {
+        return;
+      }
+
+      clearStartupWarmupTimer();
+      startupWarmupTimerId = setTimeout(async () => {
+        startupWarmupTimerId = null;
+
+        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+          return;
+        }
+
+        if (currentQualityMode !== "high") {
+          return;
+        }
+
+        console.warn("Startup warmup: temporarily switching to 720p before returning to 1080p.");
+        await requestAdaptiveQualitySwitch(profileForMode("floor"), "floor", "startup warmup to floor");
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, STARTUP_WARMUP_FLOOR_DURATION_MS);
+        });
+
+        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+          return;
+        }
+
+        if (qualityControlMode === "floor") {
+          return;
+        }
+
+        await requestAdaptiveQualitySwitch(profileForMode("high"), "high", "startup warmup return to high");
+      }, STARTUP_WARMUP_INITIAL_DELAY_MS);
     }
 
     function startFpsMonitor(sender) {
@@ -523,6 +580,7 @@
 
     async function stopStream(reason = "stopped") {
       clearConnectionTimeout();
+      clearStartupWarmupTimer();
       isAdaptiveRestartInProgress = false;
 
       stopFpsMonitor();
@@ -766,6 +824,7 @@
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
+      await maybeRunStartupWarmup(profile);
     }
 
     startBtn.onclick = async () => {
@@ -784,6 +843,7 @@
       currentQualityMode = "high";
       qualityControlMode = "auto";
       updateQualityButtonText();
+      clearStartupWarmupTimer();
       activeProfile = null;
       await startStreaming({ isAdaptiveRestart: false });
     };
