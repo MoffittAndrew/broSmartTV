@@ -741,11 +741,14 @@
           const trackSettings = videoTrack && typeof videoTrack.getSettings === "function"
             ? videoTrack.getSettings()
             : {};
-          const geometryDidChange = updateCaptureSourceGeometry({
-            ...trackSettings,
-            width: videoStat.frameWidth || trackSettings.width,
-            height: videoStat.frameHeight || trackSettings.height,
-          });
+          const allowSourceDecrease = currentQualityMode === "high"
+            && !isStartupWarmupSequenceActive
+            && !!activeProfile
+            && (
+              (Number.isFinite(trackSettings.width) && trackSettings.width < activeProfile.width)
+              || (Number.isFinite(trackSettings.height) && trackSettings.height < activeProfile.height)
+            );
+          const geometryDidChange = updateCaptureSourceGeometry(trackSettings, { allowDecrease: allowSourceDecrease });
 
           currentWidth = videoStat.frameWidth || trackSettings.width || currentWidth;
           currentHeight = videoStat.frameHeight || trackSettings.height || currentHeight;
@@ -891,7 +894,7 @@
         }
 
         const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-        updateCaptureSourceGeometry(settings);
+        updateCaptureSourceGeometry(settings, { allowDecrease: false });
         currentWidth = settings.width ?? resolvedProfile.width;
         currentHeight = settings.height ?? resolvedProfile.height;
         if (Number.isFinite(settings.frameRate)) {
@@ -960,7 +963,7 @@
 
       const videoTrack = stream.getVideoTracks()[0];
       const initialSettings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-      updateCaptureSourceGeometry(initialSettings);
+      updateCaptureSourceGeometry(initialSettings, { allowDecrease: true });
       const resolvedProfile = profileForMode(currentQualityMode);
       try {
         await videoTrack.applyConstraints({
@@ -1072,7 +1075,7 @@
       };
 
       const settings = videoTrack && typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
-      updateCaptureSourceGeometry(settings);
+      updateCaptureSourceGeometry(settings, { allowDecrease: false });
       currentWidth = settings.width ?? resolvedProfile.width ?? "unknown";
       currentHeight = settings.height ?? resolvedProfile.height ?? "unknown";
       currentFps = Number.isFinite(settings.frameRate) ? String(Math.round(settings.frameRate)) : currentFps;
