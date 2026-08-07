@@ -18,7 +18,6 @@
     let videoSender = null;
     let fpsMonitor = null;
     let connectionTimeoutId = null;
-    let adaptiveRestartTimerId = null;
 
     let isStreaming = false;
     let isStarting = false;
@@ -56,7 +55,6 @@
     let activeProfile = null;
     let fpsSamples = [];
     let lastQualityChangeAtMs = 0;
-    let adaptiveRestartTargetProfile = null;
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
@@ -93,13 +91,6 @@
         console.warn(`Connection timed out after ${CONNECTION_TIMEOUT_MS / 1000}s without reaching connected state.`);
         stopStream("connection timed out");
       }, CONNECTION_TIMEOUT_MS);
-    }
-
-    function clearAdaptiveRestartTimer() {
-      if (adaptiveRestartTimerId !== null) {
-        clearTimeout(adaptiveRestartTimerId);
-        adaptiveRestartTimerId = null;
-      }
     }
 
     function maxSampleWindowSize() {
@@ -236,7 +227,7 @@
     }
 
     async function evaluateAdaptiveQuality() {
-      if (!isStreaming || isStarting || isAdaptiveRestartInProgress || adaptiveRestartTargetProfile) {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
         return;
       }
 
@@ -259,7 +250,7 @@
           }
 
           const target = profileForMode("floor");
-          await requestAdaptiveRestart(
+          await requestAdaptiveQualitySwitch(
             target,
             "floor",
             `fps below ${adaptivePolicy.lowFpsThreshold} for ${adaptivePolicy.lowSampleRequired}/${adaptivePolicy.lowSampleWindow} samples`,
@@ -285,7 +276,7 @@
           }
 
           const target = profileForMode("high");
-          await requestAdaptiveRestart(
+          await requestAdaptiveQualitySwitch(
             target,
             "high",
             `fps recovered above ${adaptivePolicy.recoveryFpsThreshold} for ${adaptivePolicy.recoverySampleRequired}/${adaptivePolicy.recoverySampleWindow} samples`,
@@ -392,15 +383,9 @@
       return false;
     }
 
-    async function stopStream(reason = "stopped", options = {}) {
-      const preserveAdaptiveIntent = options.preserveAdaptiveIntent === true;
-
+    async function stopStream(reason = "stopped") {
       clearConnectionTimeout();
-      if (!preserveAdaptiveIntent) {
-        clearAdaptiveRestartTimer();
-        adaptiveRestartTargetProfile = null;
-        isAdaptiveRestartInProgress = false;
-      }
+      isAdaptiveRestartInProgress = false;
 
       stopFpsMonitor();
       isStreaming = false;
@@ -422,27 +407,57 @@
       console.log("Stream stopped:", reason);
     }
 
-    async function requestAdaptiveRestart(targetProfile, targetMode, reason) {
-      if (!isStreaming || isStarting || adaptiveRestartTargetProfile || isAdaptiveRestartInProgress) {
+    async function requestAdaptiveQualitySwitch(targetProfile, targetMode, reason) {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress || !stream) {
         return;
       }
 
-      // Critical invariant: user intent always wins. The only place we preserve
-      // restart intent across stop() is this controlled adaptive branch.
-      adaptiveRestartTargetProfile = targetProfile;
+      // Critical invariant: adaptive quality changes must be seamless. We avoid
+      // reacquiring display media because that prompts the user and interrupts
+      // playback. applyConstraints keeps the existing capture session alive.
       isAdaptiveRestartInProgress = true;
       lastQualityChangeAtMs = Date.now();
 
       console.warn(`Adaptive quality switch -> ${targetMode}: ${reason}`);
-      await stopStream(`adaptive restart (${reason})`, { preserveAdaptiveIntent: true });
 
-      clearAdaptiveRestartTimer();
-      adaptiveRestartTimerId = setTimeout(async () => {
-        const pendingProfile = adaptiveRestartTargetProfile;
-        adaptiveRestartTargetProfile = null;
+      try {
+        const videoTrack = stream.getVideoTracks()[0];
+        if (!videoTrack) {
+          return;
+        }
+
+        await videoTrack.applyConstraints({
+          width: { ideal: targetProfile.width },
+          height: { ideal: targetProfile.height },
+          frameRate: { ideal: targetProfile.frameRate, max: targetProfile.frameRate },
+        });
+
+        if (videoSender && typeof videoSender.getParameters === "function" && typeof videoSender.setParameters === "function") {
+          const parameters = videoSender.getParameters();
+          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+            ? parameters.encodings
+            : [{}];
+          parameters.encodings[0].maxFramerate = targetProfile.frameRate;
+          await videoSender.setParameters(parameters);
+        }
+
+        const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
+        currentWidth = settings.width ?? targetProfile.width;
+        currentHeight = settings.height ?? targetProfile.height;
+        if (Number.isFinite(settings.frameRate)) {
+          currentFps = String(Math.round(settings.frameRate));
+        }
+
+        // Clear stale samples so decisions reflect post-switch behavior.
+        fpsSamples = [];
         currentQualityMode = targetMode;
-        await startStreaming({ profile: pendingProfile, isAdaptiveRestart: true });
-      }, 300);
+        activeProfile = targetProfile;
+        updateStreamingStatus();
+      } catch (err) {
+        console.warn(`Adaptive quality switch failed (${targetMode}):`, err);
+      } finally {
+        isAdaptiveRestartInProgress = false;
+      }
     }
 
     async function startStreaming(options = {}) {
@@ -516,7 +531,7 @@
           clearConnectionTimeout();
         }
         if (["disconnected", "failed", "closed"].includes(currentPc.connectionState)) {
-          stopStream("disconnected", { preserveAdaptiveIntent: !!adaptiveRestartTargetProfile });
+          stopStream("disconnected");
         }
       };
 
@@ -616,8 +631,6 @@
         return;
       }
 
-      clearAdaptiveRestartTimer();
-      adaptiveRestartTargetProfile = null;
       isAdaptiveRestartInProgress = false;
       currentQualityMode = "high";
       activeProfile = null;
