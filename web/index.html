@@ -38,6 +38,7 @@
     let captureSourceAspectRatio = null;
     let captureSourceWidth = null;
     let captureSourceHeight = null;
+    let captureDisplaySurface = null;
 
     // Adaptive policy values are loaded from /capture-settings so server-side
     // configuration remains the single source of truth.
@@ -144,9 +145,55 @@
       };
     }
 
+    function getNormalizedCaptureGeometry(settings) {
+      const width = Number(settings && settings.width);
+      const height = Number(settings && settings.height);
+
+      let normalizedWidth = Number.isFinite(width) && width > 0
+        ? clampInt(width, captureSourceWidth || captureSettings.width)
+        : null;
+      let normalizedHeight = Number.isFinite(height) && height > 0
+        ? clampInt(height, captureSourceHeight || captureSettings.height)
+        : null;
+
+      const displaySurface = settings && typeof settings.displaySurface === "string"
+        ? settings.displaySurface
+        : null;
+
+      // Browsers can report monitor captures a few pixels smaller than the
+      // actual display because of encoder alignment or OS capture edges.
+      // When the reported size is only slightly smaller than the real screen,
+      // snap back to the true screen bounds so quality decisions use the
+      // selected display size rather than the encoded crop.
+      if (displaySurface === "monitor" && normalizedWidth !== null && normalizedHeight !== null) {
+        const screenWidth = window.screen ? clampInt(window.screen.width, normalizedWidth) : null;
+        const screenHeight = window.screen ? clampInt(window.screen.height, normalizedHeight) : null;
+        if (screenWidth !== null && screenHeight !== null) {
+          const widthDelta = Math.abs(screenWidth - normalizedWidth);
+          const heightDelta = Math.abs(screenHeight - normalizedHeight);
+          if (widthDelta <= 16 && heightDelta <= 16) {
+            normalizedWidth = screenWidth;
+            normalizedHeight = screenHeight;
+          }
+        }
+      }
+
+      return {
+        width: normalizedWidth,
+        height: normalizedHeight,
+        displaySurface,
+      };
+    }
+
     function updateCaptureSourceGeometry(settings, options = {}) {
       let didChange = false;
       const allowDecrease = options.allowDecrease === true;
+
+      const normalized = getNormalizedCaptureGeometry(settings);
+
+      if (normalized.displaySurface !== null && normalized.displaySurface !== captureDisplaySurface) {
+        captureDisplaySurface = normalized.displaySurface;
+      }
 
       const nextAspectRatio = getAspectRatioFromSettings(settings);
       if (
@@ -159,10 +206,8 @@
         didChange = true;
       }
 
-      const width = Number(settings && settings.width);
-      const height = Number(settings && settings.height);
-      if (Number.isFinite(width) && width > 0) {
-        const nextWidth = clampInt(width, captureSourceWidth || captureSettings.width);
+      if (normalized.width !== null) {
+        const nextWidth = normalized.width;
         if (
           nextWidth !== captureSourceWidth
           && (captureSourceWidth === null || nextWidth > captureSourceWidth || allowDecrease)
@@ -171,8 +216,8 @@
           didChange = true;
         }
       }
-      if (Number.isFinite(height) && height > 0) {
-        const nextHeight = clampInt(height, captureSourceHeight || captureSettings.height);
+      if (normalized.height !== null) {
+        const nextHeight = normalized.height;
         if (
           nextHeight !== captureSourceHeight
           && (captureSourceHeight === null || nextHeight > captureSourceHeight || allowDecrease)
@@ -223,7 +268,7 @@
 
       if (
         captureSourceWidth && captureSourceHeight
-        && (captureSourceWidth < adaptivePolicy.minWidth || captureSourceHeight < adaptivePolicy.minHeight)
+        && (captureSourceWidth < adaptivePolicy.minWidth && captureSourceHeight < adaptivePolicy.minHeight)
       ) {
         return {
           width: Math.max(2, roundToEven(highProfile.width / 2, highProfile.width)),
@@ -771,6 +816,9 @@
                 fps: currentFps,
                 frameWidth,
                 frameHeight,
+                sourceWidth: captureSourceWidth,
+                sourceHeight: captureSourceHeight,
+                displaySurface: captureDisplaySurface,
                 qualityLimitationReason,
                 bytesSent,
                 codecPreferenceMode,
@@ -838,6 +886,7 @@
       captureSourceAspectRatio = null;
       captureSourceWidth = null;
       captureSourceHeight = null;
+      captureDisplaySurface = null;
 
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
