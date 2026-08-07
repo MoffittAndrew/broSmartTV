@@ -27,6 +27,7 @@
     let isStreaming = false;
     let isStarting = false;
     let isAdaptiveRestartInProgress = false;
+    let isStartupWarmupSequenceActive = false;
 
     let currentFps = "unknown";
     let currentWidth = "unknown";
@@ -144,16 +145,53 @@
     }
 
     function updateCaptureSourceGeometry(settings) {
-      captureSourceAspectRatio = getAspectRatioFromSettings(settings) || captureSourceAspectRatio;
+      let didChange = false;
+
+      const nextAspectRatio = getAspectRatioFromSettings(settings);
+      if (Number.isFinite(nextAspectRatio) && nextAspectRatio > 0 && nextAspectRatio !== captureSourceAspectRatio) {
+        captureSourceAspectRatio = nextAspectRatio;
+        didChange = true;
+      }
 
       const width = Number(settings && settings.width);
       const height = Number(settings && settings.height);
       if (Number.isFinite(width) && width > 0) {
-        captureSourceWidth = clampInt(width, captureSourceWidth || captureSettings.width);
+        const nextWidth = clampInt(width, captureSourceWidth || captureSettings.width);
+        if (nextWidth !== captureSourceWidth) {
+          captureSourceWidth = nextWidth;
+          didChange = true;
+        }
       }
       if (Number.isFinite(height) && height > 0) {
-        captureSourceHeight = clampInt(height, captureSourceHeight || captureSettings.height);
+        const nextHeight = clampInt(height, captureSourceHeight || captureSettings.height);
+        if (nextHeight !== captureSourceHeight) {
+          captureSourceHeight = nextHeight;
+          didChange = true;
+        }
       }
+
+      return didChange;
+    }
+
+    function profilesMatch(leftProfile, rightProfile) {
+      return !!leftProfile
+        && !!rightProfile
+        && leftProfile.width === rightProfile.width
+        && leftProfile.height === rightProfile.height
+        && leftProfile.frameRate === rightProfile.frameRate;
+    }
+
+    async function syncProfileToSourceGeometry(reason) {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress || isStartupWarmupSequenceActive) {
+        return;
+      }
+
+      const targetProfile = profileForMode(currentQualityMode);
+      if (profilesMatch(activeProfile, targetProfile)) {
+        return;
+      }
+
+      await requestAdaptiveQualitySwitch(targetProfile, currentQualityMode, reason);
     }
 
     function getHighProfileBase() {
@@ -595,39 +633,45 @@
         console.warn(
           `Startup warmup: initial average FPS ${startupAverageFps.toFixed(1)} is low, switching to ${warmupProfile.width}x${warmupProfile.height}.`,
         );
-        await requestAdaptiveQualitySwitch(warmupProfile, "floor", "startup warmup to floor");
+        isStartupWarmupSequenceActive = true;
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, STARTUP_WARMUP_FLOOR_DURATION_MS);
-        });
+        try {
+          await requestAdaptiveQualitySwitch(warmupProfile, "floor", "startup warmup to floor");
 
-        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
-          return;
+          await new Promise((resolve) => {
+            setTimeout(resolve, STARTUP_WARMUP_FLOOR_DURATION_MS);
+          });
+
+          if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+            return;
+          }
+
+          if (qualityControlMode === "floor") {
+            return;
+          }
+
+          const lowProfile = profileForMode("floor");
+          console.warn(
+            `Startup warmup: stepping up to low quality at ${lowProfile.width}x${lowProfile.height} before returning to high.`,
+          );
+          await requestAdaptiveQualitySwitch(lowProfile, "floor", "startup warmup return to low");
+
+          await new Promise((resolve) => {
+            setTimeout(resolve, STARTUP_WARMUP_LOW_DURATION_MS);
+          });
+
+          if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+            return;
+          }
+
+          if (qualityControlMode === "floor") {
+            return;
+          }
+
+          await requestAdaptiveQualitySwitch(profileForMode("high"), "high", "startup warmup return to high");
+        } finally {
+          isStartupWarmupSequenceActive = false;
         }
-
-        if (qualityControlMode === "floor") {
-          return;
-        }
-
-        const lowProfile = profileForMode("floor");
-        console.warn(
-          `Startup warmup: stepping up to low quality at ${lowProfile.width}x${lowProfile.height} before returning to high.`,
-        );
-        await requestAdaptiveQualitySwitch(lowProfile, "floor", "startup warmup return to low");
-
-        await new Promise((resolve) => {
-          setTimeout(resolve, STARTUP_WARMUP_LOW_DURATION_MS);
-        });
-
-        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
-          return;
-        }
-
-        if (qualityControlMode === "floor") {
-          return;
-        }
-
-        await requestAdaptiveQualitySwitch(profileForMode("high"), "high", "startup warmup return to high");
       }, STARTUP_WARMUP_INITIAL_DELAY_MS);
     }
 
@@ -679,6 +723,23 @@
           if (framesEncoded !== null) {
             lastTimestamp = timestamp;
             lastFramesEncoded = framesEncoded;
+          }
+
+          const videoTrack = stream ? stream.getVideoTracks()[0] : null;
+          const trackSettings = videoTrack && typeof videoTrack.getSettings === "function"
+            ? videoTrack.getSettings()
+            : {};
+          const geometryDidChange = updateCaptureSourceGeometry({
+            ...trackSettings,
+            width: videoStat.frameWidth || trackSettings.width,
+            height: videoStat.frameHeight || trackSettings.height,
+          });
+
+          currentWidth = videoStat.frameWidth || trackSettings.width || currentWidth;
+          currentHeight = videoStat.frameHeight || trackSettings.height || currentHeight;
+
+          if (geometryDidChange) {
+            await syncProfileToSourceGeometry("capture source resized");
           }
 
           if (timestamp - lastSenderLogAt >= 5000) {
@@ -754,6 +815,7 @@
       clearConnectionTimeout();
       clearStartupWarmupTimer();
       isAdaptiveRestartInProgress = false;
+      isStartupWarmupSequenceActive = false;
 
       stopFpsMonitor();
       isStreaming = false;
