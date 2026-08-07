@@ -6,11 +6,13 @@
 </head>
 <body>
   <button id="startBtn">Start Screen Share</button>
+  <button id="qualityBtn" style="display:none;">Quality: Auto</button>
   <div id="status"></div>
 
   <script>
 
     const startBtn = document.getElementById("startBtn");
+    const qualityBtn = document.getElementById("qualityBtn");
     const statusDiv = document.getElementById("status");
 
     let pc = null;
@@ -34,8 +36,8 @@
     // configuration remains the single source of truth.
     let adaptivePolicy = {
       lowFpsThreshold: 30,
-      lowSampleWindow: 5,
-      lowSampleRequired: 5,
+      lowSampleWindow: 10,
+      lowSampleRequired: 10,
       recoveryFpsThreshold: 35,
       recoverySampleWindow: 20,
       recoverySampleRequired: 18,
@@ -52,6 +54,7 @@
     // - floor: 720p target
     // This avoids fragile quality ladders while enforcing the no-below-720p rule.
     let currentQualityMode = "high";
+    let qualityControlMode = "auto";
     let activeProfile = null;
     let fpsSamples = [];
     let lastQualityChangeAtMs = 0;
@@ -76,6 +79,37 @@
 
     function updateStreamingStatus() {
       statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
+    }
+
+    function updateQualityButtonText() {
+      if (qualityControlMode === "high") {
+        qualityBtn.textContent = "Quality: 1080p";
+        return;
+      }
+      if (qualityControlMode === "floor") {
+        qualityBtn.textContent = "Quality: 720p";
+        return;
+      }
+      qualityBtn.textContent = "Quality: Auto";
+    }
+
+    function showQualityButton() {
+      qualityBtn.style.display = "inline-block";
+      updateQualityButtonText();
+    }
+
+    function hideQualityButton() {
+      qualityBtn.style.display = "none";
+    }
+
+    function getNextQualityControlMode(currentMode) {
+      if (currentMode === "auto") {
+        return "high";
+      }
+      if (currentMode === "high") {
+        return "floor";
+      }
+      return "auto";
     }
 
     function clearConnectionTimeout() {
@@ -227,6 +261,12 @@
     }
 
     async function evaluateAdaptiveQuality() {
+      // Manual mode must disable auto switching so user-selected quality
+      // remains pinned until they switch back to Auto.
+      if (qualityControlMode !== "auto") {
+        return;
+      }
+
       if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
         return;
       }
@@ -234,8 +274,8 @@
       const nowMs = Date.now();
 
       // Critical invariant: downshift aggressively to protect motion smoothness.
-      // We intentionally use 5/5 low samples so quality drops quickly when
-      // playback experience degrades.
+      // We intentionally require a full 10-second low-FPS window so brief dips
+      // do not cause unnecessary quality changes.
       if (currentQualityMode === "high") {
         const lowCount = countWindowByPredicate(
           adaptivePolicy.lowSampleWindow,
@@ -283,6 +323,27 @@
           );
         }
       }
+    }
+
+    async function applyQualityControlMode(mode) {
+      qualityControlMode = mode;
+      updateQualityButtonText();
+
+      if (!isStreaming) {
+        return;
+      }
+
+      if (mode === "auto") {
+        fpsSamples = [];
+        return;
+      }
+
+      const targetMode = mode === "high" ? "high" : "floor";
+      if (targetMode === currentQualityMode) {
+        return;
+      }
+
+      await requestAdaptiveQualitySwitch(profileForMode(targetMode), targetMode, `manual mode ${mode}`);
     }
 
     function startFpsMonitor(sender) {
@@ -403,6 +464,7 @@
 
       startBtn.textContent = "Start Screen Share";
       startBtn.disabled = false;
+      hideQualityButton();
       statusDiv.textContent = `🛑 Stream ${reason}`;
       console.log("Stream stopped:", reason);
     }
@@ -601,6 +663,7 @@
       isAdaptiveRestartInProgress = false;
       startBtn.disabled = false;
       startBtn.textContent = "Stop Screen Share";
+      showQualityButton();
       currentFps = "starting";
 
       videoTrack.onended = () => {
@@ -633,8 +696,19 @@
 
       isAdaptiveRestartInProgress = false;
       currentQualityMode = "high";
+      qualityControlMode = "auto";
+      updateQualityButtonText();
       activeProfile = null;
       await startStreaming({ isAdaptiveRestart: false });
+    };
+
+    qualityBtn.onclick = async () => {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+        return;
+      }
+
+      const nextMode = getNextQualityControlMode(qualityControlMode);
+      await applyQualityControlMode(nextMode);
     };
   </script>
 </body>
