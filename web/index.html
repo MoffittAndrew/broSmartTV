@@ -795,19 +795,78 @@
     }
 
     async function requestDisplayMedia(profile) {
-      const constraints = {
+      const baseVideoConstraints = {
+        // Window streaming is more reliable for protected playback surfaces
+        // in this app, so we intentionally avoid full-monitor capture.
+        displaySurface: "window",
+        monitorTypeSurfaces: "exclude",
+        selfBrowserSurface: "exclude",
+        surfaceSwitching: "exclude",
+        cursor: "always",
+        logicalSurface: true,
+        width: { ideal: profile.width },
+        height: { ideal: profile.height },
+        aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
+        frameRate: { ideal: profile.frameRate, max: profile.frameRate },
+      };
+
+      const strictConstraints = {
         video: {
+          ...baseVideoConstraints,
+        },
+        audio: false,
+      };
+
+      const fallbackConstraints = {
+        video: {
+          width: { ideal: profile.width },
+          height: { ideal: profile.height },
+          aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
           frameRate: { ideal: profile.frameRate, max: profile.frameRate },
         },
         audio: false,
       };
 
+      const validateSelectedSurface = (selectedStream) => {
+        if (!selectedStream) {
+          return selectedStream;
+        }
+
+        const selectedVideoTrack = selectedStream.getVideoTracks()[0];
+        const selectedSettings = selectedVideoTrack && typeof selectedVideoTrack.getSettings === "function"
+          ? selectedVideoTrack.getSettings()
+          : {};
+        const selectedDisplaySurface = selectedSettings && typeof selectedSettings.displaySurface === "string"
+          ? selectedSettings.displaySurface
+          : null;
+
+        if (selectedDisplaySurface === "monitor") {
+          selectedStream.getTracks().forEach((track) => track.stop());
+          throw new Error("Please select a window to share. Full screen sharing is disabled for this app.");
+        }
+
+        return selectedStream;
+      };
+
       if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === "function") {
-        return navigator.mediaDevices.getDisplayMedia(constraints);
+        try {
+          const selectedStream = await navigator.mediaDevices.getDisplayMedia(strictConstraints);
+          return validateSelectedSurface(selectedStream);
+        } catch (err) {
+          // Some browsers reject strict, non-standard screen-picker hints.
+          // Fall back to standard constraints, then enforce window-only by
+          // validating the selected display surface.
+          if (err instanceof TypeError || err.name === "OverconstrainedError") {
+            const selectedStream = await navigator.mediaDevices.getDisplayMedia(fallbackConstraints);
+            return validateSelectedSurface(selectedStream);
+          }
+          throw err;
+        }
       }
 
       if (typeof navigator.getDisplayMedia === "function") {
-        return navigator.getDisplayMedia(constraints);
+        const selectedStream = await navigator.getDisplayMedia(fallbackConstraints);
+        return validateSelectedSurface(selectedStream);
       }
 
       const origin = window.location.origin;
