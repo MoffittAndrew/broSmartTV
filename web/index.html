@@ -308,6 +308,45 @@
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
+        // Hint to browsers that support it: keep local output muted while
+        // still sending captured audio to WebRTC.
+        suppressLocalAudioPlayback: true,
+      };
+    }
+
+    function buildDisplayMediaOptions(profile, { strictVideoHints }) {
+      const commonVideo = {
+        width: { ideal: profile.width },
+        height: { ideal: profile.height },
+        aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
+        frameRate: { ideal: profile.frameRate, max: profile.frameRate },
+        logicalSurface: true,
+      };
+
+      const video = strictVideoHints
+        ? {
+            ...commonVideo,
+            cursor: "always",
+          }
+        : commonVideo;
+
+      return {
+        video,
+        audio: buildAudioConstraints(),
+
+        // Keep desktop/monitor capture disabled while allowing tab + window.
+        monitorTypeSurfaces: "exclude",
+
+        // Bias the picker toward tab capture by default, while still letting
+        // users choose a window if desired.
+        preferCurrentTab: true,
+        selfBrowserSurface: "include",
+        surfaceSwitching: "include",
+
+        // Ask for non-system window audio when a window is selected. Browsers
+        // that do not implement this may ignore it or fall back.
+        windowAudio: "window",
+        systemAudio: "exclude",
       };
     }
 
@@ -824,37 +863,8 @@
     }
 
     async function requestDisplayMedia(profile) {
-      const baseVideoConstraints = {
-        // Window streaming is more reliable for protected playback surfaces
-        // in this app, so we intentionally avoid full-monitor capture.
-        displaySurface: "window",
-        monitorTypeSurfaces: "exclude",
-        selfBrowserSurface: "exclude",
-        surfaceSwitching: "exclude",
-        cursor: "always",
-        logicalSurface: true,
-        width: { ideal: profile.width },
-        height: { ideal: profile.height },
-        aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
-        frameRate: { ideal: profile.frameRate, max: profile.frameRate },
-      };
-
-      const strictConstraints = {
-        video: {
-          ...baseVideoConstraints,
-        },
-        audio: buildAudioConstraints(),
-      };
-
-      const fallbackConstraints = {
-        video: {
-          width: { ideal: profile.width },
-          height: { ideal: profile.height },
-          aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
-          frameRate: { ideal: profile.frameRate, max: profile.frameRate },
-        },
-        audio: buildAudioConstraints(),
-      };
+      const strictConstraints = buildDisplayMediaOptions(profile, { strictVideoHints: true });
+      const fallbackConstraints = buildDisplayMediaOptions(profile, { strictVideoHints: false });
 
       const videoOnlyFallbackConstraints = {
         ...fallbackConstraints,
@@ -1065,11 +1075,27 @@
       }
 
       const audioTracks = stream.getAudioTracks();
+      const selectedVideoTrack = stream.getVideoTracks()[0];
+      const selectedTrackSettings = selectedVideoTrack && typeof selectedVideoTrack.getSettings === "function"
+        ? selectedVideoTrack.getSettings()
+        : {};
+      const selectedDisplaySurface = selectedTrackSettings && typeof selectedTrackSettings.displaySurface === "string"
+        ? selectedTrackSettings.displaySurface
+        : null;
+
       isAudioActive = audioTracks.length > 0;
       if (audioEnabled && !isAudioActive) {
-        audioWarning = "audio unavailable; streaming video only";
+        if (selectedDisplaySurface === "window") {
+          audioWarning = "window audio unavailable here; use tab capture for reliable app-only audio";
+        } else {
+          audioWarning = "audio unavailable; streaming video only";
+        }
       } else {
-        audioWarning = null;
+        if (selectedDisplaySurface === "window") {
+          audioWarning = "window audio isolation depends on browser; tab capture is most reliable";
+        } else {
+          audioWarning = null;
+        }
       }
 
       const videoTrack = stream.getVideoTracks()[0];
