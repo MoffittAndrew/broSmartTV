@@ -25,12 +25,10 @@
     let videoSender = null;
     let fpsMonitor = null;
     let connectionTimeoutId = null;
-    let startupWarmupTimerId = null;
 
     let isStreaming = false;
     let isStarting = false;
     let isAdaptiveRestartInProgress = false;
-    let isStartupWarmupSequenceActive = false;
 
     let currentFps = "unknown";
     let currentWidth = "unknown";
@@ -68,8 +66,6 @@
       bitrateMinBps1080p: 0,
       bitrateMaxBps720p: 2800000,
       bitrateMinBps720p: 0,
-      bitrateMaxBps480p: 1400000,
-      bitrateMinBps480p: 0,
     };
 
     // We intentionally run only two quality modes in this phase:
@@ -84,15 +80,6 @@
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
-    const STARTUP_WARMUP_ENABLED = false;
-    const STARTUP_WARMUP_INITIAL_DELAY_MS = 5000;
-    const STARTUP_WARMUP_MIN_SAMPLES = 3;
-    const STARTUP_WARMUP_TRIGGER_FPS = 30;
-    const STARTUP_WARMUP_FLOOR_DURATION_MS = 10000;
-    const STARTUP_WARMUP_LOW_DURATION_MS = 10000;
-    const STARTUP_WARMUP_USE_480P = true;
-    const STARTUP_WARMUP_480P_WIDTH = 854;
-    const STARTUP_WARMUP_480P_HEIGHT = 480;
 
     function countSdpCandidates(sdp) {
       if (!sdp) {
@@ -253,7 +240,7 @@
     }
 
     async function syncProfileToSourceGeometry(reason) {
-      if (!isStreaming || isStarting || isAdaptiveRestartInProgress || isStartupWarmupSequenceActive) {
+      if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
         return;
       }
 
@@ -348,13 +335,6 @@
       const height = clampInt(resolvedProfile && resolvedProfile.height, adaptivePolicy.maxHeight);
       const pixelCount = width * height;
 
-      if (pixelCount <= STARTUP_WARMUP_480P_WIDTH * STARTUP_WARMUP_480P_HEIGHT) {
-        return {
-          minBitrate: senderPolicy.bitrateMinBps480p,
-          maxBitrate: senderPolicy.bitrateMaxBps480p,
-        };
-      }
-
       if (pixelCount <= adaptivePolicy.minWidth * adaptivePolicy.minHeight) {
         return {
           minBitrate: senderPolicy.bitrateMinBps720p,
@@ -427,13 +407,6 @@
       }
     }
 
-    function clearStartupWarmupTimer() {
-      if (startupWarmupTimerId !== null) {
-        clearTimeout(startupWarmupTimerId);
-        startupWarmupTimerId = null;
-      }
-    }
-
     function startConnectionTimeout() {
       clearConnectionTimeout();
       connectionTimeoutId = setTimeout(() => {
@@ -465,36 +438,12 @@
       return recent.filter(predicate).length;
     }
 
-    function averageFpsSample(sampleCount) {
-      if (fpsSamples.length < sampleCount) {
-        return null;
-      }
-
-      const recent = fpsSamples.slice(fpsSamples.length - sampleCount);
-      const total = recent.reduce((sum, sample) => sum + sample, 0);
-      return total / recent.length;
-    }
-
     function profileForMode(mode) {
       if (mode === "floor") {
         return resolveAspectMatchedProfile(getLowProfileBase());
       }
 
       return resolveAspectMatchedProfile(getHighProfileBase());
-    }
-
-    function startupWarmupProfile() {
-      // Warmup profile is intentionally separate from adaptive floor policy.
-      // Normal runtime adaptation still never goes below 720p; this lower
-      // profile is only a short startup accelerator.
-      if (STARTUP_WARMUP_USE_480P) {
-        return resolveAspectMatchedProfile({
-          width: STARTUP_WARMUP_480P_WIDTH,
-          height: STARTUP_WARMUP_480P_HEIGHT,
-          frameRate: captureSettings.frameRate,
-        });
-      }
-      return resolveAspectMatchedProfile(profileForMode("floor"));
     }
 
     function modeFromProfile(profile) {
@@ -547,8 +496,6 @@
           bitrateMinBps1080p: clampInt(settings.bitrateMinBps1080p, senderPolicy.bitrateMinBps1080p),
           bitrateMaxBps720p: clampInt(settings.bitrateMaxBps720p, senderPolicy.bitrateMaxBps720p),
           bitrateMinBps720p: clampInt(settings.bitrateMinBps720p, senderPolicy.bitrateMinBps720p),
-          bitrateMaxBps480p: clampInt(settings.bitrateMaxBps480p, senderPolicy.bitrateMaxBps480p),
-          bitrateMinBps480p: clampInt(settings.bitrateMinBps480p, senderPolicy.bitrateMinBps480p),
         };
       } catch (err) {
         console.error("Failed to load capture settings:", err);
@@ -669,7 +616,6 @@
     }
 
     async function applyQualityControlMode(mode) {
-      clearStartupWarmupTimer();
       qualityControlMode = mode;
       qualitySelect.value = mode;
 
@@ -688,91 +634,6 @@
       }
 
       await requestAdaptiveQualitySwitch(profileForMode(targetMode), targetMode, `manual mode ${mode}`);
-    }
-
-    async function maybeRunStartupWarmup(initialProfile) {
-      if (!STARTUP_WARMUP_ENABLED) {
-        return;
-      }
-      if (!initialProfile) {
-        return;
-      }
-      if (initialProfile.width <= adaptivePolicy.minWidth || initialProfile.height <= adaptivePolicy.minHeight) {
-        return;
-      }
-      if (qualityControlMode === "floor") {
-        return;
-      }
-
-      clearStartupWarmupTimer();
-      startupWarmupTimerId = setTimeout(async () => {
-        startupWarmupTimerId = null;
-
-        if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
-          return;
-        }
-
-        if (currentQualityMode !== "high") {
-          return;
-        }
-
-        const startupAverageFps = averageFpsSample(STARTUP_WARMUP_MIN_SAMPLES);
-        if (startupAverageFps === null) {
-          console.log("Startup warmup skipped: not enough FPS samples yet.");
-          return;
-        }
-
-        if (startupAverageFps >= STARTUP_WARMUP_TRIGGER_FPS) {
-          console.log(
-            `Startup warmup skipped: initial average FPS ${startupAverageFps.toFixed(1)} is healthy.`,
-          );
-          return;
-        }
-
-        const warmupProfile = startupWarmupProfile();
-        console.warn(
-          `Startup warmup: initial average FPS ${startupAverageFps.toFixed(1)} is low, switching to ${warmupProfile.width}x${warmupProfile.height}.`,
-        );
-        isStartupWarmupSequenceActive = true;
-
-        try {
-          await requestAdaptiveQualitySwitch(warmupProfile, "floor", "startup warmup to floor");
-
-          await new Promise((resolve) => {
-            setTimeout(resolve, STARTUP_WARMUP_FLOOR_DURATION_MS);
-          });
-
-          if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
-            return;
-          }
-
-          if (qualityControlMode === "floor") {
-            return;
-          }
-
-          const lowProfile = profileForMode("floor");
-          console.warn(
-            `Startup warmup: stepping up to low quality at ${lowProfile.width}x${lowProfile.height} before returning to high.`,
-          );
-          await requestAdaptiveQualitySwitch(lowProfile, "floor", "startup warmup return to low");
-
-          await new Promise((resolve) => {
-            setTimeout(resolve, STARTUP_WARMUP_LOW_DURATION_MS);
-          });
-
-          if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
-            return;
-          }
-
-          if (qualityControlMode === "floor") {
-            return;
-          }
-
-          await requestAdaptiveQualitySwitch(profileForMode("high"), "high", "startup warmup return to high");
-        } finally {
-          isStartupWarmupSequenceActive = false;
-        }
-      }, STARTUP_WARMUP_INITIAL_DELAY_MS);
     }
 
     function startFpsMonitor(sender) {
@@ -830,7 +691,6 @@
             ? videoTrack.getSettings()
             : {};
           const allowSourceDecrease = currentQualityMode === "high"
-            && !isStartupWarmupSequenceActive
             && !!activeProfile
             && (
               (Number.isFinite(trackSettings.width) && trackSettings.width < activeProfile.width)
@@ -924,9 +784,7 @@
 
     async function stopStream(reason = "stopped") {
       clearConnectionTimeout();
-      clearStartupWarmupTimer();
       isAdaptiveRestartInProgress = false;
-      isStartupWarmupSequenceActive = false;
 
       stopFpsMonitor();
       isStreaming = false;
@@ -1167,7 +1025,6 @@
       updateStreamingStatus();
 
       startFpsMonitor(videoSender);
-      await maybeRunStartupWarmup(resolvedProfile);
     }
 
     startBtn.onclick = async () => {
@@ -1185,7 +1042,6 @@
       isAdaptiveRestartInProgress = false;
       qualityControlMode = qualitySelect.value;
       currentQualityMode = qualityControlMode === "floor" ? "floor" : "high";
-      clearStartupWarmupTimer();
       activeProfile = null;
       await startStreaming({ isAdaptiveRestart: false });
     };

@@ -248,8 +248,6 @@ class SCREEN_CAST:
     BITRATE_MIN_BPS_1080P = 0
     BITRATE_MAX_BPS_720P = 2_800_000
     BITRATE_MIN_BPS_720P = 0
-    BITRATE_MAX_BPS_480P = 1_400_000
-    BITRATE_MIN_BPS_480P = 0
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.

@@ -294,8 +294,6 @@ async def capture_settings(request):
         "bitrateMinBps1080p": SCREEN_CAST.BITRATE_MIN_BPS_1080P,
         "bitrateMaxBps720p": SCREEN_CAST.BITRATE_MAX_BPS_720P,
         "bitrateMinBps720p": SCREEN_CAST.BITRATE_MIN_BPS_720P,
-        "bitrateMaxBps480p": SCREEN_CAST.BITRATE_MAX_BPS_480P,
-        "bitrateMinBps480p": SCREEN_CAST.BITRATE_MIN_BPS_480P,
         "receiverDrainTimeoutSeconds": SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS,
     })
 
