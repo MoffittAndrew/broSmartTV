@@ -46,6 +46,7 @@ class ScreenCastView(QLabel):
         self._pending_frame = None
         self._render_scheduled = False
         self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
+        self._sync_hold_until = None
         self._received_frames_since_log = 0
         self._rendered_frames_since_log = 0
         self._last_receiver_log_at = time.monotonic()
@@ -53,6 +54,28 @@ class ScreenCastView(QLabel):
         self.setStyleSheet("background-color: black;")
         self.setScaledContents(False)
         self.hide()
+
+    def _beginSyncHoldbackIfNeeded(self):
+        if self._sync_hold_until is None and self._render_delay_ms > 0:
+            self._sync_hold_until = time.monotonic() + (self._render_delay_ms / 1000.0)
+
+    def _currentScheduleDelayMs(self):
+        if self._sync_hold_until is None:
+            return 0
+
+        remaining = self._sync_hold_until - time.monotonic()
+        if remaining <= 0:
+            self._sync_hold_until = None
+            return 0
+
+        return max(0, int(remaining * 1000))
+
+    def _scheduleRender(self):
+        delay_ms = self._currentScheduleDelayMs()
+        QTimer.singleShot(delay_ms, self._renderPendingFrame)
+
+    def resetSyncHoldback(self):
+        self._sync_hold_until = None
 
     def setFrame(self, frame):
         if frame is None:
@@ -65,12 +88,14 @@ class ScreenCastView(QLabel):
         # smoothness over exhaustive per-frame rendering.
         self._pending_frame = frame
         self._received_frames_since_log += 1
+        self._beginSyncHoldbackIfNeeded()
 
         if not self._render_scheduled:
             self._render_scheduled = True
-            # Keep a tiny configurable render delay so we can align video with
-            # slightly slower HDMI audio output without introducing backlog.
-            QTimer.singleShot(self._render_delay_ms, self._renderPendingFrame)
+            # Apply holdback only at stream start; afterwards render cadence is
+            # immediate so FPS remains constrained by decode/render speed, not
+            # by an artificial timer delay.
+            self._scheduleRender()
 
         self._maybeLogReceiverStats()
 
@@ -122,7 +147,7 @@ class ScreenCastView(QLabel):
         # entire backlog.
         if self._pending_frame is not None and not self._render_scheduled:
             self._render_scheduled = True
-            QTimer.singleShot(self._render_delay_ms, self._renderPendingFrame)
+            self._scheduleRender()
 
         self._maybeLogReceiverStats()
 
@@ -333,6 +358,8 @@ class CustomQWindow(CustomQWidget):
 
     def hideScreenCast(self):
         if self.__screenCastWidget is not None:
+            if hasattr(self.__screenCastWidget, "resetSyncHoldback"):
+                self.__screenCastWidget.resetSyncHoldback()
             self.__screenCastWidget.hide()
 
         if self.__screenCastPreviousWidget is not None:

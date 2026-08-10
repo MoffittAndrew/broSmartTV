@@ -262,8 +262,9 @@ class SCREEN_CAST:
     AUDIO_OUTPUT_LATENCY = "low"
     AUDIO_OUTPUT_DEVICE = None
 
-    # Apply a tiny receiver-side video presentation delay so playback can be
-    # nudged into lip-sync when audio lands slightly behind on HDMI output.
+    # Apply a tiny one-time receiver-side video holdback at stream start so
+    # playback can be nudged into lip-sync when audio lands slightly behind on
+    # HDMI output, without reducing steady-state video FPS.
     VIDEO_SYNC_DELAY_MS = 100
 
     # If the receiver loop is behind, drain any immediately available backlog
