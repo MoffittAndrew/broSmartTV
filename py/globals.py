@@ -214,7 +214,7 @@ class SCREEN_CAST:
     PORT = 8080
     CAPTURE_WIDTH = 1920
     CAPTURE_HEIGHT = 1080
-    CAPTURE_FRAME_RATE = 30
+    CAPTURE_FRAME_RATE = 60
 
     # Adaptive downshift trigger: if FPS remains below 15 for 10 consecutive
     # one-second samples, prioritize smoothness over fidelity by switching to
