@@ -57,6 +57,18 @@
       maxHeight: 1080,
     };
 
+    // Sender policy values are loaded from /capture-settings so tuning is
+    // centralized and Pi behavior remains reproducible.
+    let senderPolicy = {
+      degradationPreference: "maintain-framerate",
+      bitrateMaxBps1080p: 8000000,
+      bitrateMinBps1080p: 4000000,
+      bitrateMaxBps720p: 4500000,
+      bitrateMinBps720p: 2200000,
+      bitrateMaxBps480p: 2000000,
+      bitrateMinBps480p: 1000000,
+    };
+
     // We intentionally run only two quality modes in this phase:
     // - high: 1080p target
     // - floor: 720p target
@@ -367,7 +379,7 @@
         ? ["video/VP9", "video/VP8", "video/H264"]
         : (mode === "h264"
           ? ["video/H264", "video/VP8", "video/VP9"]
-          : ["video/VP8", "video/VP9", "video/H264"]);
+          : ["video/VP9", "video/VP8", "video/H264"]);
 
       const orderedMediaCodecs = [];
       for (const mimeType of preferredOrder) {
@@ -387,6 +399,76 @@
       }
 
       return orderedMediaCodecs;
+    }
+
+    function bitrateBoundsForProfile(profile) {
+      const resolvedProfile = resolveAspectMatchedProfile(profile || profileForMode(currentQualityMode));
+      const width = clampInt(resolvedProfile && resolvedProfile.width, adaptivePolicy.maxWidth);
+      const height = clampInt(resolvedProfile && resolvedProfile.height, adaptivePolicy.maxHeight);
+      const pixelCount = width * height;
+
+      if (pixelCount <= STARTUP_WARMUP_480P_WIDTH * STARTUP_WARMUP_480P_HEIGHT) {
+        return {
+          minBitrate: senderPolicy.bitrateMinBps480p,
+          maxBitrate: senderPolicy.bitrateMaxBps480p,
+        };
+      }
+
+      if (pixelCount <= adaptivePolicy.minWidth * adaptivePolicy.minHeight) {
+        return {
+          minBitrate: senderPolicy.bitrateMinBps720p,
+          maxBitrate: senderPolicy.bitrateMaxBps720p,
+        };
+      }
+
+      return {
+        minBitrate: senderPolicy.bitrateMinBps1080p,
+        maxBitrate: senderPolicy.bitrateMaxBps1080p,
+      };
+    }
+
+    async function applySenderEncodingPolicy(sender, profile, reason) {
+      if (!sender || typeof sender.getParameters !== "function" || typeof sender.setParameters !== "function") {
+        return;
+      }
+
+      const resolvedProfile = resolveAspectMatchedProfile(profile || profileForMode(currentQualityMode));
+      const bitrateBounds = bitrateBoundsForProfile(resolvedProfile);
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+        ? parameters.encodings
+        : [{}];
+
+      const primaryEncoding = parameters.encodings[0];
+      primaryEncoding.maxFramerate = resolvedProfile.frameRate;
+      primaryEncoding.maxBitrate = bitrateBounds.maxBitrate;
+      primaryEncoding.minBitrate = bitrateBounds.minBitrate;
+      parameters.degradationPreference = senderPolicy.degradationPreference;
+
+      try {
+        await sender.setParameters(parameters);
+      } catch (err) {
+        // Some engines reject less-common fields (for example minBitrate or
+        // degradationPreference). Retry with a compatibility subset so the
+        // high-impact maxBitrate/maxFramerate policy still applies.
+        console.warn(`Full sender policy rejected (${reason}); retrying compatibility subset.`, err);
+        delete primaryEncoding.minBitrate;
+        delete parameters.degradationPreference;
+        try {
+          await sender.setParameters(parameters);
+        } catch (fallbackErr) {
+          console.warn(`Unable to apply sender encoding policy (${reason}):`, fallbackErr);
+          return;
+        }
+      }
+
+      console.log("Applied sender encoding policy", {
+        reason,
+        profile: resolvedProfile,
+        degradationPreference: senderPolicy.degradationPreference,
+        minBitrate: bitrateBounds.minBitrate,
+        maxBitrate: bitrateBounds.maxBitrate,
+      });
     }
 
     function clearConnectionTimeout() {
@@ -506,6 +588,18 @@
           minHeight: clampInt(settings.adaptMinHeight, adaptivePolicy.minHeight),
           maxWidth: clampInt(settings.adaptMaxWidth, adaptivePolicy.maxWidth),
           maxHeight: clampInt(settings.adaptMaxHeight, adaptivePolicy.maxHeight),
+        };
+
+        senderPolicy = {
+          degradationPreference: typeof settings.degradationPreference === "string"
+            ? settings.degradationPreference
+            : senderPolicy.degradationPreference,
+          bitrateMaxBps1080p: clampInt(settings.bitrateMaxBps1080p, senderPolicy.bitrateMaxBps1080p),
+          bitrateMinBps1080p: clampInt(settings.bitrateMinBps1080p, senderPolicy.bitrateMinBps1080p),
+          bitrateMaxBps720p: clampInt(settings.bitrateMaxBps720p, senderPolicy.bitrateMaxBps720p),
+          bitrateMinBps720p: clampInt(settings.bitrateMinBps720p, senderPolicy.bitrateMinBps720p),
+          bitrateMaxBps480p: clampInt(settings.bitrateMaxBps480p, senderPolicy.bitrateMaxBps480p),
+          bitrateMinBps480p: clampInt(settings.bitrateMinBps480p, senderPolicy.bitrateMinBps480p),
         };
       } catch (err) {
         console.error("Failed to load capture settings:", err);
@@ -933,14 +1027,7 @@
           frameRate: { ideal: resolvedProfile.frameRate, max: resolvedProfile.frameRate },
         });
 
-        if (videoSender && typeof videoSender.getParameters === "function" && typeof videoSender.setParameters === "function") {
-          const parameters = videoSender.getParameters();
-          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
-            ? parameters.encodings
-            : [{}];
-          parameters.encodings[0].maxFramerate = resolvedProfile.frameRate;
-          await videoSender.setParameters(parameters);
-        }
+        await applySenderEncodingPolicy(videoSender, resolvedProfile, `adaptive switch to ${targetMode}`);
 
         const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : {};
         updateCaptureSourceGeometry(settings, { allowDecrease: false });
@@ -1067,15 +1154,8 @@
             videoTransceiver.setCodecPreferences(preferredCodecs);
           }
         }
-        if (track.kind === "video" && sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
-          const parameters = sender.getParameters();
-          parameters.encodings = parameters.encodings && parameters.encodings.length > 0
-            ? parameters.encodings
-            : [{}];
-          parameters.encodings[0].maxFramerate = resolvedProfile.frameRate;
-          sender.setParameters(parameters).catch((err) => {
-            console.warn("Unable to apply sender framerate parameters:", err);
-          });
+        if (track.kind === "video") {
+          await applySenderEncodingPolicy(sender, resolvedProfile, "initial stream start");
         }
       }
 

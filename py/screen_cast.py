@@ -145,10 +145,12 @@ async def offer(request):
             async def read_frames():
                 frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
                 log_interval = SCREEN_CAST.FRAME_LOG_INTERVAL_SECONDS
+                receiver_drain_timeout = SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS
                 start_time = time.monotonic()
                 last_frame_time = None
                 last_log_time = start_time
                 frame_count = 0
+                coalesced_before_ui = 0
 
                 try:
                     while True:
@@ -169,6 +171,18 @@ async def offer(request):
                         frame_count += 1
                         last_frame_time = now
 
+                        # Drain any immediately available decoded backlog so we
+                        # forward only the freshest frame. This avoids the
+                        # visible lag-then-fast-forward behavior under pressure.
+                        while True:
+                            try:
+                                frame = await asyncio.wait_for(track.recv(), timeout=receiver_drain_timeout)
+                                coalesced_before_ui += 1
+                                frame_count += 1
+                                last_frame_time = time.monotonic()
+                            except asyncio.TimeoutError:
+                                break
+
                         if frame_count == 1:
                             log(f"First video frame received after {now - start_time:.2f}s.")
 
@@ -177,7 +191,7 @@ async def offer(request):
                             avg_fps = frame_count / elapsed
                             log(
                                 f"Frame stats: frames={frame_count}, elapsed={elapsed:.1f}s, "
-                                f"avg_fps={avg_fps:.1f}."
+                                f"avg_fps={avg_fps:.1f}, coalesced_before_ui={coalesced_before_ui}."
                             )
                             last_log_time = now
 
@@ -185,13 +199,16 @@ async def offer(request):
                         # coalescing can drop stale frames before expensive
                         # RGB numpy conversion is performed.
                         _notifyFrame(frame)
+                except asyncio.CancelledError:
+                    log("Stream reader cancelled.")
+                    raise
                 except Exception as exc:
                     log(f"Stream ended with error: {exc}")
                 finally:
                     total_elapsed = time.monotonic() - start_time
                     log(
                         f"Stream reader stopping (frames={frame_count}, elapsed={total_elapsed:.1f}s, "
-                        f"connectionState={pc.connectionState})."
+                        f"connectionState={pc.connectionState}, coalesced_before_ui={coalesced_before_ui})."
                     )
                     await _cleanup_peer(pc)
                     _notifyDisconnected()
@@ -235,6 +252,10 @@ async def offer(request):
 
 async def on_shutdown(screenCastServer):
     log(f"Server shutting down, closing peer connections... (count={len(pcs)})")
+    for task in list(_track_tasks):
+        task.cancel()
+    if _track_tasks:
+        await asyncio.gather(*list(_track_tasks), return_exceptions=True)
     coros = [_cleanup_peer(pc) for pc in list(pcs)]
     await asyncio.gather(*coros)
     pcs.clear()
@@ -268,6 +289,14 @@ async def capture_settings(request):
         "adaptMinHeight": SCREEN_CAST.ADAPT_MIN_HEIGHT,
         "adaptMaxWidth": SCREEN_CAST.ADAPT_MAX_WIDTH,
         "adaptMaxHeight": SCREEN_CAST.ADAPT_MAX_HEIGHT,
+        "degradationPreference": SCREEN_CAST.DEGRADATION_PREFERENCE,
+        "bitrateMaxBps1080p": SCREEN_CAST.BITRATE_MAX_BPS_1080P,
+        "bitrateMinBps1080p": SCREEN_CAST.BITRATE_MIN_BPS_1080P,
+        "bitrateMaxBps720p": SCREEN_CAST.BITRATE_MAX_BPS_720P,
+        "bitrateMinBps720p": SCREEN_CAST.BITRATE_MIN_BPS_720P,
+        "bitrateMaxBps480p": SCREEN_CAST.BITRATE_MAX_BPS_480P,
+        "bitrateMinBps480p": SCREEN_CAST.BITRATE_MIN_BPS_480P,
+        "receiverDrainTimeoutSeconds": SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS,
     })
 
 

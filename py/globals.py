@@ -241,6 +241,20 @@ class SCREEN_CAST:
     ADAPT_MAX_WIDTH = 1920
     ADAPT_MAX_HEIGHT = 1080
 
+    # Sender policy is centralized here so browser-side WebRTC tuning remains
+    # reproducible across sessions and Pi deployments.
+    DEGRADATION_PREFERENCE = "maintain-framerate"
+    BITRATE_MAX_BPS_1080P = 8_000_000
+    BITRATE_MIN_BPS_1080P = 4_000_000
+    BITRATE_MAX_BPS_720P = 4_500_000
+    BITRATE_MIN_BPS_720P = 2_200_000
+    BITRATE_MAX_BPS_480P = 2_000_000
+    BITRATE_MIN_BPS_480P = 1_000_000
+
+    # If the receiver loop is behind, drain any immediately available backlog
+    # and forward only the freshest decoded frame to avoid catch-up bursts.
+    RECEIVER_DRAIN_TIMEOUT_SECONDS = 0.001
+
     FRAME_TIMEOUT_SECONDS = 10
     FRAME_LOG_INTERVAL_SECONDS = 5
     ICE_GATHER_TIMEOUT_SECONDS = 8
