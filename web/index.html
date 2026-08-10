@@ -189,6 +189,23 @@
       };
     }
 
+    function getScreenHintGeometry() {
+      if (!window.screen) {
+        return { width: null, height: null };
+      }
+
+      const screenWidth = Number(window.screen.width);
+      const screenHeight = Number(window.screen.height);
+      if (!Number.isFinite(screenWidth) || !Number.isFinite(screenHeight) || screenWidth <= 0 || screenHeight <= 0) {
+        return { width: null, height: null };
+      }
+
+      return {
+        width: clampInt(screenWidth, captureSettings.width),
+        height: clampInt(screenHeight, captureSettings.height),
+      };
+    }
+
     function getNormalizedCaptureGeometry(settings) {
       const width = Number(settings && settings.width);
       const height = Number(settings && settings.height);
@@ -203,22 +220,38 @@
       const displaySurface = settings && typeof settings.displaySurface === "string"
         ? settings.displaySurface
         : null;
+      const screenHint = getScreenHintGeometry();
 
       // Browsers can report monitor captures a few pixels smaller than the
       // actual display because of encoder alignment or OS capture edges.
       // When the reported size is only slightly smaller than the real screen,
       // snap back to the true screen bounds so quality decisions use the
       // selected display size rather than the encoded crop.
-      if (displaySurface === "monitor" && normalizedWidth !== null && normalizedHeight !== null) {
-        const screenWidth = window.screen ? clampInt(window.screen.width, normalizedWidth) : null;
-        const screenHeight = window.screen ? clampInt(window.screen.height, normalizedHeight) : null;
+      if ((displaySurface === "monitor" || displaySurface === "window") && normalizedWidth !== null && normalizedHeight !== null) {
+        const screenWidth = screenHint.width;
+        const screenHeight = screenHint.height;
         if (screenWidth !== null && screenHeight !== null) {
           const widthDelta = Math.abs(screenWidth - normalizedWidth);
           const heightDelta = Math.abs(screenHeight - normalizedHeight);
-          if (widthDelta <= 16 && heightDelta <= 16) {
+          const shouldSnapToScreen = widthDelta <= 16 && heightDelta <= 16;
+          if (shouldSnapToScreen) {
             normalizedWidth = screenWidth;
             normalizedHeight = screenHeight;
           }
+        }
+      }
+
+      // If the browser is still reporting a tiny capture size after a window has
+      // been maximized or switched to fullscreen, use the screen hint as an
+      // upward growth signal so the active profile can recover to a larger size.
+      if ((displaySurface === "monitor" || displaySurface === "window") && screenHint.width !== null && screenHint.height !== null) {
+        const referenceWidth = normalizedWidth !== null ? normalizedWidth : captureSourceWidth || captureSettings.width;
+        const referenceHeight = normalizedHeight !== null ? normalizedHeight : captureSourceHeight || captureSettings.height;
+        const widthGrowth = screenHint.width - referenceWidth;
+        const heightGrowth = screenHint.height - referenceHeight;
+        if (widthGrowth >= 64 || heightGrowth >= 64) {
+          normalizedWidth = Math.min(screenHint.width, captureSettings.width);
+          normalizedHeight = Math.min(screenHint.height, captureSettings.height);
         }
       }
 
