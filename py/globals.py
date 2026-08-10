@@ -265,7 +265,7 @@ class SCREEN_CAST:
     # Apply a tiny one-time receiver-side video holdback at stream start so
     # playback can be nudged into lip-sync when audio lands slightly behind on
     # HDMI output, without reducing steady-state video FPS.
-    VIDEO_SYNC_DELAY_MS = 100
+    VIDEO_SYNC_DELAY_MS = 200
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
