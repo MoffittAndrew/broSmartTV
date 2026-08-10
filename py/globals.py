@@ -224,17 +224,17 @@ class SCREEN_CAST:
     ADAPT_LOW_SAMPLE_REQUIRED = 10
 
     # Adaptive recovery trigger: if floor quality is consistently healthy,
-    # return to 1080p once FPS is at least 25 for the recovery window.
+    # return to 1080p once FPS is at least 25 for roughly 15 seconds.
     # up to 1080p to avoid oscillating quality under marginal conditions.
     ADAPT_RECOVERY_FPS_THRESHOLD = 25
-    ADAPT_RECOVERY_SAMPLE_WINDOW = 20
-    ADAPT_RECOVERY_SAMPLE_REQUIRED = 18
+    ADAPT_RECOVERY_SAMPLE_WINDOW = 15
+    ADAPT_RECOVERY_SAMPLE_REQUIRED = 13
 
     # Directional cooldowns are intentionally asymmetric: upgrades wait longer
     # than downgrades so FPS protection reacts quickly while quality recovery
     # remains conservative.
-    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 20
-    ADAPT_UPGRADE_COOLDOWN_SECONDS = 60
+    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 10
+    ADAPT_UPGRADE_COOLDOWN_SECONDS = 20
 
     # Hard bounds for this phase: never below 720p and never above 1080p.
     ADAPT_MIN_WIDTH = 1280
