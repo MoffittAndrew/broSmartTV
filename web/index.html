@@ -842,7 +842,7 @@
 
         if (selectedDisplaySurface === "monitor") {
           selectedStream.getTracks().forEach((track) => track.stop());
-          throw new Error("Please select a window to share. Full screen sharing is disabled for this app.");
+          throw new Error("Please select a window or browser tab to share. Full screen sharing is disabled for this app.");
         }
 
         return selectedStream;
