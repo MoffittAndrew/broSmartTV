@@ -337,10 +337,10 @@
         // Keep desktop/monitor capture disabled while allowing tab + window.
         monitorTypeSurfaces: "exclude",
 
-        // Bias the picker toward tab capture by default, while still letting
-        // users choose a window if desired.
-        preferCurrentTab: true,
-        selfBrowserSurface: "include",
+        // Keep browser tabs available in the picker while allowing windows.
+        // Some browsers may over-constrain choices when preferCurrentTab is
+        // set, so we avoid it to preserve access to any tab.
+        selfBrowserSurface: "exclude",
         surfaceSwitching: "include",
 
         // Ask for non-system window audio when a window is selected. Browsers
