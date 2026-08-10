@@ -29,6 +29,7 @@
     let isStreaming = false;
     let isStarting = false;
     let isAdaptiveRestartInProgress = false;
+    let isLowMotionContent = false;
 
     let currentFps = "unknown";
     let currentWidth = "unknown";
@@ -80,6 +81,8 @@
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
+    const LOW_MOTION_FPS_THRESHOLD = 2;
+    const LOW_MOTION_BITRATE_BPS_THRESHOLD = 120000;
 
     function countSdpCandidates(sdp) {
       if (!sdp) {
@@ -547,6 +550,7 @@
         currentHeight = "unknown";
       }
       fpsSamples = [];
+      isLowMotionContent = false;
       videoSender = null;
     }
 
@@ -644,6 +648,7 @@
 
       let lastTimestamp = null;
       let lastFramesEncoded = null;
+      let lastBytesSent = null;
       let lastSenderLogAt = 0;
 
       fpsMonitor = setInterval(async () => {
@@ -666,6 +671,9 @@
           const framesEncoded = typeof videoStat.framesEncoded === "number"
             ? videoStat.framesEncoded
             : (typeof videoStat.framesSent === "number" ? videoStat.framesSent : null);
+          const bytesSent = typeof videoStat.bytesSent === "number" ? videoStat.bytesSent : null;
+          let currentBitrateBps = null;
+          let sampledFps = null;
 
           if (lastTimestamp !== null && lastFramesEncoded !== null && framesEncoded !== null) {
             const elapsedSeconds = (timestamp - lastTimestamp) / 1000;
@@ -673,10 +681,15 @@
               const fps = (framesEncoded - lastFramesEncoded) / elapsedSeconds;
               if (Number.isFinite(fps)) {
                 const rounded = Math.round(fps);
+                sampledFps = rounded;
                 currentFps = String(rounded);
-                pushFpsSample(rounded);
               } else {
                 currentFps = "unknown";
+              }
+
+              if (bytesSent !== null && lastBytesSent !== null) {
+                const deltaBytes = bytesSent - lastBytesSent;
+                currentBitrateBps = Math.max(0, (deltaBytes * 8) / elapsedSeconds);
               }
             }
           }
@@ -684,6 +697,39 @@
           if (framesEncoded !== null) {
             lastTimestamp = timestamp;
             lastFramesEncoded = framesEncoded;
+          }
+          if (bytesSent !== null) {
+            lastBytesSent = bytesSent;
+          }
+
+          const lowMotionDetected = sampledFps !== null
+            && sampledFps <= LOW_MOTION_FPS_THRESHOLD
+            && Number.isFinite(currentBitrateBps)
+            && currentBitrateBps <= LOW_MOTION_BITRATE_BPS_THRESHOLD;
+
+          if (lowMotionDetected) {
+            if (!isLowMotionContent) {
+              console.log("Low-motion scene detected; pausing FPS-driven auto-downgrade.", {
+                sampledFps,
+                currentBitrateBps,
+              });
+            }
+            isLowMotionContent = true;
+            fpsSamples = [];
+            currentFps = "idle";
+
+            if (qualityControlMode === "auto" && currentQualityMode === "floor" && !isAdaptiveRestartInProgress) {
+              await requestAdaptiveQualitySwitch(
+                profileForMode("high"),
+                "high",
+                "low-motion scene prioritize detail",
+              );
+            }
+          } else {
+            isLowMotionContent = false;
+            if (sampledFps !== null) {
+              pushFpsSample(sampledFps);
+            }
           }
 
           const videoTrack = stream ? stream.getVideoTracks()[0] : null;
@@ -714,7 +760,6 @@
               : null;
             const frameWidth = videoStat.frameWidth || currentWidth;
             const frameHeight = videoStat.frameHeight || currentHeight;
-            const bytesSent = typeof videoStat.bytesSent === "number" ? videoStat.bytesSent : null;
             const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
             const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : "unknown";
             console.log(
@@ -730,13 +775,17 @@
                 qualityLimitationReason,
                 qualityLimitationDurations,
                 bytesSent,
+                currentBitrateBps,
+                isLowMotionContent,
                 negotiatedCodec,
               },
             );
           }
 
           updateStreamingStatus();
-          await evaluateAdaptiveQuality();
+          if (!isLowMotionContent) {
+            await evaluateAdaptiveQuality();
+          }
         } catch (err) {
           console.warn("Failed to read outbound video stats:", err);
           currentFps = "unknown";
