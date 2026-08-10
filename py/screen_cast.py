@@ -11,6 +11,7 @@ import time
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
+from audio_playback import submitAudioFrame, stopAudioPlayback
 
 LOG_PREFIX = "[screencast]"
 
@@ -100,6 +101,11 @@ async def _cleanup_peer(pc):
 
         if active_pc == pc:
             active_pc = None
+
+        try:
+            await stopAudioPlayback()
+        except Exception as exc:
+            log(f"Audio playback cleanup failed: {exc}")
 
         try:
             await pc.close()
@@ -217,6 +223,43 @@ async def offer(request):
             _track_tasks.add(task)
             task.add_done_callback(_track_tasks.discard)
 
+        elif track.kind == "audio":
+            log("Audio track received.")
+
+            async def read_audio_frames():
+                frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
+                frame_count = 0
+                start_time = time.monotonic()
+                try:
+                    while True:
+                        try:
+                            frame = await asyncio.wait_for(track.recv(), timeout=frame_timeout)
+                        except asyncio.TimeoutError:
+                            log(
+                                f"No audio frames received within {frame_timeout}s; "
+                                "stopping audio track reader."
+                            )
+                            break
+
+                        frame_count += 1
+                        submitAudioFrame(frame)
+                except asyncio.CancelledError:
+                    log("Audio stream reader cancelled.")
+                    raise
+                except Exception as exc:
+                    log(f"Audio stream ended with error: {exc}")
+                finally:
+                    elapsed = time.monotonic() - start_time
+                    log(
+                        "Audio stream reader stopping "
+                        f"(frames={frame_count}, elapsed={elapsed:.1f}s, "
+                        f"connectionState={pc.connectionState})."
+                    )
+
+            task = asyncio.create_task(read_audio_frames())
+            _track_tasks.add(task)
+            task.add_done_callback(_track_tasks.discard)
+
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
         log(f"Connection state changed: {pc.connectionState}")
@@ -294,6 +337,7 @@ async def capture_settings(request):
         "bitrateMinBps1080p": SCREEN_CAST.BITRATE_MIN_BPS_1080P,
         "bitrateMaxBps720p": SCREEN_CAST.BITRATE_MAX_BPS_720P,
         "bitrateMinBps720p": SCREEN_CAST.BITRATE_MIN_BPS_720P,
+        "audioEnabled": SCREEN_CAST.AUDIO_ENABLED,
         "receiverDrainTimeoutSeconds": SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS,
     })
 

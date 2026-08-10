@@ -250,6 +250,13 @@ class SCREEN_CAST:
     BITRATE_MAX_BPS_720P = 2_800_000
     BITRATE_MIN_BPS_720P = 0
 
+    # Audio forwarding is enabled by default. Sender falls back to video-only
+    # if browser/system audio capture is unavailable.
+    AUDIO_ENABLED = True
+    AUDIO_PREBUFFER_FRAMES = 12
+    AUDIO_QUEUE_MAX_FRAMES = 240
+    AUDIO_OUTPUT_DEVICE = None
+
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
     RECEIVER_DRAIN_TIMEOUT_SECONDS = 0.001

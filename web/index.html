@@ -41,6 +41,9 @@
     let captureSourceWidth = null;
     let captureSourceHeight = null;
     let captureDisplaySurface = null;
+    let audioEnabled = true;
+    let isAudioActive = false;
+    let audioWarning = null;
 
     // Adaptive policy values are loaded from /capture-settings so server-side
     // configuration remains the single source of truth.
@@ -289,7 +292,31 @@
     }
 
     function updateStreamingStatus() {
-      statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
+      const audioStatus = isAudioActive ? "audio:on" : "audio:off";
+      const warningSuffix = audioWarning ? ` (${audioWarning})` : "";
+      statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps, ${audioStatus})${warningSuffix}`;
+    }
+
+    function buildAudioConstraints() {
+      if (!audioEnabled) {
+        return false;
+      }
+
+      // Content playback benefits from preserving source dynamics rather than
+      // applying speech-focused processing.
+      return {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      };
+    }
+
+    function isDisplayMediaConstraintCompatibilityError(err) {
+      return err instanceof TypeError
+        || (err && typeof err.name === "string" && [
+          "OverconstrainedError",
+          "NotFoundError",
+        ].includes(err.name));
     }
 
     function getPreferredVideoCodecs() {
@@ -500,6 +527,8 @@
           bitrateMaxBps720p: clampInt(settings.bitrateMaxBps720p, senderPolicy.bitrateMaxBps720p),
           bitrateMinBps720p: clampInt(settings.bitrateMinBps720p, senderPolicy.bitrateMinBps720p),
         };
+
+        audioEnabled = settings.audioEnabled !== false;
       } catch (err) {
         console.error("Failed to load capture settings:", err);
       }
@@ -814,7 +843,7 @@
         video: {
           ...baseVideoConstraints,
         },
-        audio: false,
+        audio: buildAudioConstraints(),
       };
 
       const fallbackConstraints = {
@@ -824,6 +853,11 @@
           aspectRatio: { ideal: captureSourceAspectRatio || (profile.width / profile.height) },
           frameRate: { ideal: profile.frameRate, max: profile.frameRate },
         },
+        audio: buildAudioConstraints(),
+      };
+
+      const videoOnlyFallbackConstraints = {
+        ...fallbackConstraints,
         audio: false,
       };
 
@@ -856,9 +890,18 @@
           // Some browsers reject strict, non-standard screen-picker hints.
           // Fall back to standard constraints, then enforce window-only by
           // validating the selected display surface.
-          if (err instanceof TypeError || err.name === "OverconstrainedError") {
-            const selectedStream = await navigator.mediaDevices.getDisplayMedia(fallbackConstraints);
-            return validateSelectedSurface(selectedStream);
+          if (isDisplayMediaConstraintCompatibilityError(err)) {
+            try {
+              const selectedStream = await navigator.mediaDevices.getDisplayMedia(fallbackConstraints);
+              return validateSelectedSurface(selectedStream);
+            } catch (fallbackErr) {
+              if (audioEnabled && isDisplayMediaConstraintCompatibilityError(fallbackErr)) {
+                console.warn("Audio capture constraints unsupported; continuing with video-only.", fallbackErr);
+                const selectedStream = await navigator.mediaDevices.getDisplayMedia(videoOnlyFallbackConstraints);
+                return validateSelectedSurface(selectedStream);
+              }
+              throw fallbackErr;
+            }
           }
           throw err;
         }
@@ -897,6 +940,8 @@
       stopFpsMonitor();
       isStreaming = false;
       isStarting = false;
+      isAudioActive = false;
+      audioWarning = null;
       captureSourceAspectRatio = null;
       captureSourceWidth = null;
       captureSourceHeight = null;
@@ -1017,6 +1062,14 @@
           statusDiv.textContent = `❌ ${reason}`;
         }
         return;
+      }
+
+      const audioTracks = stream.getAudioTracks();
+      isAudioActive = audioTracks.length > 0;
+      if (audioEnabled && !isAudioActive) {
+        audioWarning = "audio unavailable; streaming video only";
+      } else {
+        audioWarning = null;
       }
 
       const videoTrack = stream.getVideoTracks()[0];
