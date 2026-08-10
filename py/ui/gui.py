@@ -2,7 +2,7 @@
 
 print("Importing GUI tools...")
 
-from globals import DISPLAY, INPUT, GUI
+from globals import DISPLAY, INPUT, GUI, SCREEN_CAST
 
 from PyQt5 import sip
 from PyQt5.QtWidgets import QWidget, QLabel, QStackedLayout
@@ -45,6 +45,7 @@ class ScreenCastView(QLabel):
         self._pixmap = None
         self._pending_frame = None
         self._render_scheduled = False
+        self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
         self._received_frames_since_log = 0
         self._rendered_frames_since_log = 0
         self._last_receiver_log_at = time.monotonic()
@@ -67,7 +68,9 @@ class ScreenCastView(QLabel):
 
         if not self._render_scheduled:
             self._render_scheduled = True
-            QTimer.singleShot(0, self._renderPendingFrame)
+            # Keep a tiny configurable render delay so we can align video with
+            # slightly slower HDMI audio output without introducing backlog.
+            QTimer.singleShot(self._render_delay_ms, self._renderPendingFrame)
 
         self._maybeLogReceiverStats()
 
@@ -119,7 +122,7 @@ class ScreenCastView(QLabel):
         # entire backlog.
         if self._pending_frame is not None and not self._render_scheduled:
             self._render_scheduled = True
-            QTimer.singleShot(0, self._renderPendingFrame)
+            QTimer.singleShot(self._render_delay_ms, self._renderPendingFrame)
 
         self._maybeLogReceiverStats()
 
