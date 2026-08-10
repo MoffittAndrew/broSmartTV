@@ -6,15 +6,18 @@
 </head>
 <body>
   <button id="startBtn">Start Screen Share</button>
-  <button id="qualityBtn" style="display:none;">Quality: Auto</button>
-  <button id="codecBtn">Codec: Auto</button>
+  <label for="qualitySelect">Quality:</label>
+  <select id="qualitySelect">
+    <option value="auto">Auto</option>
+    <option value="high">High</option>
+    <option value="floor">Low</option>
+  </select>
   <div id="status"></div>
 
   <script>
 
     const startBtn = document.getElementById("startBtn");
-    const qualityBtn = document.getElementById("qualityBtn");
-    const codecBtn = document.getElementById("codecBtn");
+    const qualitySelect = document.getElementById("qualitySelect");
     const statusDiv = document.getElementById("status");
 
     let pc = null;
@@ -75,7 +78,6 @@
     // This avoids fragile quality ladders while enforcing the no-below-720p rule.
     let currentQualityMode = "high";
     let qualityControlMode = "auto";
-    let codecPreferenceMode = "auto";
     let activeProfile = null;
     let fpsSamples = [];
     let lastQualityChangeAtMs = 0;
@@ -300,67 +302,7 @@
       statusDiv.textContent = `✅ Streaming active (${currentWidth}x${currentHeight} @ ${currentFps}fps)`;
     }
 
-    function updateQualityButtonText() {
-      if (qualityControlMode === "high") {
-        qualityBtn.textContent = "Quality: High";
-        return;
-      }
-      if (qualityControlMode === "floor") {
-        qualityBtn.textContent = "Quality: Low";
-        return;
-      }
-      qualityBtn.textContent = "Quality: Auto";
-    }
-
-    function updateCodecButtonText() {
-      if (codecPreferenceMode === "vp8") {
-        codecBtn.textContent = "Codec: VP8";
-        return;
-      }
-      if (codecPreferenceMode === "h264") {
-        codecBtn.textContent = "Codec: H264";
-        return;
-      }
-      if (codecPreferenceMode === "vp9") {
-        codecBtn.textContent = "Codec: VP9";
-        return;
-      }
-      codecBtn.textContent = "Codec: Auto";
-    }
-
-    function showQualityButton() {
-      qualityBtn.style.display = "inline-block";
-      updateQualityButtonText();
-    }
-
-    function hideQualityButton() {
-      qualityBtn.style.display = "none";
-    }
-
-    function getNextQualityControlMode(currentMode) {
-      if (currentMode === "auto") {
-        return "high";
-      }
-      if (currentMode === "high") {
-        return "floor";
-      }
-      return "auto";
-    }
-
-    function getNextCodecPreferenceMode(currentMode) {
-      if (currentMode === "auto") {
-        return "vp8";
-      }
-      if (currentMode === "vp8") {
-        return "vp9";
-      }
-      if (currentMode === "vp9") {
-        return "h264";
-      }
-      return "auto";
-    }
-
-    function getPreferredVideoCodecs(mode) {
+    function getPreferredVideoCodecs() {
       if (typeof RTCRtpSender === "undefined" || typeof RTCRtpSender.getCapabilities !== "function") {
         return [];
       }
@@ -378,11 +320,7 @@
 
       // Keep H264 as last-resort fallback. Auto and manual VP8/VP9 both prefer
       // VPx first to avoid forcing H264 unless negotiation requires it.
-      const preferredOrder = mode === "vp9"
-        ? ["video/VP9", "video/VP8", "video/H264"]
-        : (mode === "h264"
-          ? ["video/H264", "video/VP8", "video/VP9"]
-          : ["video/VP9", "video/VP8", "video/H264"]);
+      const preferredOrder = ["video/VP9", "video/VP8", "video/H264"];
 
       const orderedMediaCodecs = [];
       for (const mimeType of preferredOrder) {
@@ -733,7 +671,7 @@
     async function applyQualityControlMode(mode) {
       clearStartupWarmupTimer();
       qualityControlMode = mode;
-      updateQualityButtonText();
+      qualitySelect.value = mode;
 
       if (!isStreaming) {
         return;
@@ -932,7 +870,6 @@
                 qualityLimitationReason,
                 qualityLimitationDurations,
                 bytesSent,
-                codecPreferenceMode,
                 negotiatedCodec,
               },
             );
@@ -1011,7 +948,6 @@
 
       startBtn.textContent = "Start Screen Share";
       startBtn.disabled = false;
-      hideQualityButton();
       statusDiv.textContent = `🛑 Stream ${reason}`;
       console.log("Stream stopped:", reason);
     }
@@ -1166,7 +1102,7 @@
           // least invasive way to test decoder load on Raspberry Pi without
           // introducing receiver-side complexity.
           const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
-          const preferredCodecs = getPreferredVideoCodecs(codecPreferenceMode);
+          const preferredCodecs = getPreferredVideoCodecs();
           if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === "function") {
             videoTransceiver.setCodecPreferences(preferredCodecs);
           }
@@ -1213,7 +1149,6 @@
       isAdaptiveRestartInProgress = false;
       startBtn.disabled = false;
       startBtn.textContent = "Stop Screen Share";
-      showQualityButton();
       currentFps = "starting";
 
       videoTrack.onended = () => {
@@ -1248,33 +1183,34 @@
       }
 
       isAdaptiveRestartInProgress = false;
-      currentQualityMode = "high";
-      qualityControlMode = "auto";
-      updateQualityButtonText();
+      qualityControlMode = qualitySelect.value;
+      currentQualityMode = qualityControlMode === "floor" ? "floor" : "high";
       clearStartupWarmupTimer();
       activeProfile = null;
       await startStreaming({ isAdaptiveRestart: false });
     };
 
-    codecBtn.onclick = () => {
-      if (isStreaming || isStarting) {
+    qualitySelect.onchange = async () => {
+      const selectedMode = qualitySelect.value;
+      if (!["auto", "high", "floor"].includes(selectedMode)) {
+        qualitySelect.value = qualityControlMode;
         return;
       }
 
-      codecPreferenceMode = getNextCodecPreferenceMode(codecPreferenceMode);
-      updateCodecButtonText();
-    };
-
-    qualityBtn.onclick = async () => {
-      if (!isStreaming || isStarting || isAdaptiveRestartInProgress) {
+      if (!isStreaming) {
+        qualityControlMode = selectedMode;
         return;
       }
 
-      const nextMode = getNextQualityControlMode(qualityControlMode);
-      await applyQualityControlMode(nextMode);
+      if (isStarting || isAdaptiveRestartInProgress) {
+        qualitySelect.value = qualityControlMode;
+        return;
+      }
+
+      await applyQualityControlMode(selectedMode);
     };
 
-    updateCodecButtonText();
+    qualitySelect.value = qualityControlMode;
   </script>
 </body>
 </html>
