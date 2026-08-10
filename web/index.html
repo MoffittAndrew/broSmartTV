@@ -91,6 +91,8 @@
     const CONNECTION_TIMEOUT_MS = 10000;
     const LOW_MOTION_FPS_THRESHOLD = 2;
     const LOW_MOTION_BITRATE_BPS_THRESHOLD = 120000;
+    const AUDIO_SENDER_MAX_BITRATE_BPS = 256_000;
+    const AUDIO_SENDER_MIN_BITRATE_BPS = 128_000;
 
     function countSdpCandidates(sdp) {
       if (!sdp) {
@@ -503,6 +505,35 @@
         minBitrate: senderPolicy.bitrateMinBps1080p,
         maxBitrate: senderPolicy.bitrateMaxBps1080p,
       };
+    }
+
+    async function applyAudioSenderEncodingPolicy(sender, reason) {
+      if (!sender || typeof sender.getParameters !== "function" || typeof sender.setParameters !== "function") {
+        return;
+      }
+
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings && parameters.encodings.length > 0
+        ? parameters.encodings
+        : [{}];
+
+      const primaryEncoding = parameters.encodings[0];
+      primaryEncoding.maxBitrate = AUDIO_SENDER_MAX_BITRATE_BPS;
+      primaryEncoding.minBitrate = AUDIO_SENDER_MIN_BITRATE_BPS;
+      delete primaryEncoding.scalabilityMode;
+      delete parameters.degradationPreference;
+
+      try {
+        await sender.setParameters(parameters);
+      } catch (err) {
+        console.warn(`Unable to apply audio sender policy (${reason}):`, err);
+      }
+
+      console.log("Applied audio sender policy", {
+        reason,
+        minBitrate: AUDIO_SENDER_MIN_BITRATE_BPS,
+        maxBitrate: AUDIO_SENDER_MAX_BITRATE_BPS,
+      });
     }
 
     async function applySenderEncodingPolicy(sender, profile, reason) {
@@ -1242,9 +1273,10 @@
           if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === "function") {
             videoTransceiver.setCodecPreferences(preferredCodecs);
           }
-        }
-        if (track.kind === "video") {
           await applySenderEncodingPolicy(sender, resolvedProfile, "initial stream start");
+        }
+        if (track.kind === "audio") {
+          await applyAudioSenderEncodingPolicy(sender, "initial stream start");
         }
       }
 
