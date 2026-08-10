@@ -215,7 +215,63 @@ class SCREEN_CAST:
     CAPTURE_WIDTH = 1920
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 60
-    FRAME_TIMEOUT_SECONDS = 30
+
+    # Adaptive downshift trigger: if FPS remains below 15 for 10 consecutive
+    # one-second samples, prioritize smoothness over fidelity by switching to
+    # the 720p floor profile.
+    ADAPT_LOW_FPS_THRESHOLD = 15
+    ADAPT_LOW_SAMPLE_WINDOW = 10
+    ADAPT_LOW_SAMPLE_REQUIRED = 10
+
+    # Adaptive recovery trigger: if floor quality is consistently healthy,
+    # return to 1080p once FPS is at least 20 for roughly 15 seconds.
+    # up to 1080p to avoid oscillating quality under marginal conditions.
+    ADAPT_RECOVERY_FPS_THRESHOLD = 20
+    ADAPT_RECOVERY_SAMPLE_WINDOW = 15
+    ADAPT_RECOVERY_SAMPLE_REQUIRED = 13
+
+    # Directional cooldowns are intentionally asymmetric: upgrades wait longer
+    # than downgrades so FPS protection reacts quickly while quality recovery
+    # remains conservative.
+    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 15
+    ADAPT_UPGRADE_COOLDOWN_SECONDS = 30
+
+    # Hard bounds for this phase: never below 720p and never above 1080p.
+    ADAPT_MIN_WIDTH = 1280
+    ADAPT_MIN_HEIGHT = 720
+    ADAPT_MAX_WIDTH = 1920
+    ADAPT_MAX_HEIGHT = 1080
+
+    # Sender policy is centralized here so browser-side WebRTC tuning remains
+    # reproducible across sessions and Pi deployments.
+    DEGRADATION_PREFERENCE = "maintain-framerate"
+    BITRATE_MAX_BPS_1080P = 5_000_000
+    BITRATE_MIN_BPS_1080P = 0
+    BITRATE_MAX_BPS_720P = 2_800_000
+    BITRATE_MIN_BPS_720P = 0
+
+    # Audio forwarding is enabled by default. Sender falls back to video-only
+    # if browser/system audio capture is unavailable.
+    AUDIO_ENABLED = True
+    # Keep audio startup buffer short so speech/lip movement stays in sync
+    # with video. This intentionally trades some underrun tolerance for lower
+    # end-to-end latency.
+    AUDIO_PREBUFFER_FRAMES = 2
+    AUDIO_QUEUE_MAX_FRAMES = 10
+    AUDIO_TARGET_QUEUE_FRAMES = 4
+    AUDIO_OUTPUT_LATENCY = "low"
+    AUDIO_OUTPUT_DEVICE = None
+
+    # Apply a tiny one-time receiver-side video holdback at stream start so
+    # playback can be nudged into lip-sync when audio lands slightly behind on
+    # HDMI output, without reducing steady-state video FPS.
+    VIDEO_SYNC_DELAY_MS = 200
+
+    # If the receiver loop is behind, drain any immediately available backlog
+    # and forward only the freshest decoded frame to avoid catch-up bursts.
+    RECEIVER_DRAIN_TIMEOUT_SECONDS = 0.001
+
+    FRAME_TIMEOUT_SECONDS = 10
     FRAME_LOG_INTERVAL_SECONDS = 5
     ICE_GATHER_TIMEOUT_SECONDS = 8
     ICE_SERVERS = [

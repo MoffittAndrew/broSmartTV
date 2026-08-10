@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QCoreApplication
 
 from screen_cast import stopScreenCastServer
+from audio_playback import stopAudioPlayback
 
 
 _shutdown_started = False
@@ -25,6 +26,11 @@ async def teardown_app(projector_interface=None, quit_app=False):
                 await projector_interface.off()
             except Exception as exc:
                 print(f"Projector shutdown failed: {exc}")
+
+        try:
+            await stopAudioPlayback()
+        except Exception as exc:
+            print(f"Audio playback shutdown failed: {exc}")
 
         try:
             await stopScreenCastServer()

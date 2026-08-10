@@ -11,6 +11,7 @@ import time
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
+from audio_playback import submitAudioFrame, stopAudioPlayback
 
 LOG_PREFIX = "[screencast]"
 
@@ -102,6 +103,11 @@ async def _cleanup_peer(pc):
             active_pc = None
 
         try:
+            await stopAudioPlayback()
+        except Exception as exc:
+            log(f"Audio playback cleanup failed: {exc}")
+
+        try:
             await pc.close()
             log("Peer connection closed.")
         except Exception as exc:
@@ -145,10 +151,12 @@ async def offer(request):
             async def read_frames():
                 frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
                 log_interval = SCREEN_CAST.FRAME_LOG_INTERVAL_SECONDS
+                receiver_drain_timeout = SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS
                 start_time = time.monotonic()
                 last_frame_time = None
                 last_log_time = start_time
                 frame_count = 0
+                coalesced_before_ui = 0
 
                 try:
                     while True:
@@ -169,6 +177,18 @@ async def offer(request):
                         frame_count += 1
                         last_frame_time = now
 
+                        # Drain any immediately available decoded backlog so we
+                        # forward only the freshest frame. This avoids the
+                        # visible lag-then-fast-forward behavior under pressure.
+                        while True:
+                            try:
+                                frame = await asyncio.wait_for(track.recv(), timeout=receiver_drain_timeout)
+                                coalesced_before_ui += 1
+                                frame_count += 1
+                                last_frame_time = time.monotonic()
+                            except asyncio.TimeoutError:
+                                break
+
                         if frame_count == 1:
                             log(f"First video frame received after {now - start_time:.2f}s.")
 
@@ -177,25 +197,66 @@ async def offer(request):
                             avg_fps = frame_count / elapsed
                             log(
                                 f"Frame stats: frames={frame_count}, elapsed={elapsed:.1f}s, "
-                                f"avg_fps={avg_fps:.1f}."
+                                f"avg_fps={avg_fps:.1f}, coalesced_before_ui={coalesced_before_ui}."
                             )
                             last_log_time = now
 
-                        frame_array = frame.to_ndarray(format="rgb24")
-
-                        _notifyFrame(frame_array)
+                        # Send raw frames to the UI callback so receiver-side
+                        # coalescing can drop stale frames before expensive
+                        # RGB numpy conversion is performed.
+                        _notifyFrame(frame)
+                except asyncio.CancelledError:
+                    log("Stream reader cancelled.")
+                    raise
                 except Exception as exc:
                     log(f"Stream ended with error: {exc}")
                 finally:
                     total_elapsed = time.monotonic() - start_time
                     log(
                         f"Stream reader stopping (frames={frame_count}, elapsed={total_elapsed:.1f}s, "
-                        f"connectionState={pc.connectionState})."
+                        f"connectionState={pc.connectionState}, coalesced_before_ui={coalesced_before_ui})."
                     )
                     await _cleanup_peer(pc)
                     _notifyDisconnected()
 
             task = asyncio.create_task(read_frames())
+            _track_tasks.add(task)
+            task.add_done_callback(_track_tasks.discard)
+
+        elif track.kind == "audio":
+            log("Audio track received.")
+
+            async def read_audio_frames():
+                frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
+                frame_count = 0
+                start_time = time.monotonic()
+                try:
+                    while True:
+                        try:
+                            frame = await asyncio.wait_for(track.recv(), timeout=frame_timeout)
+                        except asyncio.TimeoutError:
+                            log(
+                                f"No audio frames received within {frame_timeout}s; "
+                                "stopping audio track reader."
+                            )
+                            break
+
+                        frame_count += 1
+                        submitAudioFrame(frame)
+                except asyncio.CancelledError:
+                    log("Audio stream reader cancelled.")
+                    raise
+                except Exception as exc:
+                    log(f"Audio stream ended with error: {exc}")
+                finally:
+                    elapsed = time.monotonic() - start_time
+                    log(
+                        "Audio stream reader stopping "
+                        f"(frames={frame_count}, elapsed={elapsed:.1f}s, "
+                        f"connectionState={pc.connectionState})."
+                    )
+
+            task = asyncio.create_task(read_audio_frames())
             _track_tasks.add(task)
             task.add_done_callback(_track_tasks.discard)
 
@@ -234,6 +295,10 @@ async def offer(request):
 
 async def on_shutdown(screenCastServer):
     log(f"Server shutting down, closing peer connections... (count={len(pcs)})")
+    for task in list(_track_tasks):
+        task.cancel()
+    if _track_tasks:
+        await asyncio.gather(*list(_track_tasks), return_exceptions=True)
     coros = [_cleanup_peer(pc) for pc in list(pcs)]
     await asyncio.gather(*coros)
     pcs.clear()
@@ -248,11 +313,32 @@ async def status(request):
 
 
 async def capture_settings(request):
+    # The web sender consumes adaptive policy from this endpoint so quality
+    # behavior remains centralized and consistent across clients.
     return web.json_response({
         "width": SCREEN_CAST.CAPTURE_WIDTH,
         "height": SCREEN_CAST.CAPTURE_HEIGHT,
         "frameRate": SCREEN_CAST.CAPTURE_FRAME_RATE,
         "iceServers": [{"urls": url} for url in SCREEN_CAST.ICE_SERVERS],
+        "adaptLowFpsThreshold": SCREEN_CAST.ADAPT_LOW_FPS_THRESHOLD,
+        "adaptLowSampleWindow": SCREEN_CAST.ADAPT_LOW_SAMPLE_WINDOW,
+        "adaptLowSampleRequired": SCREEN_CAST.ADAPT_LOW_SAMPLE_REQUIRED,
+        "adaptRecoveryFpsThreshold": SCREEN_CAST.ADAPT_RECOVERY_FPS_THRESHOLD,
+        "adaptRecoverySampleWindow": SCREEN_CAST.ADAPT_RECOVERY_SAMPLE_WINDOW,
+        "adaptRecoverySampleRequired": SCREEN_CAST.ADAPT_RECOVERY_SAMPLE_REQUIRED,
+        "adaptDowngradeCooldownSeconds": SCREEN_CAST.ADAPT_DOWNGRADE_COOLDOWN_SECONDS,
+        "adaptUpgradeCooldownSeconds": SCREEN_CAST.ADAPT_UPGRADE_COOLDOWN_SECONDS,
+        "adaptMinWidth": SCREEN_CAST.ADAPT_MIN_WIDTH,
+        "adaptMinHeight": SCREEN_CAST.ADAPT_MIN_HEIGHT,
+        "adaptMaxWidth": SCREEN_CAST.ADAPT_MAX_WIDTH,
+        "adaptMaxHeight": SCREEN_CAST.ADAPT_MAX_HEIGHT,
+        "degradationPreference": SCREEN_CAST.DEGRADATION_PREFERENCE,
+        "bitrateMaxBps1080p": SCREEN_CAST.BITRATE_MAX_BPS_1080P,
+        "bitrateMinBps1080p": SCREEN_CAST.BITRATE_MIN_BPS_1080P,
+        "bitrateMaxBps720p": SCREEN_CAST.BITRATE_MAX_BPS_720P,
+        "bitrateMinBps720p": SCREEN_CAST.BITRATE_MIN_BPS_720P,
+        "audioEnabled": SCREEN_CAST.AUDIO_ENABLED,
+        "receiverDrainTimeoutSeconds": SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS,
     })
 
 
