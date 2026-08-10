@@ -873,14 +873,14 @@
 
       if (!isAdaptiveRestart) {
         await loadCaptureSettings();
-        activeProfile = profileForMode("high");
+        activeProfile = profileForMode(currentQualityMode);
       }
 
       if (!selectedProfile) {
         selectedProfile = profileForMode(currentQualityMode);
       }
 
-      const profile = selectedProfile || activeProfile || profileForMode("high");
+      const profile = selectedProfile || activeProfile || profileForMode(currentQualityMode);
       activeProfile = profile;
 
       const available = await checkAvailability();
@@ -1041,7 +1041,7 @@
 
       isAdaptiveRestartInProgress = false;
       qualityControlMode = qualitySelect.value;
-      currentQualityMode = qualityControlMode === "floor" ? "floor" : "high";
+      currentQualityMode = qualityControlMode === "high" ? "high" : "floor";
       activeProfile = null;
       await startStreaming({ isAdaptiveRestart: false });
     };
