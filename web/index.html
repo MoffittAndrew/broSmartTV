@@ -329,12 +329,18 @@
       const video = strictVideoHints
         ? {
             ...commonVideo,
+            // Hint picker toward window sharing by default while still keeping
+            // browser tabs available as user-selectable alternatives.
+            displaySurface: "window",
             cursor: "always",
           }
         : commonVideo;
 
       return {
         video,
+        // Always request audio when enabled. Browser UI (including default
+        // checkbox state) is user-agent controlled, but explicit request here
+        // ensures we consistently ask for audio permission.
         audio: buildAudioConstraints(),
 
         // Keep desktop/monitor capture disabled while allowing tab + window.

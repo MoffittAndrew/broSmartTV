@@ -264,7 +264,7 @@ class SCREEN_CAST:
 
     # Apply a tiny receiver-side video presentation delay so playback can be
     # nudged into lip-sync when audio lands slightly behind on HDMI output.
-    VIDEO_SYNC_DELAY_MS = 35
+    VIDEO_SYNC_DELAY_MS = 100
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
