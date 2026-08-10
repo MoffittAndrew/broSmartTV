@@ -224,9 +224,9 @@ class SCREEN_CAST:
     ADAPT_LOW_SAMPLE_REQUIRED = 10
 
     # Adaptive recovery trigger: if floor quality is consistently healthy,
-    # return to 1080p once FPS is at least 25 for roughly 15 seconds.
+    # return to 1080p once FPS is at least 20 for roughly 15 seconds.
     # up to 1080p to avoid oscillating quality under marginal conditions.
-    ADAPT_RECOVERY_FPS_THRESHOLD = 25
+    ADAPT_RECOVERY_FPS_THRESHOLD = 20
     ADAPT_RECOVERY_SAMPLE_WINDOW = 15
     ADAPT_RECOVERY_SAMPLE_REQUIRED = 13
 
