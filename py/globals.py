@@ -216,16 +216,17 @@ class SCREEN_CAST:
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 30
 
-    # Adaptive downshift trigger: if FPS remains below 30 for 10 consecutive
+    # Adaptive downshift trigger: if FPS remains below 15 for 10 consecutive
     # one-second samples, prioritize smoothness over fidelity by switching to
     # the 720p floor profile.
-    ADAPT_LOW_FPS_THRESHOLD = 30
+    ADAPT_LOW_FPS_THRESHOLD = 15
     ADAPT_LOW_SAMPLE_WINDOW = 10
     ADAPT_LOW_SAMPLE_REQUIRED = 10
 
-    # Adaptive recovery trigger: require sustained health before stepping back
+    # Adaptive recovery trigger: if floor quality is consistently healthy,
+    # return to 1080p once FPS is at least 25 for the recovery window.
     # up to 1080p to avoid oscillating quality under marginal conditions.
-    ADAPT_RECOVERY_FPS_THRESHOLD = 35
+    ADAPT_RECOVERY_FPS_THRESHOLD = 25
     ADAPT_RECOVERY_SAMPLE_WINDOW = 20
     ADAPT_RECOVERY_SAMPLE_REQUIRED = 18
 
