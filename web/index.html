@@ -1011,7 +1011,10 @@
         if (!window.isSecureContext) {
           statusDiv.textContent = "❌ Screen share blocked: open this page via HTTPS or localhost";
         } else {
-          statusDiv.textContent = "❌ Unable to start screen share";
+          const reason = err && typeof err.message === "string" && err.message.trim().length > 0
+            ? err.message.trim()
+            : "Unable to start screen share";
+          statusDiv.textContent = `❌ ${reason}`;
         }
         return;
       }
