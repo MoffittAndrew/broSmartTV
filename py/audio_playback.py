@@ -49,6 +49,7 @@ class AudioPlaybackService:
         self._sample_rate = None
         self._channels = None
         self._dropped_frames = 0
+        self._trimmed_backlog_frames = 0
         self._last_overflow_log_at = 0.0
 
     def _reset_state_locked(self):
@@ -58,6 +59,7 @@ class AudioPlaybackService:
         self._sample_rate = None
         self._channels = None
         self._dropped_frames = 0
+        self._trimmed_backlog_frames = 0
         self._last_overflow_log_at = 0.0
 
     def _coerce_channels(self, interleaved_samples):
@@ -153,11 +155,29 @@ class AudioPlaybackService:
                 # If output thread is critically stalled, drop this frame too.
                 self._dropped_frames += 1
 
+        # Keep queue near real-time so audio does not drift behind the lower-
+        # latency video path. If backlog grows, drop oldest audio chunks.
+        target_frames = max(1, int(SCREEN_CAST.AUDIO_TARGET_QUEUE_FRAMES))
+        while self._queue.qsize() > target_frames:
+            try:
+                self._queue.get_nowait()
+                self._trimmed_backlog_frames += 1
+            except queue.Empty:
+                break
+
+        now = time.monotonic()
+        if self._trimmed_backlog_frames > 0 and now - self._last_overflow_log_at >= 5:
+            log(
+                "Trimmed buffered audio backlog to maintain A/V sync "
+                f"(trimmed={self._trimmed_backlog_frames}, queue_size={self._queue.qsize()})."
+            )
+            self._last_overflow_log_at = now
+
     def _start_worker_locked(self, sample_rate, channels):
         if self._running:
             return
 
-        max_frames = max(10, int(SCREEN_CAST.AUDIO_QUEUE_MAX_FRAMES))
+        max_frames = max(2, int(SCREEN_CAST.AUDIO_QUEUE_MAX_FRAMES))
         self._queue = queue.Queue(maxsize=max_frames)
         self._sample_rate = int(sample_rate)
         self._channels = int(channels)
@@ -212,13 +232,14 @@ class AudioPlaybackService:
                 samplerate=self._sample_rate,
                 channels=self._channels,
                 dtype="float32",
-                latency="high",
+                latency=SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
                 device=SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
             )
             stream.start()
 
             prebuffer_frames = max(1, int(SCREEN_CAST.AUDIO_PREBUFFER_FRAMES))
             buffered = []
+            prebuffering = True
 
             while True:
                 if self._queue is None:
@@ -234,14 +255,16 @@ class AudioPlaybackService:
                 if chunk is _SENTINEL:
                     break
 
-                if len(buffered) < prebuffer_frames:
+                if prebuffering:
                     buffered.append(chunk)
-                    continue
+                    if len(buffered) < prebuffer_frames:
+                        continue
 
-                if buffered:
                     for pending in buffered:
                         stream.write(pending)
                     buffered.clear()
+                    prebuffering = False
+                    continue
 
                 stream.write(chunk)
         except Exception as exc:

@@ -253,8 +253,13 @@ class SCREEN_CAST:
     # Audio forwarding is enabled by default. Sender falls back to video-only
     # if browser/system audio capture is unavailable.
     AUDIO_ENABLED = True
-    AUDIO_PREBUFFER_FRAMES = 12
-    AUDIO_QUEUE_MAX_FRAMES = 240
+    # Keep audio startup buffer short so speech/lip movement stays in sync
+    # with video. This intentionally trades some underrun tolerance for lower
+    # end-to-end latency.
+    AUDIO_PREBUFFER_FRAMES = 2
+    AUDIO_QUEUE_MAX_FRAMES = 10
+    AUDIO_TARGET_QUEUE_FRAMES = 4
+    AUDIO_OUTPUT_LATENCY = "low"
     AUDIO_OUTPUT_DEVICE = None
 
     # If the receiver loop is behind, drain any immediately available backlog
