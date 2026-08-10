@@ -233,8 +233,8 @@ class SCREEN_CAST:
     # Directional cooldowns are intentionally asymmetric: upgrades wait longer
     # than downgrades so FPS protection reacts quickly while quality recovery
     # remains conservative.
-    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 10
-    ADAPT_UPGRADE_COOLDOWN_SECONDS = 20
+    ADAPT_DOWNGRADE_COOLDOWN_SECONDS = 15
+    ADAPT_UPGRADE_COOLDOWN_SECONDS = 30
 
     # Hard bounds for this phase: never below 720p and never above 1080p.
     ADAPT_MIN_WIDTH = 1280
