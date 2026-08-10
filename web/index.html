@@ -33,7 +33,7 @@
     let currentWidth = "unknown";
     let currentHeight = "unknown";
 
-    let captureSettings = { width: 1920, height: 1080, frameRate: 60 };
+    let captureSettings = { width: 1920, height: 1080, frameRate: 30 };
     let iceServers = [];
     let captureSourceAspectRatio = null;
     let captureSourceWidth = null;
@@ -61,12 +61,12 @@
     // centralized and Pi behavior remains reproducible.
     let senderPolicy = {
       degradationPreference: "maintain-framerate",
-      bitrateMaxBps1080p: 8000000,
-      bitrateMinBps1080p: 4000000,
-      bitrateMaxBps720p: 4500000,
-      bitrateMinBps720p: 2200000,
-      bitrateMaxBps480p: 2000000,
-      bitrateMinBps480p: 1000000,
+      bitrateMaxBps1080p: 5000000,
+      bitrateMinBps1080p: 0,
+      bitrateMaxBps720p: 2800000,
+      bitrateMinBps720p: 0,
+      bitrateMaxBps480p: 1400000,
+      bitrateMinBps480p: 0,
     };
 
     // We intentionally run only two quality modes in this phase:
@@ -82,7 +82,7 @@
 
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
-    const STARTUP_WARMUP_ENABLED = true;
+    const STARTUP_WARMUP_ENABLED = false;
     const STARTUP_WARMUP_INITIAL_DELAY_MS = 5000;
     const STARTUP_WARMUP_MIN_SAMPLES = 3;
     const STARTUP_WARMUP_TRIGGER_FPS = 30;
@@ -354,6 +354,9 @@
       if (currentMode === "vp8") {
         return "vp9";
       }
+      if (currentMode === "vp9") {
+        return "h264";
+      }
       return "auto";
     }
 
@@ -442,7 +445,14 @@
       const primaryEncoding = parameters.encodings[0];
       primaryEncoding.maxFramerate = resolvedProfile.frameRate;
       primaryEncoding.maxBitrate = bitrateBounds.maxBitrate;
-      primaryEncoding.minBitrate = bitrateBounds.minBitrate;
+      if (bitrateBounds.minBitrate > 0) {
+        primaryEncoding.minBitrate = bitrateBounds.minBitrate;
+      } else {
+        delete primaryEncoding.minBitrate;
+      }
+
+      // Keep a single temporal/spatial layer to avoid extra encoding overhead.
+      primaryEncoding.scalabilityMode = "L1T1";
       parameters.degradationPreference = senderPolicy.degradationPreference;
 
       try {
@@ -453,6 +463,7 @@
         // high-impact maxBitrate/maxFramerate policy still applies.
         console.warn(`Full sender policy rejected (${reason}); retrying compatibility subset.`, err);
         delete primaryEncoding.minBitrate;
+        delete primaryEncoding.scalabilityMode;
         delete parameters.degradationPreference;
         try {
           await sender.setParameters(parameters);
@@ -899,6 +910,10 @@
           if (timestamp - lastSenderLogAt >= 5000) {
             lastSenderLogAt = timestamp;
             const qualityLimitationReason = videoStat.qualityLimitationReason || "unknown";
+            const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
+            const captureFps = typeof videoStat.framesPerSecond === "number"
+              ? Math.round(videoStat.framesPerSecond)
+              : null;
             const frameWidth = videoStat.frameWidth || currentWidth;
             const frameHeight = videoStat.frameHeight || currentHeight;
             const bytesSent = typeof videoStat.bytesSent === "number" ? videoStat.bytesSent : null;
@@ -910,10 +925,12 @@
                 fps: currentFps,
                 frameWidth,
                 frameHeight,
+                captureFps,
                 sourceWidth: captureSourceWidth,
                 sourceHeight: captureSourceHeight,
                 displaySurface: captureDisplaySurface,
                 qualityLimitationReason,
+                qualityLimitationDurations,
                 bytesSent,
                 codecPreferenceMode,
                 negotiatedCodec,

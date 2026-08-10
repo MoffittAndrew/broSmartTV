@@ -214,7 +214,7 @@ class SCREEN_CAST:
     PORT = 8080
     CAPTURE_WIDTH = 1920
     CAPTURE_HEIGHT = 1080
-    CAPTURE_FRAME_RATE = 60
+    CAPTURE_FRAME_RATE = 30
 
     # Adaptive downshift trigger: if FPS remains below 30 for 10 consecutive
     # one-second samples, prioritize smoothness over fidelity by switching to
@@ -244,12 +244,12 @@ class SCREEN_CAST:
     # Sender policy is centralized here so browser-side WebRTC tuning remains
     # reproducible across sessions and Pi deployments.
     DEGRADATION_PREFERENCE = "maintain-framerate"
-    BITRATE_MAX_BPS_1080P = 8_000_000
-    BITRATE_MIN_BPS_1080P = 4_000_000
-    BITRATE_MAX_BPS_720P = 4_500_000
-    BITRATE_MIN_BPS_720P = 2_200_000
-    BITRATE_MAX_BPS_480P = 2_000_000
-    BITRATE_MIN_BPS_480P = 1_000_000
+    BITRATE_MAX_BPS_1080P = 5_000_000
+    BITRATE_MIN_BPS_1080P = 0
+    BITRATE_MAX_BPS_720P = 2_800_000
+    BITRATE_MIN_BPS_720P = 0
+    BITRATE_MAX_BPS_480P = 1_400_000
+    BITRATE_MIN_BPS_480P = 0
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
