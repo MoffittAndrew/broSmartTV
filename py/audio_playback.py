@@ -82,17 +82,49 @@ class AudioPlaybackService:
         return np.hstack((interleaved_samples, zeros))
 
     def _frame_to_samples(self, frame):
-        planar = frame.to_ndarray(format="fltp")
+        # AudioFrame.to_ndarray() does not support the VideoFrame-style
+        # format=... argument. We consume the native frame layout and normalize
+        # to interleaved float32 samples for sounddevice.
+        raw = frame.to_ndarray()
+        if raw is None:
+            raise ValueError("Audio frame produced no ndarray data")
 
-        if planar.ndim == 1:
-            planar = planar.reshape(1, -1)
+        if raw.ndim == 1:
+            interleaved = raw.reshape(-1, 1)
+        else:
+            format_info = getattr(frame, "format", None)
+            is_planar = bool(getattr(format_info, "is_planar", False))
 
-        channels = int(planar.shape[0])
-        interleaved = planar.T.copy(order="C")
+            channel_layout = getattr(frame, "layout", None)
+            layout_channels = getattr(channel_layout, "channels", None)
+            declared_channels = len(layout_channels) if layout_channels is not None else 0
+
+            if is_planar:
+                # Planar layout is [channels, samples]; convert to
+                # sounddevice-friendly interleaved [samples, channels].
+                interleaved = raw.T
+            elif declared_channels > 0 and raw.shape[0] == 1:
+                # Packed mono/stereo can arrive as a single row of interleaved
+                # samples; reshape using declared channel count.
+                interleaved = raw.reshape(-1, declared_channels)
+            elif declared_channels > 0 and raw.shape[1] == declared_channels:
+                interleaved = raw
+            else:
+                # Last-resort fallback for uncommon packed shapes.
+                interleaved = raw.T if raw.shape[0] <= raw.shape[1] else raw
+
         if interleaved.ndim == 1:
             interleaved = interleaved.reshape(-1, 1)
 
-        return interleaved, channels
+        if interleaved.dtype != np.float32:
+            if np.issubdtype(interleaved.dtype, np.integer):
+                max_abs = max(abs(np.iinfo(interleaved.dtype).min), np.iinfo(interleaved.dtype).max)
+                interleaved = interleaved.astype(np.float32) / float(max_abs)
+            else:
+                interleaved = interleaved.astype(np.float32)
+
+        np.clip(interleaved, -1.0, 1.0, out=interleaved)
+        return interleaved.copy(order="C"), int(interleaved.shape[1])
 
     def _enqueue_samples(self, samples):
         if self._queue is None:
