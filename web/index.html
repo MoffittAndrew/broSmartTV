@@ -82,6 +82,11 @@
     let fpsSamples = [];
     let lastQualityChangeAtMs = 0;
 
+    const SOURCE_GEOMETRY_DECREASE_STABLE_SAMPLES = 3;
+    const SOURCE_GEOMETRY_DECREASE_MIN_FRACTION = 0.03;
+    let captureSourceWidthDecreaseSamples = 0;
+    let captureSourceHeightDecreaseSamples = 0;
+
     const ICE_GATHER_TIMEOUT_MS = 8000;
     const CONNECTION_TIMEOUT_MS = 10000;
     const LOW_MOTION_FPS_THRESHOLD = 2;
@@ -92,6 +97,38 @@
         return 0;
       }
       return sdp.split("\n").filter((line) => line.startsWith("a=candidate:")).length;
+    }
+
+    function applyGeometryUpdate(currentValue, nextValue, decreaseSamples, allowDecrease) {
+      if (nextValue === null || !Number.isFinite(nextValue) || nextValue <= 0) {
+        return { value: currentValue, didChange: false, decreaseSamples: 0 };
+      }
+
+      if (currentValue === null) {
+        return { value: nextValue, didChange: true, decreaseSamples: 0 };
+      }
+
+      if (nextValue > currentValue) {
+        return { value: nextValue, didChange: true, decreaseSamples: 0 };
+      }
+
+      if (nextValue === currentValue) {
+        return { value: currentValue, didChange: false, decreaseSamples: 0 };
+      }
+
+      const shrinkAmount = currentValue - nextValue;
+      const shrinkThreshold = Math.max(2, Math.round(currentValue * SOURCE_GEOMETRY_DECREASE_MIN_FRACTION));
+
+      if (!allowDecrease || shrinkAmount < shrinkThreshold) {
+        return { value: currentValue, didChange: false, decreaseSamples: 0 };
+      }
+
+      const nextDecreaseSamples = decreaseSamples + 1;
+      if (nextDecreaseSamples >= SOURCE_GEOMETRY_DECREASE_STABLE_SAMPLES) {
+        return { value: nextValue, didChange: true, decreaseSamples: 0 };
+      }
+
+      return { value: currentValue, didChange: false, decreaseSamples: nextDecreaseSamples };
     }
 
     function clampInt(value, fallback) {
@@ -214,24 +251,31 @@
       }
 
       if (normalized.width !== null) {
-        const nextWidth = normalized.width;
-        if (
-          nextWidth !== captureSourceWidth
-          && (captureSourceWidth === null || nextWidth > captureSourceWidth || allowDecrease)
-        ) {
-          captureSourceWidth = nextWidth;
+        const widthResult = applyGeometryUpdate(
+          captureSourceWidth,
+          normalized.width,
+          captureSourceWidthDecreaseSamples,
+          allowDecrease,
+        );
+        if (widthResult.didChange) {
+          captureSourceWidth = widthResult.value;
           didChange = true;
         }
+        captureSourceWidthDecreaseSamples = widthResult.decreaseSamples;
       }
+
       if (normalized.height !== null) {
-        const nextHeight = normalized.height;
-        if (
-          nextHeight !== captureSourceHeight
-          && (captureSourceHeight === null || nextHeight > captureSourceHeight || allowDecrease)
-        ) {
-          captureSourceHeight = nextHeight;
+        const heightResult = applyGeometryUpdate(
+          captureSourceHeight,
+          normalized.height,
+          captureSourceHeightDecreaseSamples,
+          allowDecrease,
+        );
+        if (heightResult.didChange) {
+          captureSourceHeight = heightResult.value;
           didChange = true;
         }
+        captureSourceHeightDecreaseSamples = heightResult.decreaseSamples;
       }
 
       return didChange;
@@ -272,6 +316,8 @@
 
     function getLowProfileBase() {
       const highProfile = getHighProfileBase();
+      const scaledWidth = Math.max(2, roundToEven(highProfile.width * 0.75, highProfile.width));
+      const scaledHeight = Math.max(2, roundToEven(highProfile.height * 0.75, highProfile.height));
 
       if (
         captureSourceWidth && captureSourceHeight
@@ -285,8 +331,8 @@
       }
 
       return {
-        width: adaptivePolicy.minWidth,
-        height: adaptivePolicy.minHeight,
+        width: Math.max(adaptivePolicy.minWidth, scaledWidth),
+        height: Math.max(adaptivePolicy.minHeight, scaledHeight),
         frameRate: captureSettings.frameRate,
       };
     }
