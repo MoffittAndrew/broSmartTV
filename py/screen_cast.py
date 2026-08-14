@@ -5,6 +5,7 @@ print("Importing screen cast server...")
 
 import os
 import asyncio
+import errno
 import json
 import ssl
 import time
@@ -378,8 +379,8 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     if _runner is not None:
         return
 
-    _runner = web.AppRunner(screenCastServer)
-    await _runner.setup()
+    runner = web.AppRunner(screenCastServer)
+    await runner.setup()
 
     ssl_context = None
     scheme = "http"
@@ -393,8 +394,21 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
             log("Falling back to HTTP.")
             ssl_context = None
 
-    _site = web.TCPSite(_runner, host, port, ssl_context=ssl_context)
-    await _site.start()
+    site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
+    try:
+        await site.start()
+    except OSError as exc:
+        await runner.cleanup()
+        if exc.errno == errno.EACCES:
+            raise RuntimeError(
+                f"Screen cast server cannot bind {host}:{port}: permission denied. "
+                "For ports below 1024, grant the runtime Python executable "
+                "CAP_NET_BIND_SERVICE."
+            ) from exc
+        raise RuntimeError(f"Screen cast server could not bind {host}:{port}: {exc}") from exc
+
+    _runner = runner
+    _site = site
     if SCREEN_CAST.IP is not None:
         log(f"Screen cast server started at {scheme}://{SCREEN_CAST.IP}:{port}")
     else:

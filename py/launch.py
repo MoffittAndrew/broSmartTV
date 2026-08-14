@@ -97,7 +97,15 @@ def launch():
     LAUNCH_SCREEN.hide()
     
     print("Starting screen cast server...")
-    asyncio.create_task(startScreenCastServer())
+    asyncio.create_task(start_screen_cast_server(startScreenCastServer))
+
+
+async def start_screen_cast_server(start_server):
+    """Escalate Pi server startup failures to the restart-owning launcher."""
+    try:
+        await start_server()
+    except Exception as exc:
+        request_restart("Failed to start screen cast server", exc)
 
 async def updateThenLaunch():
     """Run updater, reload selected modules, then launch main."""
