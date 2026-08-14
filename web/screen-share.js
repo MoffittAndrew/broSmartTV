@@ -722,7 +722,7 @@ async function startStreaming(options = {}, ui) {
   state.isStarting = false;
   state.isAdaptiveRestartInProgress = false;
   startBtn.disabled = false;
-  startBtn.textContent = 'Stop Screen Share';
+  startBtn.textContent = 'stop screen share';
   state.currentFps = 'starting';
 
   videoTrack.onended = () => {
