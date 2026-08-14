@@ -121,6 +121,10 @@ async def index(request):
     return web.FileResponse(os.path.join(PATH, "web", "index.html"))
 
 
+async def cast(request):
+    return web.FileResponse(os.path.join(PATH, "web", "cast.html"))
+
+
 async def serve_static_file(request):
     filename = request.match_info.get("filename", "")
     if not filename:
@@ -364,6 +368,7 @@ async def capture_settings(request):
 screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
+screenCastServer.router.add_get("/cast", cast)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
