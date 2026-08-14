@@ -85,7 +85,7 @@ function startConnectionTimeout() {
 function updateStreamingStatus(statusDiv) {
   const audioStatus = state.isAudioActive ? 'audio:on' : 'audio:off';
   const warningSuffix = state.audioWarning ? ` (${state.audioWarning})` : '';
-  statusDiv.textContent = `✅ Streaming active (${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps, ${audioStatus})${warningSuffix}`;
+  statusDiv.textContent = `✅ streaming active (${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps, ${audioStatus})${warningSuffix}`;
 }
 
 async function evaluateAdaptiveQuality() {
@@ -339,7 +339,7 @@ async function requestDisplayMedia(profile, statusDiv) {
 
     if (selectedDisplaySurface === 'monitor') {
       selectedStream.getTracks().forEach((track) => track.stop());
-      throw new Error('Please select a window or browser tab to share. Full screen sharing is disabled for this app.');
+      throw new Error('please select a window or browser tab to share, full screen sharing is disabled for this app bruh');
     }
 
     return selectedStream;
@@ -374,7 +374,7 @@ async function requestDisplayMedia(profile, statusDiv) {
 
   const origin = window.location.origin;
   const contextHint = window.isSecureContext ? '' : ` Screen capture requires HTTPS or localhost. Current origin: ${origin}`;
-  throw new Error(`Screen capture API is unavailable in this browser.${contextHint}`);
+  throw new Error(`screen capture API is unavailable in this browser.${contextHint}`);
 }
 
 async function checkAvailability() {
@@ -413,9 +413,9 @@ async function stopStream(reason = 'stopped', startBtn, statusDiv) {
     state.pc = null;
   }
 
-  startBtn.textContent = 'Start Screen Share';
+  startBtn.textContent = 'start screen share';
   startBtn.disabled = false;
-  statusDiv.textContent = `🛑 Stream ${reason}`;
+  statusDiv.textContent = `🛑 stream ${reason}`;
   console.log('Stream stopped:', reason);
 }
 
@@ -586,7 +586,7 @@ async function startStreaming(options = {}, ui) {
     state.isStarting = false;
     startBtn.disabled = false;
     alert('Stream is currently busy. Try again later.');
-    statusDiv.textContent = '❌ Stream busy';
+    statusDiv.textContent = '❌ stream is busy rn bro';
     state.isAdaptiveRestartInProgress = false;
     return;
   }
@@ -599,9 +599,9 @@ async function startStreaming(options = {}, ui) {
     state.isAdaptiveRestartInProgress = false;
     console.error('User cancelled or error:', err);
     if (!window.isSecureContext) {
-      statusDiv.textContent = '❌ Screen share blocked: open this page via HTTPS or localhost';
+      statusDiv.textContent = '❌ screen share blocked: gotta open this page via HTTPS';
     } else {
-      const reason = err && typeof err.message === 'string' && err.message.trim().length > 0 ? err.message.trim() : 'Unable to start screen share';
+      const reason = err && typeof err.message === 'string' && err.message.trim().length > 0 ? err.message.trim() : 'unable to start screen share';
       statusDiv.textContent = `❌ ${reason}`;
     }
     return;
