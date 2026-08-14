@@ -5,14 +5,13 @@ print("Importing screen cast server...")
 
 import os
 import asyncio
-import errno
 import json
-import ssl
 import time
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
+from web_server_utils import start_site, stop_site, build_static_file_handler
 
 LOG_PREFIX = "[screencast]"
 
@@ -125,22 +124,7 @@ async def cast(request):
     return web.FileResponse(os.path.join(PATH, "web", "cast.html"))
 
 
-async def serve_static_file(request):
-    filename = request.match_info.get("filename", "")
-    if not filename:
-        raise web.HTTPNotFound()
-
-    safe_path = os.path.normpath(filename).lstrip("/\\")
-    if not safe_path or safe_path == "." or safe_path.startswith(".."):
-        raise web.HTTPForbidden()
-
-    static_root = os.path.normpath(os.path.join(PATH, "web"))
-    target = os.path.normpath(os.path.join(static_root, safe_path))
-
-    if os.path.commonpath([static_root, target]) != static_root or not os.path.isfile(target):
-        raise web.HTTPNotFound()
-
-    return web.FileResponse(target)
+serve_static_file = build_static_file_handler(os.path.join(PATH, "web"))
 
 
 async def offer(request):
@@ -335,6 +319,11 @@ async def status(request):
     return web.json_response({"available": not busy})
 
 
+async def power_status(request):
+    # Reachable only once this module is serving, so the TV is on by construction.
+    return web.json_response({"on": True})
+
+
 async def capture_settings(request):
     # The web sender consumes adaptive policy from this endpoint so quality
     # behavior remains centralized and consistent across clients.
@@ -372,6 +361,7 @@ screenCastServer.router.add_get("/cast", cast)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
+screenCastServer.router.add_get("/power-status", power_status)
 screenCastServer.router.add_get("/capture-settings", capture_settings)
 
 
@@ -384,48 +374,11 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     if _runner is not None:
         return
 
-    runner = web.AppRunner(screenCastServer)
-    await runner.setup()
-
-    ssl_context = None
-    scheme = "http"
-    if SCREEN_CAST.SSL_CERT and SCREEN_CAST.SSL_KEY:
-        try:
-            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl_context.load_cert_chain(SCREEN_CAST.SSL_CERT, SCREEN_CAST.SSL_KEY)
-            scheme = "https"
-        except Exception as exc:
-            log(f"Failed to enable HTTPS for screen cast server: {exc}")
-            log("Falling back to HTTP.")
-            ssl_context = None
-
-    site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
-    try:
-        await site.start()
-    except OSError as exc:
-        await runner.cleanup()
-        if exc.errno == errno.EACCES:
-            raise RuntimeError(
-                f"Screen cast server cannot bind {host}:{port}: permission denied. "
-                "For ports below 1024, grant the runtime Python executable "
-                "CAP_NET_BIND_SERVICE."
-            ) from exc
-        raise RuntimeError(f"Screen cast server could not bind {host}:{port}: {exc}") from exc
-
-    _runner = runner
-    _site = site
-    if SCREEN_CAST.IP is not None:
-        log(f"Screen cast server started at {scheme}://{SCREEN_CAST.IP}:{port}")
-    else:
-        log(f"Screen cast server started on port {port} (LAN IP unavailable, scheme={scheme})")
+    _runner, _site = await start_site(screenCastServer, host, port, LOG_PREFIX)
 
 async def stopScreenCastServer():
     global _runner, _site
 
-    if _site is not None:
-        await _site.stop()
-        _site = None
-
-    if _runner is not None:
-        await _runner.cleanup()
-        _runner = None
+    await stop_site(_runner, _site)
+    _runner = None
+    _site = None
