@@ -115,8 +115,12 @@ async def updateThenLaunch():
     if DEVICE.IS_RASPBERRY_PI:
         append_update_log_line("Running update script...")
         try:
+            update_script = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "launcher", "update")
+            )
             proc = await asyncio.create_subprocess_exec(
-                "update",
+                "/bin/bash",
+                update_script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
