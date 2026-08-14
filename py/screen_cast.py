@@ -120,6 +120,21 @@ async def index(request):
     return web.FileResponse(os.path.join(PATH, "web", "index.html"))
 
 
+async def serve_static_file(request):
+    filename = request.match_info.get("filename", "")
+    if not filename or filename.startswith(".."):
+        raise web.HTTPForbidden()
+
+    safe_path = os.path.normpath(filename)
+    static_root = os.path.join(PATH, "web")
+    target = os.path.normpath(os.path.join(static_root, safe_path))
+
+    if not target.startswith(static_root) or not os.path.isfile(target):
+        raise web.HTTPNotFound()
+
+    return web.FileResponse(target)
+
+
 async def offer(request):
     global active_pc
 
@@ -345,6 +360,7 @@ async def capture_settings(request):
 screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
+screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
 screenCastServer.router.add_get("/capture-settings", capture_settings)
