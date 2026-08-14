@@ -45,7 +45,7 @@ def request_shutdown():
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        loop = asyncio.get_event_loop_policy().get_event_loop()
+        loop = asyncio.get_event_loop()
 
     if loop.is_running():
         loop.create_task(teardown_app(projector_interface=projectorInterface, quit_app=False))
