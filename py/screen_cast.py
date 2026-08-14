@@ -122,14 +122,17 @@ async def index(request):
 
 async def serve_static_file(request):
     filename = request.match_info.get("filename", "")
-    if not filename or filename.startswith(".."):
+    if not filename:
+        raise web.HTTPNotFound()
+
+    safe_path = os.path.normpath(filename).lstrip("/\\")
+    if not safe_path or safe_path == "." or safe_path.startswith(".."):
         raise web.HTTPForbidden()
 
-    safe_path = os.path.normpath(filename)
-    static_root = os.path.join(PATH, "web")
+    static_root = os.path.normpath(os.path.join(PATH, "web"))
     target = os.path.normpath(os.path.join(static_root, safe_path))
 
-    if not target.startswith(static_root) or not os.path.isfile(target):
+    if os.path.commonpath([static_root, target]) != static_root or not os.path.isfile(target):
         raise web.HTTPNotFound()
 
     return web.FileResponse(target)
