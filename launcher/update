@@ -18,7 +18,7 @@ VENV_PIP="${VENV_DIR}/bin/pip"
 SCREENCAST_CERTS_PATH="${APP_DIR}/certs"
 SCREENCAST_CERT_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.crt"
 SCREENCAST_KEY_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.key"
-SCREENCAST_DEFAULT_PORT="8080"
+SCREENCAST_DEFAULT_PORT="443"
 LOGPREFIX="[update]"
 
 # Force Python tooling to ignore ~/.local user-site packages.
