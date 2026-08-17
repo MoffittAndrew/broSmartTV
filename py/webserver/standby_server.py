@@ -10,6 +10,7 @@ needs aiohttp.
 print("Importing standby server...")
 
 import os
+from urllib.parse import quote
 
 from aiohttp import web
 
@@ -17,21 +18,45 @@ from globals import PATH, SCREEN_CAST
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
 LOG_PREFIX = "[standby]"
+WEBPAGES_DIR = os.path.join(PATH, "webpages")
 
 
 def log(message):
     print(f"{LOG_PREFIX} {message}")
 
 
+def _normalize_next_path(next_path):
+    if isinstance(next_path, str) and next_path.startswith("/"):
+        return next_path
+    return "/cast"
+
+
+def redirect_to_standby(next_path):
+    target = _normalize_next_path(next_path)
+
+    async def redirect(request):
+        return web.HTTPFound(f"/standby?next={quote(target, safe='')}")
+
+    return redirect
+
+
 async def index(request):
-    return web.FileResponse(os.path.join(PATH, "web", "index.html"))
+    return web.HTTPFound("/cast")
 
 
 async def cast(request):
-    return web.FileResponse(os.path.join(PATH, "web", "standby.html"))
+    return await redirect_to_standby("/cast")(request)
 
 
-serve_static_file = build_static_file_handler(os.path.join(PATH, "web"))
+async def remote(request):
+    return await redirect_to_standby("/remote")(request)
+
+
+async def standby_page(request):
+    return web.FileResponse(os.path.join(WEBPAGES_DIR, "standby.html"))
+
+
+serve_static_file = build_static_file_handler(WEBPAGES_DIR)
 
 
 async def power_status(request):
@@ -51,8 +76,8 @@ def _build_app(wake_event):
     app = web.Application()
     app.router.add_get("/", index)
     app.router.add_get("/cast", cast)
-    # /remote is aliased to the same "turn bro on" page while off; the full server takes over with the real remote UI once awake.
-    app.router.add_get("/remote", cast)
+    app.router.add_get("/remote", remote)
+    app.router.add_get("/standby", standby_page)
     app.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
     app.router.add_get("/power-status", power_status)
     app.router.add_post("/power-on", _make_power_on(wake_event))

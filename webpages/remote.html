@@ -3,36 +3,16 @@
 <head>
   <meta charset="utf-8">
   <title>bro virtual remote</title>
+  <link rel="stylesheet" href="./remote.css">
 </head>
-<body>
-  <a href="/"><button>home</button></a>
-  <div id="remote">
-    <div>
-      <button data-button="POWER">Power (Q)</button>
-      <button data-button="MIC">Mic (F1)</button>
-    </div>
-    <div>
-      <button data-button="NAV_UP">Up (&uarr;)</button>
-    </div>
-    <div>
-      <button data-button="NAV_LEFT">Left (&larr;)</button>
-      <button data-button="SELECT">Select (Enter)</button>
-      <button data-button="NAV_RIGHT">Right (&rarr;)</button>
-    </div>
-    <div>
-      <button data-button="NAV_DOWN">Down (&darr;)</button>
-    </div>
-    <div>
-      <button data-button="RETURN">Back (Esc)</button>
-      <button data-button="HOME">Home (Space)</button>
-      <button data-button="MENU">Menu (Tab)</button>
-    </div>
-    <div>
-      <button data-button="VOL_UP">Vol + (PageUp)</button>
-      <button data-button="VOL_DOWN">Vol - (PageDown)</button>
-    </div>
-  </div>
+<body data-page="remote">
+  <div data-site-nav></div>
 
+  <main>
+    <div id="remote-buttons-container"></div>
+  </main>
+
+  <script src="./site-nav.js"></script>
   <script type="module" src="./remote.js"></script>
 </body>
 </html>
