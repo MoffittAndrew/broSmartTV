@@ -2,6 +2,7 @@
 // screen-share.js so this lightweight page never loads the RTC-heavy module.
 
 const POWER_STATUS_POLL_MS = 1500;
+const redirectTarget = new URLSearchParams(window.location.search).get('next') || '/cast';
 
 function initStandbyApp(ui = {}) {
   const powerOnBtn = ui.powerOnBtn ?? document.getElementById('powerOnBtn');
@@ -26,7 +27,7 @@ function initStandbyApp(ui = {}) {
           const data = await res.json();
           if (data.on) {
             statusDiv.textContent = 'bro is on, taking you there...';
-            window.location.reload();
+            window.location.assign(redirectTarget);
             return;
           }
         }
