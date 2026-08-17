@@ -13,7 +13,7 @@ from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
 from web_server.web_server_utils import start_site, stop_site, build_static_file_handler
 from web_server import remote_control
-import broSmartTV.py.web_server.aioice_compat as aioice_compat
+from web_server import aioice_compat
 
 aioice_compat.apply()
 
