@@ -240,7 +240,7 @@ class InputInterface(CustomQLabel):
     
     async def menu(self):
         if self.inGUIMode():
-            self.getSelectedButton().openMenu()
+            await self.getSelectedButton().openMenu()
     
     async def volUp(self):
         await self.getProjectorInterface().volUp()
