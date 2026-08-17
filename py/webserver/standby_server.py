@@ -14,7 +14,7 @@ import os
 from aiohttp import web
 
 from globals import PATH, SCREEN_CAST
-from web_server_utils import start_site, stop_site, build_static_file_handler
+from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
 LOG_PREFIX = "[standby]"
 
@@ -51,6 +51,8 @@ def _build_app(wake_event):
     app = web.Application()
     app.router.add_get("/", index)
     app.router.add_get("/cast", cast)
+    # /remote is aliased to the same "turn bro on" page while off; the full server takes over with the real remote UI once awake.
+    app.router.add_get("/remote", cast)
     app.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
     app.router.add_get("/power-status", power_status)
     app.router.add_post("/power-on", _make_power_on(wake_event))

@@ -6,8 +6,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "py"))
 
-import screen_cast
-import web_server_utils
+import web_server.screen_cast as screen_cast
+import web_server.web_server_utils as web_server_utils
 
 
 class FakeRunner:

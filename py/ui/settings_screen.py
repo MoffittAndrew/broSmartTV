@@ -24,7 +24,7 @@ class SettingsScreen(CustomQWidget):
         self.__currentNetworkLabel.setWordWrap(True)
         self.__currentNetworkLabel.setStyleSheet("font-size: 24px;")
 
-        self.__switchNetworkButton = Button(text="Switch network", callback=self.openWifiOverlay)
+        self.__switchNetworkButton = Button(text="Switch network", clickCallback=self.openWifiOverlay)
         self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
 
         self.__contentSection = VSection(spacing=GUI.SPACING.WIDE)
