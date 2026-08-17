@@ -82,8 +82,11 @@ class Button(CustomQLabel):
     def getImg(self):
         return self.__img
     
-    def getCallback(self):
-        return self.__callback, self.__callbackArgs, self.__callbackKwargs
+    def getClickCallback(self):
+        return self.__clickCallback, self.__clickCallbackArgs, self.__clickCallbackKwargs
+    
+    def getMenuCallback(self):
+            return self.__menuCallback, self.__menuCallbackArgs, self.__menuCallbackKwargs
     
     def getNavButton(self, index: str = INPUT.NAV_RIGHT):
         if index in self.__navButtons.keys():
