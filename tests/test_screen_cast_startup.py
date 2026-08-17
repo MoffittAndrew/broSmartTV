@@ -7,6 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "py"))
 
 import screen_cast
+import web_server_utils
 
 
 class FakeRunner:
@@ -47,11 +48,11 @@ async def test_start_screen_cast_server_records_started_resources(monkeypatch):
         created_sites.append(site)
         return site
 
-    monkeypatch.setattr(screen_cast.web, "AppRunner", create_runner)
-    monkeypatch.setattr(screen_cast.web, "TCPSite", create_site)
-    monkeypatch.setattr(screen_cast.SCREEN_CAST, "SSL_CERT", None)
-    monkeypatch.setattr(screen_cast.SCREEN_CAST, "SSL_KEY", None)
-    monkeypatch.setattr(screen_cast.SCREEN_CAST, "IP", None)
+    monkeypatch.setattr(web_server_utils.web, "AppRunner", create_runner)
+    monkeypatch.setattr(web_server_utils.web, "TCPSite", create_site)
+    monkeypatch.setattr(web_server_utils.SCREEN_CAST, "SSL_CERT", None)
+    monkeypatch.setattr(web_server_utils.SCREEN_CAST, "SSL_KEY", None)
+    monkeypatch.setattr(web_server_utils.SCREEN_CAST, "IP", None)
     monkeypatch.setattr(screen_cast, "_runner", None)
     monkeypatch.setattr(screen_cast, "_site", None)
 
@@ -79,10 +80,10 @@ async def test_start_screen_cast_server_cleans_up_permission_denied(monkeypatch)
         created_runners.append(runner)
         return runner
 
-    monkeypatch.setattr(screen_cast.web, "AppRunner", create_runner)
-    monkeypatch.setattr(screen_cast.web, "TCPSite", DeniedSite)
-    monkeypatch.setattr(screen_cast.SCREEN_CAST, "SSL_CERT", None)
-    monkeypatch.setattr(screen_cast.SCREEN_CAST, "SSL_KEY", None)
+    monkeypatch.setattr(web_server_utils.web, "AppRunner", create_runner)
+    monkeypatch.setattr(web_server_utils.web, "TCPSite", DeniedSite)
+    monkeypatch.setattr(web_server_utils.SCREEN_CAST, "SSL_CERT", None)
+    monkeypatch.setattr(web_server_utils.SCREEN_CAST, "SSL_KEY", None)
     monkeypatch.setattr(screen_cast, "_runner", None)
     monkeypatch.setattr(screen_cast, "_site", None)
 
