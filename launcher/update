@@ -18,7 +18,7 @@ VENV_PIP="${VENV_DIR}/bin/pip"
 SCREENCAST_CERTS_PATH="${APP_DIR}/certs"
 SCREENCAST_CERT_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.crt"
 SCREENCAST_KEY_PATH="${SCREENCAST_CERTS_PATH}/screen-cast.key"
-SCREENCAST_DEFAULT_PORT="8080"
+SCREENCAST_DEFAULT_PORT="443"
 LOGPREFIX="[update]"
 
 # Force Python tooling to ignore ~/.local user-site packages.
@@ -74,6 +74,41 @@ ensure_screencast_firewall_rule() {
 
     log "Warning: Failed to add screencast firewall rule for port ${screencast_port}, continuing."
     return 0
+}
+
+ensure_screencast_bind_permission() {
+    screencast_port="$(read_screencast_port || true)"
+    if [ -z "${screencast_port}" ]; then
+        error_exit "Could not resolve screencast port for bind permission setup."
+    fi
+
+    if [ "${screencast_port}" -ge 1024 ]; then
+        log "Screencast port ${screencast_port} is unprivileged; no bind capability is required."
+        return 0
+    fi
+
+    if ! command -v setcap >/dev/null 2>&1 || ! command -v getcap >/dev/null 2>&1; then
+        log "Installing libcap tools for privileged screencast port ${screencast_port}..."
+        sudo apt-get install -y libcap2-bin || \
+            error_exit "Failed to install libcap2-bin for screencast bind permission setup."
+    fi
+
+    runtime_python="$(readlink -f "${VENV_PYTHON}")"
+    if [ ! -x "${runtime_python}" ]; then
+        error_exit "Could not resolve executable Python runtime from ${VENV_PYTHON}."
+    fi
+
+    # The firewall accepts LAN packets after a listener exists. This capability
+    # separately lets the unprivileged app create that listener below port 1024.
+    log "Granting Python permission to bind screencast port ${screencast_port}: ${runtime_python}"
+    sudo setcap cap_net_bind_service=ep "${runtime_python}" || \
+        error_exit "Failed to grant Python permission to bind privileged screencast port ${screencast_port}."
+
+    if ! getcap "${runtime_python}" | grep -Fq 'cap_net_bind_service=ep'; then
+        error_exit "Python bind capability verification failed for ${runtime_python}."
+    fi
+
+    log "Verified Python bind permission for screencast port ${screencast_port}."
 }
 
 read_target_branch() {
@@ -299,6 +334,7 @@ main() {
     log "Using requirements file: ${requirements_file}"
     install_python_dependencies "${requirements_file}" || error_exit "Failed to install Python dependencies."
     verify_runtime_dependencies
+    ensure_screencast_bind_permission
 
     log "Software updated, restarting services..."
     restart_services || error_exit "Failed to restart lircd."

@@ -26,7 +26,7 @@ from interface.input_interface import inputInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
-from screen_cast import (
+from webserver.screen_cast import (
     startScreenCastServer,
     setFrameHandler,
     setConnectionHandler,
@@ -45,12 +45,21 @@ def request_shutdown():
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        loop = asyncio.get_event_loop_policy().get_event_loop()
+        loop = asyncio.get_event_loop()
 
     if loop.is_running():
         loop.create_task(teardown_app(projector_interface=projectorInterface, quit_app=False))
     else:
         loop.run_until_complete(teardown_app(projector_interface=projectorInterface, quit_app=False))
+
+
+async def start_screen_cast_server():
+    """Report direct-run server startup failures and close through shared teardown."""
+    try:
+        await startScreenCastServer()
+    except Exception as exc:
+        print(f"Failed to start screen cast server: {exc}")
+        await teardown_app(projector_interface=projectorInterface, quit_app=True)
 
 # NOTE - this only runs when launching the script directly (i.e. from a PC)
 # When running on the pi, we just import MAIN_WINDOW from launch.py
@@ -62,7 +71,7 @@ def main():
         print("Starting GUI...")
         MAIN_WINDOW.show()
         print("Starting screen cast server...")
-        asyncio.create_task(startScreenCastServer())
+        asyncio.create_task(start_screen_cast_server())
         APP.aboutToQuit.connect(request_shutdown)
         APP.exec_()
         print("App closed.")

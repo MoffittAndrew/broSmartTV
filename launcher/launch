@@ -40,6 +40,11 @@ main() {
     [ -f "${APP_DIR}/py/launch.py" ] || \
         fail "Missing ${APP_DIR}/py/launch.py. Run the install script first."
 
+    # Git checkouts made on non-Linux hosts can lose executable bits. Repair
+    # the updater before Python starts so launch.py can always run it on Pi.
+    chmod a+x "${LAUNCHER_DIR}/update" || \
+        fail "Failed to make ${LAUNCHER_DIR}/update executable."
+
     log "Using Python executable: ${VENV_PYTHON}"
     "${VENV_PYTHON}" -c "import sys; print('${logprefix} Python sys.executable:', sys.executable)"
 

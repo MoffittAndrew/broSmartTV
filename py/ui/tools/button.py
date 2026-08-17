@@ -19,7 +19,9 @@ class Button(CustomQLabel):
         backgroundColor:QtGui.QColor = GUI.BUTTON.BG_COLOR,
         text:str = "",
         img = None,
-        callback = None,
+        clickCallback = None,
+        menuCallback = None,
+        returnCallback = None,
         navUp = None,
         navRight = None,
         navDown = None,
@@ -41,7 +43,9 @@ class Button(CustomQLabel):
         self.setBgColor(backgroundColor)
         self.setImg(img)
         self.setText(text)
-        self.setCallback(callback)
+        self.setClickCallback(clickCallback)
+        self.setMenuCallback(menuCallback)
+        self.setReturnCallback(returnCallback)
         self.setNavUp(navUp)
         self.setNavRight(navRight)
         self.setNavDown(navDown)
@@ -80,8 +84,14 @@ class Button(CustomQLabel):
     def getImg(self):
         return self.__img
     
-    def getCallback(self):
-        return self.__callback, self.__callbackArgs, self.__callbackKwargs
+    def getClickCallback(self):
+        return self.__clickCallback, self.__clickCallbackArgs, self.__clickCallbackKwargs
+    
+    def getMenuCallback(self):
+        return self.__menuCallback, self.__menuCallbackArgs, self.__menuCallbackKwargs
+    
+    def getReturnCallback(self):
+        return self.__returnCallback, self.__returnCallbackArgs, self.__returnCallbackKwargs
     
     def getNavButton(self, index: str = INPUT.NAV_RIGHT):
         if index in self.__navButtons.keys():
@@ -156,10 +166,20 @@ class Button(CustomQLabel):
         self.__img = img
         self.__needsDraw = True
     
-    def setCallback(self, callback, *args, **kwargs):
-        self.__callback = callback
-        self.__callbackArgs = args
-        self.__callbackKwargs = kwargs
+    def setClickCallback(self, callback, *args, **kwargs):
+        self.__clickCallback = callback
+        self.__clickCallbackArgs = args
+        self.__clickCallbackKwargs = kwargs
+
+    def setMenuCallback(self, callback, *args, **kwargs):
+        self.__menuCallback = callback
+        self.__menuCallbackArgs = args
+        self.__menuCallbackKwargs = kwargs
+    
+    def setReturnCallback(self, callback, *args, **kwargs):
+        self.__returnCallback = callback
+        self.__returnCallbackArgs = args
+        self.__returnCallbackKwargs = kwargs
     
     def setNavButton(self, index, button):
         self.__navButtons[index] = button
@@ -203,11 +223,27 @@ class Button(CustomQLabel):
     
     async def click(self):
         if self.enabled():
-            callback, args, kwargs = self.getCallback()
+            callback, args, kwargs = self.getClickCallback()
             if callback is not None:
                 await callback(*args, **kwargs)
             else:
-                print(f"Button '{self.getText()}' has no callback!")
+                print(f"Button '{self.getText()}' has no click callback!")
+    
+    async def menu(self):
+        if self.enabled():
+            callback, args, kwargs = self.getMenuCallback()
+            if callback is not None:
+                await callback(*args, **kwargs)
+            else:
+                print(f"Button '{self.getText()}' has no menu callback!")
+    
+    async def back(self):
+        if self.enabled():
+            callback, args, kwargs = self.getReturnCallback()
+            if callback is not None:
+                await callback(*args, **kwargs)
+            else:
+                print(f"Button '{self.getText()}' has no return callback!")
     
     def draw(self):
         if self.__needsDraw:
@@ -281,13 +317,3 @@ class ToggleButton(Button):
     
     def toggle(self):
         self.setValue(not self.getValue())
-
-
-
-class NavBarButton(Button):
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(width=GUI.NAVBAR.BUTTON_WIDTH, height=GUI.NAVBAR.BUTTON_HEIGHT, *args, **kwargs)

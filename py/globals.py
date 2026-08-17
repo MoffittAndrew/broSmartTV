@@ -121,6 +121,25 @@ class _TILE:
 class _TILEGRID:
     COLUMNS = 5
 
+class _KEYBOARD:
+    BUTTON_WIDTH = 160
+    BUTTON_HEIGHT = 90
+    SPACEBAR_WIDTH = 640
+    MAX_LENGTH = 64
+    KEY_ROWS = [
+            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-"],
+            ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "@"],
+            ["a", "s", "d", "f", "g", "h", "j", "k", "l", ".", ","],
+            ["z", "x", "c", "v", "b", "n", "m", "<", ">", "/", "?"],
+        ]
+    
+    CAPS_SYMBOL_NUMBER_ROW = [
+            "!", '"', "£", "$", "%", "^", "&", "*", "(", ")", "#",
+        ]
+    EXTRA_SYMBOL_ROW = [
+            "_", "-", ".", ",", "@", "~", "\\", "/", "?", ":", ";",
+        ]
+
 class _LAYOUT_SPACING:
     TIGHT = 10
     NORMAL = 24
@@ -138,6 +157,7 @@ class GUI:
     NAVBAR = _NAVBAR
     TILE = _TILE
     TILEGRID = _TILEGRID
+    KEYBOARD = _KEYBOARD
     SPACING = _LAYOUT_SPACING
     MARGINS = _LAYOUT_MARGINS
 
@@ -211,7 +231,7 @@ class INPUT:
 class SCREEN_CAST:
     IP = _discover_lan_ipv4()
     HOST = "0.0.0.0"
-    PORT = 8080
+    PORT = 443
     CAPTURE_WIDTH = 1920
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 60
