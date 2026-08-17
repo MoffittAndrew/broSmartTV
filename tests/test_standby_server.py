@@ -7,7 +7,7 @@ from aiohttp.test_utils import make_mocked_request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "py"))
 
-import web_server.standby_server as standby_server
+import webserver.standby_server as standby_server
 
 
 @pytest.mark.asyncio

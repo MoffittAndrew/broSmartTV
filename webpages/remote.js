@@ -43,13 +43,72 @@ function release(button) {
   sendInput(button, "release");
 }
 
-document.querySelectorAll("[data-button]").forEach((el) => {
-  const button = el.dataset.button;
-  el.addEventListener("pointerdown", () => press(button));
-  el.addEventListener("pointerup", () => release(button));
-  el.addEventListener("pointerleave", () => release(button));
-  el.addEventListener("pointercancel", () => release(button));
-});
+// Crop padding in SVG user-units (not screen pixels), added around the button group's bbox.
+const CROP_PADDING = 12;
+
+async function loadRemoteSvg() {
+  const container = document.getElementById("remote-buttons-container");
+  if (!container) return;
+
+  const response = await fetch("./remote-buttons.svg");
+  const markup = await response.text();
+  const doc = new DOMParser().parseFromString(markup, "image/svg+xml");
+  const svg = doc.documentElement;
+
+  // Fill the container in both dimensions; preserveAspectRatio="meet" letterboxes instead of cropping,
+  // so the container's own size (driven by remote.css/viewport) controls the final on-page placement.
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+  container.replaceChildren(svg);
+
+  // Crop empty margins by fitting the viewBox to the actual button artwork, not hardcoded coordinates,
+  // so this keeps working if the SVG art is ever moved/resized.
+  const group = svg.querySelector("#remote-buttons-group");
+  if (group) {
+    const box = group.getBBox();
+    svg.setAttribute(
+      "viewBox",
+      `${box.x - CROP_PADDING} ${box.y - CROP_PADDING} ${box.width + CROP_PADDING * 2} ${box.height + CROP_PADDING * 2}`
+    );
+  }
+
+  wireButtonShapes(svg);
+}
+
+function wireButtonShapes(svg) {
+  svg.querySelectorAll("[data-button]").forEach((el) => {
+    const button = el.dataset.button;
+
+    el.addEventListener("pointerdown", () => {
+      el.classList.add("pressed");
+      press(button);
+    });
+    const releaseShape = () => {
+      el.classList.remove("pressed");
+      release(button);
+    };
+    el.addEventListener("pointerup", releaseShape);
+    el.addEventListener("pointerleave", releaseShape);
+    el.addEventListener("pointercancel", releaseShape);
+
+    el.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault(); // stop space from scrolling the page
+      if (event.repeat) return;
+      el.classList.add("pressed");
+      press(button);
+    });
+    el.addEventListener("keyup", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      releaseShape();
+    });
+  });
+}
+
+loadRemoteSvg();
 
 window.addEventListener("keydown", (event) => {
   const button = keyToButton.get(event.code);

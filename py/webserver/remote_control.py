@@ -37,7 +37,7 @@ def log(message):
 
 
 async def remote_page(request):
-    return web.FileResponse(os.path.join(PATH, "web", "remote.html"))
+    return web.FileResponse(os.path.join(PATH, "webpages", "remote.html"))
 
 
 async def handle_input(request):

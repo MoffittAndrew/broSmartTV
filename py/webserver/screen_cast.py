@@ -120,15 +120,22 @@ async def _cleanup_peer(pc):
         _cleaning_peers.discard(pc)
 
 
+WEBPAGES_DIR = os.path.join(PATH, "webpages")
+
+
 async def index(request):
-    return web.FileResponse(os.path.join(PATH, "web", "index.html"))
+    return web.HTTPFound("/cast")
 
 
 async def cast(request):
-    return web.FileResponse(os.path.join(PATH, "web", "cast.html"))
+    return web.FileResponse(os.path.join(WEBPAGES_DIR, "cast.html"))
 
 
-serve_static_file = build_static_file_handler(os.path.join(PATH, "web"))
+async def standby(request):
+    return web.FileResponse(os.path.join(WEBPAGES_DIR, "standby.html"))
+
+
+serve_static_file = build_static_file_handler(WEBPAGES_DIR)
 
 
 async def offer(request):
