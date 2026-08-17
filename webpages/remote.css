@@ -13,6 +13,7 @@
 
 [data-button] {
   cursor: pointer;
+  outline: none; /* suppress the browser's default click-focus ring on SVG shapes */
 }
 
 [data-button]:hover:not(.pressed) {
