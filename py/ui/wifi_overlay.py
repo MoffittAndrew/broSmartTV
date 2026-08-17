@@ -28,8 +28,8 @@ class WifiOverlay(CustomQWidget):
         self.__statusLabel.setWordWrap(True)
         self.__statusLabel.setStyleSheet("font-size: 24px;")
 
-        self.__closeButton = Button(text="Back", callback=self.hideOverlay)
-        self.__refreshButton = Button(text="Refresh", callback=self._onRefreshRequested)
+        self.__closeButton = Button(text="Back", clickCallback=self.hideOverlay)
+        self.__refreshButton = Button(text="Refresh", clickCallback=self._onRefreshRequested)
         self.__controlsSection = VSection(
             widgets=[self.__closeButton, self.__refreshButton],
             spacing=GUI.SPACING.WIDE,
@@ -83,7 +83,7 @@ class WifiOverlay(CustomQWidget):
         label = f"{network.ssid}  |  Signal strength: {signal_text}  |  Security: {security_text}"
         label = f"{label}{status_text}"
         button = Button(width=DISPLAY.WIDTH - 180, height=120, text=label)
-        button.setCallback(self._onNetworkSelected, network)
+        button.setClickCallback(self._onNetworkSelected, network)
         return button
 
     async def _onNetworkSelected(self, network):

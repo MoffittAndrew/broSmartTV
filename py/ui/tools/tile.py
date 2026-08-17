@@ -20,8 +20,8 @@ class Tile(Button):
         super().__init__(width = GUI.TILE.WIDTH, height = GUI.TILE.HEIGHT, *args, **kwargs)
         
         menuOptions = [
-            Button(text = GUI.TILE.EDIT_NAME_TEXT, callback = self.editName),
-            Button(text = GUI.TILE.EDIT_IMG_TEXT, callback = self.editImg),
+            Button(text = GUI.TILE.EDIT_NAME_TEXT, clickCallback = self.editName),
+            Button(text = GUI.TILE.EDIT_IMG_TEXT, clickCallback = self.editImg),
         ]
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)
@@ -88,7 +88,7 @@ class ProjectorTile(Tile):
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)
         
-        self.setCallback(inputInterface.openProjectorMenu)
+        self.setClickCallback(inputInterface.openProjectorMenu)
 
 
 class DeviceTile(Tile):
@@ -101,13 +101,13 @@ class DeviceTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = GUI.TILE.EDIT_INPUT_TEXT, callback = self.editInputChannel),
+            Button(text = GUI.TILE.EDIT_INPUT_TEXT, clickCallback = self.editInputChannel),
         ]
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)
         
         self.setInputChannel(inputChannel)
-        self.setCallback(self.switchInputChannel)
+        self.setClickCallback(self.switchInputChannel)
         
     ## Getters
     
@@ -149,10 +149,10 @@ class WebTile(Tile):
         super().__init__(*args, **kwargs)
         
         menuOptions = [
-            Button(text = TILE.EDIT_URL_TEXT, callback = self.editURL),
-            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, callback = self.toggleIsMusic),
-            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, callback = self.toggleHasSearch),
-            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, callback = self.toggleIsPirate),
+            Button(text = TILE.EDIT_URL_TEXT, clickCallback = self.editURL),
+            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, clickCallback = self.toggleIsMusic),
+            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, clickCallback = self.toggleHasSearch),
+            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, clickCallback = self.toggleIsPirate),
         ]
         for menuOption in menuOptions:
             self.addMenuOption(menuOption)
@@ -161,7 +161,7 @@ class WebTile(Tile):
         self.setIsMusic(isMusic)
         self.setHasSearch(hasSearch)
         self.setIsPirate(isPirate)
-        self.setCallback(self.openURL)
+        self.setClickCallback(self.openURL)
         
     ## Getters
     
