@@ -14,7 +14,7 @@ import os
 from aiohttp import web
 
 from globals import PATH, SCREEN_CAST
-from web_server.web_server_utils import start_site, stop_site, build_static_file_handler
+from broSmartTV.py.webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
 LOG_PREFIX = "[standby]"
 

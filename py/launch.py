@@ -23,7 +23,7 @@ import qtinter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
-from web_server.standby_server import start_standby_server, stop_standby_server
+from webserver.standby_server import start_standby_server, stop_standby_server
 
 reload_modules = [
     "globals",
@@ -95,7 +95,7 @@ def launch():
     """Import main.py and transition from launch screen to the full UI."""
     print("Launching main program...")
     from main import MAIN_WINDOW
-    from web_server.screen_cast import startScreenCastServer
+    from webserver.screen_cast import startScreenCastServer
     MAIN_WINDOW.show()
     
     LAUNCH_SCREEN.stop()

@@ -11,9 +11,9 @@ from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
-from web_server.web_server_utils import start_site, stop_site, build_static_file_handler
-from web_server import remote_control
-from web_server import aioice_compat
+from broSmartTV.py.webserver.webserver_utils import start_site, stop_site, build_static_file_handler
+from webserver import remote_control
+from webserver import aioice_compat
 
 aioice_compat.apply()
 
