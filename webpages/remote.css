@@ -1,0 +1,29 @@
+/* Page-scoped for now; fold into a site-wide stylesheet once one exists. */
+
+#remote-buttons-container {
+  margin: 0 auto;
+  max-width: 500px;
+}
+
+#remote-buttons-container svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+[data-button] {
+  cursor: pointer;
+}
+
+[data-button]:hover:not(.pressed) {
+  filter: brightness(1.15);
+}
+
+[data-button].pressed {
+  filter: brightness(0.75);
+}
+
+[data-button]:focus-visible {
+  outline: 3px solid #4da3ff;
+  outline-offset: 2px;
+}
