@@ -55,9 +55,10 @@ async function loadRemoteSvg() {
   const doc = new DOMParser().parseFromString(markup, "image/svg+xml");
   const svg = doc.documentElement;
 
-  // Responsive sizing so the container/CSS controls on-page placement, not the SVG's own pixel dims.
-  svg.removeAttribute("height");
+  // Fill the container in both dimensions; preserveAspectRatio="meet" letterboxes instead of cropping,
+  // so the container's own size (driven by remote.css/viewport) controls the final on-page placement.
   svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
   container.replaceChildren(svg);
