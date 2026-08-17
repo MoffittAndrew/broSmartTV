@@ -233,6 +233,8 @@ class InputInterface(CustomQLabel):
         await self.navigate(INPUT.NAV_LEFT)
     
     async def back(self):
+        if self.inGUIMode():
+            await self.getSelectedButton().back()
         if self.inProjectorMode():
             await self.getProjectorInterface().back()
         elif self.inWebMode():
@@ -240,7 +242,7 @@ class InputInterface(CustomQLabel):
     
     async def menu(self):
         if self.inGUIMode():
-            await self.getSelectedButton().openMenu()
+            await self.getSelectedButton().menu()
     
     async def volUp(self):
         await self.getProjectorInterface().volUp()

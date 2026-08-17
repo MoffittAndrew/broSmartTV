@@ -21,6 +21,7 @@ class Button(CustomQLabel):
         img = None,
         clickCallback = None,
         menuCallback = None,
+        returnCallback = None,
         navUp = None,
         navRight = None,
         navDown = None,
@@ -44,6 +45,7 @@ class Button(CustomQLabel):
         self.setText(text)
         self.setClickCallback(clickCallback)
         self.setMenuCallback(menuCallback)
+        self.setReturnCallback(returnCallback)
         self.setNavUp(navUp)
         self.setNavRight(navRight)
         self.setNavDown(navDown)
@@ -86,7 +88,10 @@ class Button(CustomQLabel):
         return self.__clickCallback, self.__clickCallbackArgs, self.__clickCallbackKwargs
     
     def getMenuCallback(self):
-            return self.__menuCallback, self.__menuCallbackArgs, self.__menuCallbackKwargs
+        return self.__menuCallback, self.__menuCallbackArgs, self.__menuCallbackKwargs
+    
+    def getReturnCallback(self):
+        return self.__returnCallback, self.__returnCallbackArgs, self.__returnCallbackKwargs
     
     def getNavButton(self, index: str = INPUT.NAV_RIGHT):
         if index in self.__navButtons.keys():
@@ -171,6 +176,11 @@ class Button(CustomQLabel):
         self.__menuCallbackArgs = args
         self.__menuCallbackKwargs = kwargs
     
+    def setReturnCallback(self, callback, *args, **kwargs):
+        self.__returnCallback = callback
+        self.__returnCallbackArgs = args
+        self.__returnCallbackKwargs = kwargs
+    
     def setNavButton(self, index, button):
         self.__navButtons[index] = button
     
@@ -219,13 +229,21 @@ class Button(CustomQLabel):
             else:
                 print(f"Button '{self.getText()}' has no click callback!")
     
-    async def openMenu(self):
-            if self.enabled():
-                callback, args, kwargs = self.getMenuCallback()
-                if callback is not None:
-                    await callback(*args, **kwargs)
-                else:
-                    print(f"Button '{self.getText()}' has no menu callback!")
+    async def menu(self):
+        if self.enabled():
+            callback, args, kwargs = self.getMenuCallback()
+            if callback is not None:
+                await callback(*args, **kwargs)
+            else:
+                print(f"Button '{self.getText()}' has no menu callback!")
+    
+    async def back(self):
+        if self.enabled():
+            callback, args, kwargs = self.getReturnCallback()
+            if callback is not None:
+                await callback(*args, **kwargs)
+            else:
+                print(f"Button '{self.getText()}' has no return callback!")
     
     def draw(self):
         if self.__needsDraw:

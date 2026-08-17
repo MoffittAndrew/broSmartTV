@@ -149,13 +149,13 @@ class OnScreenKeyboard(CustomQWidget):
         self._applyCapsState()
 
     def _makeKeyButton(self, keyText):
-        return Button(width=GUI.KEYBOARD.BUTTON_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=keyText, clickCallback=self._addText, menuCallback=self._toggleCaps)
+        return Button(width=GUI.KEYBOARD.BUTTON_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=keyText, clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
 
     def _makeSpaceButton(self):
-        return Button(width=GUI.KEYBOARD.SPACEBAR_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps)
+        return Button(width=GUI.KEYBOARD.SPACEBAR_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
 
     def _makeActionButton(self, text, clickCallback, width=GUI.KEYBOARD.BUTTON_WIDTH):
-        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=text, clickCallback=clickCallback, menuCallback=self._toggleCaps)
+        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=text, clickCallback=clickCallback, menuCallback=self._toggleCaps, returnCallback=self._cancel)
 
     def _applyCapsState(self):
         numberRow = GUI.KEYBOARD.CAPS_SYMBOL_NUMBER_ROW if self.__capsEnabled else GUI.KEYBOARD.KEY_ROWS[0]
