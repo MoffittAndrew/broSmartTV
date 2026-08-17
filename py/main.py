@@ -26,7 +26,7 @@ from interface.input_interface import inputInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
-from screen_cast import (
+from web_server.screen_cast import (
     startScreenCastServer,
     setFrameHandler,
     setConnectionHandler,

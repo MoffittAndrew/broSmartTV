@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QCoreApplication
 
-from screen_cast import stopScreenCastServer
+from web_server.screen_cast import stopScreenCastServer
 from audio_playback import stopAudioPlayback
 
 
