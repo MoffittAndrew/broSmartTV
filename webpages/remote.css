@@ -17,7 +17,7 @@
 }
 
 [data-button]:hover:not(.pressed) {
-  filter: brightness(1.15);
+  filter: brightness(1.25);
 }
 
 [data-button].pressed {
