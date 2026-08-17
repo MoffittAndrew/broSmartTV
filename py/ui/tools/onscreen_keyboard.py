@@ -9,15 +9,6 @@ from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 
 class OnScreenKeyboard(CustomQWidget):
-    KEY_ROWS = [
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-"],
-        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "@"],
-        ["a", "s", "d", "f", "g", "h", "j", "k", "l", ".", ","],
-        ["z", "x", "c", "v", "b", "n", "m", "<", ">", "/", "?"],
-    ]
-
-    CAPS_SYMBOL_NUMBER_ROW = ["!", '"', "£", "$", "%", "^", "&", "*", "(", ")", "#"]
-    EXTRA_SYMBOL_ROW = ["_", "-", ".", ",", "@", "~", "\\", "/", "?", ":", ";"]
 
     def __init__(
         self,
@@ -30,7 +21,7 @@ class OnScreenKeyboard(CustomQWidget):
         self.__primaryButton = None
         self.__text = ""
         self.__masked = False
-        self.__maxLength = 64
+        self.__maxLength = GUI.KEYBOARD.MAX_LENGTH
         self.__isVisibleOverlay = False
         self.__capsEnabled = False
 
@@ -50,7 +41,7 @@ class OnScreenKeyboard(CustomQWidget):
         self.__statusLabel = QLabel("")
         self.__statusLabel.setStyleSheet("font-size: 24px; color: #f5d56d;")
 
-        self.__keyGridSection = GridSection(columns=len(self.KEY_ROWS[0]), spacing=GUI.SPACING.TIGHT)
+        self.__keyGridSection = GridSection(columns=len(GUI.KEYBOARD.KEY_ROWS[0]), spacing=GUI.SPACING.TIGHT)
 
         self._buildKeyGrid()
 
@@ -84,25 +75,25 @@ class OnScreenKeyboard(CustomQWidget):
     def _buildKeyGrid(self):
         self.__keyButtons = []
 
-        for row in self.KEY_ROWS:
+        for row in GUI.KEYBOARD.KEY_ROWS:
             buttonRow = []
             for keyText in row:
-                button = self._makeKeyButton(keyText, width=160)
+                button = self._makeKeyButton(keyText)
                 buttonRow.append(button)
 
             self.__keyButtons.append(buttonRow)
 
         self.__symbolButtons = []
-        for keyText in self.EXTRA_SYMBOL_ROW:
-            button = self._makeKeyButton(keyText, width=160)
+        for keyText in GUI.KEYBOARD.EXTRA_SYMBOL_ROW:
+            button = self._makeKeyButton(keyText)
             self.__symbolButtons.append(button)
 
-        self.__capsButton = self._makeActionButton("CAPS OFF", self._toggleCaps, width=320)
+        self.__capsButton = self._makeActionButton("CAPS OFF", self._toggleCaps, width=GUI.KEYBOARD.BUTTON_WIDTH * 2)
         self.__spaceButton = self._makeSpaceButton()
-        self.__backspaceButton = self._makeActionButton("BKSP", self._backspace, width=320)
-        self.__clearButton = self._makeActionButton("CLEAR", self._clear, width=160)
-        self.__cancelButton = self._makeActionButton("CANCEL", self._cancel, width=160)
-        self.__enterButton = self._makeActionButton("ENTER", self._submit, width=160)
+        self.__backspaceButton = self._makeActionButton("DELETE", self._backspace, width=GUI.KEYBOARD.BUTTON_WIDTH * 2)
+        self.__clearButton = self._makeActionButton("CLEAR", self._clear, width=GUI.KEYBOARD.BUTTON_WIDTH)
+        self.__cancelButton = self._makeActionButton("CANCEL", self._cancel, width=GUI.KEYBOARD.BUTTON_WIDTH)
+        self.__enterButton = self._makeActionButton("ENTER", self._submit, width=GUI.KEYBOARD.BUTTON_WIDTH)
 
         controlsRow = [
             self.__capsButton,
@@ -157,24 +148,24 @@ class OnScreenKeyboard(CustomQWidget):
         self.__primaryButton = self.__keyButtons[0][0]
         self._applyCapsState()
 
-    def _makeKeyButton(self, keyText, width=160):
-        return Button(width=width, height=90, text=keyText, callback=self._addText, menuOptions=[], img=None, navUp=None, navRight=None, navDown=None, navLeft=None)
+    def _makeKeyButton(self, keyText):
+        return Button(width=GUI.KEYBOARD.BUTTON_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=keyText, clickCallback=self._addText, menuCallback=self._toggleCaps)
 
     def _makeSpaceButton(self):
-        return Button(width=640, height=90, text="SPACE", callback=self._addText, menuOptions=[], img=None, navUp=None, navRight=None, navDown=None, navLeft=None)
+        return Button(width=GUI.KEYBOARD.SPACEBAR_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps)
 
-    def _makeActionButton(self, text, callback, width=240):
-        return Button(width=width, height=90, text=text, callback=callback, menuOptions=[], img=None, navUp=None, navRight=None, navDown=None, navLeft=None)
+    def _makeActionButton(self, text, clickCallback, width=GUI.KEYBOARD.BUTTON_WIDTH):
+        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=text, clickCallback=clickCallback, menuCallback=self._toggleCaps)
 
     def _applyCapsState(self):
-        numberRow = self.CAPS_SYMBOL_NUMBER_ROW if self.__capsEnabled else self.KEY_ROWS[0]
+        numberRow = GUI.KEYBOARD.CAPS_SYMBOL_NUMBER_ROW if self.__capsEnabled else GUI.KEYBOARD.KEY_ROWS[0]
         for columnIndex, button in enumerate(self.__keyButtons[0]):
             button.setText(numberRow[columnIndex])
             button.draw()
 
-        for rowIndex in range(1, len(self.KEY_ROWS)):
+        for rowIndex in range(1, len(GUI.KEYBOARD.KEY_ROWS)):
             for columnIndex, button in enumerate(self.__keyButtons[rowIndex]):
-                baseText = self.KEY_ROWS[rowIndex][columnIndex]
+                baseText = GUI.KEYBOARD.KEY_ROWS[rowIndex][columnIndex]
                 if baseText.isalpha():
                     button.setText(baseText.upper() if self.__capsEnabled else baseText.lower())
                 else:
@@ -272,7 +263,7 @@ class OnScreenKeyboard(CustomQWidget):
         masked=False,
         onSubmit=None,
         onCancel=None,
-        maxLength=64,
+        maxLength=GUI.KEYBOARD.MAX_LENGTH,
     ):
         self.__submitCallback = onSubmit
         self.__cancelCallback = onCancel

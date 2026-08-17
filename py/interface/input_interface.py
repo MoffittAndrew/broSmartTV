@@ -145,12 +145,14 @@ class InputInterface(CustomQLabel):
                 try:
                     if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
                         await self.powerOff()
-                    elif data == INPUT.SELECT:
+                    elif data == INPUT.RELEASED_PREFIX + INPUT.SELECT:
                         await self.select()
                     elif isinstance(data, str) and data.startswith(INPUT.NAV_PREFIX):
                         await self.navigate(data)
-                    elif data == INPUT.RETURN:
+                    elif data == INPUT.RELEASED_PREFIX + INPUT.RETURN:
                         await self.back()
+                    elif data == INPUT.RELEASED_PREFIX + INPUT.MENU:
+                        await self.menu()
                     elif data == INPUT.VOL_UP:
                         await self.volUp()
                     elif data == INPUT.VOL_DOWN:
@@ -235,6 +237,10 @@ class InputInterface(CustomQLabel):
             await self.getProjectorInterface().back()
         elif self.inWebMode():
             self.getWebDriver().quit()
+    
+    async def menu(self):
+        if self.inGUIMode():
+            self.getSelectedButton().openMenu()
     
     async def volUp(self):
         await self.getProjectorInterface().volUp()
