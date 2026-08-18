@@ -56,6 +56,22 @@ The adapter methods are:
 - `warning(message, **fields)`
 - `error(message, **fields)`
 - `log(level, message, category=None, **fields)`
+- `exception(message, exc, category=None, **fields)`
+
+For caught exceptions, always prefer `exception()` over logging only
+`str(exc)`. It records the exception type, message, and complete traceback in
+the structured `fields.traceback` field:
+
+```python
+try:
+    launch_component()
+except Exception as exc:
+    logger.exception("Component failed to start", exc, component="startup")
+```
+
+The traceback is persisted in the session JSONL file and is rendered by the
+logs webpage in the expanded structured-fields block. This preserves the call
+chain and source locations needed to diagnose startup crashes without SSH.
 
 ## Redaction and privacy
 

@@ -62,7 +62,11 @@ async def start_screen_cast_server():
     try:
         await startScreenCastServer()
     except Exception as exc:
-        logger.error(f"Failed to start screen cast server: {exc}", category="screencast")
+        logger.exception(
+            "Failed to start screen cast server",
+            exc,
+            category="screencast",
+        )
         await teardown_app(projector_interface=projectorInterface, quit_app=True)
 
 # NOTE - this only runs when launching the script directly (i.e. from a PC)

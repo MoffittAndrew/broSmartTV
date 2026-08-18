@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import sys
 from threading import RLock
+import traceback
 from typing import Callable, Iterable, Mapping
 from uuid import uuid4
 
@@ -240,8 +241,59 @@ class LoggerAdapter:
     def error(self, message: object, *, category: str | None = None, **fields: object) -> LogRecord:
         return self.log("ERROR", message, category=category, **fields)
 
+    def exception(
+        self,
+        message: object,
+        exc: BaseException,
+        *,
+        category: str | None = None,
+        **fields: object,
+    ) -> LogRecord:
+        """Log an exception with its complete traceback and exception metadata."""
+        fields.update({
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc),
+            "traceback": "".join(traceback.format_exception(exc)),
+        })
+        return self.error(message, category=category, **fields)
+
 
 _app_logger: AppLogger | None = None
+_previous_excepthook = None
+_exception_hook_installed = False
+
+
+def _install_uncaught_exception_hook(logger: AppLogger) -> None:
+    global _previous_excepthook, _exception_hook_installed
+    if _exception_hook_installed:
+        return
+
+    previous_hook = sys.excepthook
+    _previous_excepthook = previous_hook
+
+    def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            previous_hook(exc_type, exc_value, exc_traceback)
+            return
+        try:
+            logger.emit(
+                "CRITICAL",
+                "Uncaught exception",
+                source="python",
+                category="startup",
+                fields={
+                    "exception_type": exc_type.__name__,
+                    "exception_message": str(exc_value),
+                    "traceback": "".join(
+                        traceback.format_exception(exc_type, exc_value, exc_traceback)
+                    ),
+                },
+            )
+        finally:
+            previous_hook(exc_type, exc_value, exc_traceback)
+
+    sys.excepthook = handle_uncaught_exception
+    _exception_hook_installed = True
 
 
 def get_logger(*, history_size: int = 1000, log_dir: str | os.PathLike[str] | None = None) -> AppLogger:
@@ -250,6 +302,7 @@ def get_logger(*, history_size: int = 1000, log_dir: str | os.PathLike[str] | No
     if _app_logger is None:
         _app_logger = AppLogger(history_size=history_size)
     _app_logger.configure_file(log_dir)
+    _install_uncaught_exception_hook(_app_logger)
     return _app_logger
 
 
@@ -274,7 +327,10 @@ def get_log_dir() -> Path:
 
 def reset_logger() -> None:
     """Close and clear the singleton for tests or a deliberate process reset."""
-    global _app_logger
+    global _app_logger, _exception_hook_installed
     if _app_logger is not None:
         _app_logger.close()
+    if _exception_hook_installed and _previous_excepthook is not None:
+        sys.excepthook = _previous_excepthook
+        _exception_hook_installed = False
     _app_logger = None

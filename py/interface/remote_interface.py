@@ -157,7 +157,7 @@ class RemoteInterface:
                     await self.__connectToRemote()
             
             except Exception as e:
-                logger.error(f"An error occurred: {e}")
+                logger.exception("An error occurred while connecting to remote", e)
                 self.setDevice(None)
                 await asyncio.sleep(self.getCheckAliveInterval())
     

@@ -49,11 +49,7 @@ def request_restart(reason, exc=None):
     _restart_requested = True
     logger.error(f"Fatal error: {reason}")
     if exc is not None:
-        logger.error(
-            "Launcher exception",
-            exception_type=type(exc).__name__,
-            exception_message=str(exc),
-        )
+        logger.exception("Launcher exception", exc, reason=reason)
 
     app = globals().get("APP")
     if app is not None:

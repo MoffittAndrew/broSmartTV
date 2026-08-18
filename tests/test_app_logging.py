@@ -53,3 +53,29 @@ def test_subscriber_can_be_removed_and_failures_are_isolated():
     logger.emit("info", "hello", source="test", category="unit")
 
     assert [record.message for record in received] == ["hello"]
+
+
+def test_exception_logging_persists_full_traceback(tmp_path):
+    logger = app_logging.AppLogger()
+    log_path = logger.configure_file(tmp_path)
+
+    def outer_call():
+        return inner_call()
+
+    def inner_call():
+        raise AttributeError("missing callback")
+
+    try:
+        outer_call()
+    except Exception as exc:
+        record = app_logging.LoggerAdapter(logger, "launcher", "startup").exception(
+            "Launcher exception",
+            exc,
+        )
+    logger.close()
+
+    saved = json.loads(log_path.read_text(encoding="utf-8"))
+    assert record.fields["exception_type"] == "AttributeError"
+    assert "AttributeError: missing callback" in record.fields["traceback"]
+    assert "outer_call" in record.fields["traceback"]
+    assert "inner_call" in saved["fields"]["traceback"]
