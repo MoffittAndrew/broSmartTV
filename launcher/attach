@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -u
+
+# Streams live application output from the smart TV app service.
+
+SERVICE_NAME="bro-smart-tv"
+
+exec journalctl -u "${SERVICE_NAME}" -f
