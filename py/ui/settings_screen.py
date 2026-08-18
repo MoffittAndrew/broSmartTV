@@ -10,6 +10,7 @@ from ui.wifi_overlay import WifiOverlay
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 from interface.git_interface import gitInterface
+from interface.system_interface import systemInterface
 from interface.wifi_interface import wifiInterface
 
 class SettingsScreen(CustomQWidget):
@@ -46,10 +47,30 @@ class SettingsScreen(CustomQWidget):
             self.__switchBranchButton,
         ])
 
+        self.__systemHeading = QLabel("System")
+        self.__systemHeading.setStyleSheet("font-size: 44px; font-weight: bold;")
+
+        self.__restartButton = Button(text="Restart app", clickCallback=self.confirmRestart)
+        self.__rebootButton = Button(text="Reboot Pi", clickCallback=self.confirmReboot)
+        self.__confirmOverlay = MenuOverlay(parent=self, onClose=self._onConfirmOverlayClosed)
+
+        # Cross-section nav link: sections only auto-wire nav within themselves.
+        self.__switchBranchButton.setNavDown(self.__restartButton)
+        self.__restartButton.setNavUp(self.__switchBranchButton)
+
+        self.__systemSection = VSection(spacing=GUI.SPACING.WIDE)
+        self.__systemSection.setMargins(*GUI.MARGINS.STANDARD)
+        self.__systemSection.setWidgets([
+            self.__systemHeading,
+            self.__restartButton,
+            self.__rebootButton,
+        ])
+
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.__contentSection)
+        layout.addWidget(self.__systemSection)
         layout.addStretch(1)
 
         self.setFixedWidth(DISPLAY.WIDTH)
@@ -70,6 +91,8 @@ class SettingsScreen(CustomQWidget):
             return self.__wifiOverlay.getPrimaryButton()
         if self.__branchMenuOverlay.isOverlayVisible():
             return self.__branchMenuOverlay.getPrimaryButton()
+        if self.__confirmOverlay.isOverlayVisible():
+            return self.__confirmOverlay.getPrimaryButton()
         return self.__switchNetworkButton
 
     def getCurrentNetwork(self):
@@ -160,9 +183,37 @@ class SettingsScreen(CustomQWidget):
         if inputInterface is not None:
             inputInterface.setSelectedButton(self.getPrimaryButton())
 
+    async def _showConfirmMenu(self, title, confirmText, onConfirm):
+        async def _onConfirm():
+            await self.__confirmOverlay.hideOverlay()
+            await onConfirm()
+
+        options = [{"text": confirmText, "clickCallback": _onConfirm}]
+        await self.__confirmOverlay.showOverlay(
+            title=title,
+            options=options,
+            navBarButton=self.getNavBarButton(),
+        )
+
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
+    async def confirmRestart(self):
+        await self._showConfirmMenu("Restart app?", "Yes, restart", systemInterface.restart_app)
+
+    async def confirmReboot(self):
+        await self._showConfirmMenu("Reboot Pi?", "Yes, reboot", systemInterface.reboot_device)
+
+    def _onConfirmOverlayClosed(self):
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
     def showEvent(self, a0):
         self.__wifiOverlay.hide()
         self.__branchMenuOverlay.hide()
+        self.__confirmOverlay.hide()
         self.refreshCurrentNetwork()
         self.refreshCurrentBranch()
         return super().showEvent(a0)
@@ -171,5 +222,6 @@ class SettingsScreen(CustomQWidget):
         super().resizeEvent(a0)
         self.__wifiOverlay.setGeometry(0, 0, self.width(), self.height())
         self.__branchMenuOverlay.setGeometry(0, 0, self.width(), self.height())
+        self.__confirmOverlay.setGeometry(0, 0, self.width(), self.height())
 
 settingsScreen = SettingsScreen()
