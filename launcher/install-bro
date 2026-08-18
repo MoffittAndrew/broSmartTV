@@ -36,6 +36,8 @@ SCREENCAST_KEY_PATH="${SCREENCAST_CERT_DIR}/screen-cast.key"
 STATIC_IP_CONFIG_NAME="bro-smart-tv"
 POLKIT_RULES_DIR="/etc/polkit-1/rules.d"
 NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmanager.rules"
+SUDOERS_DIR="/etc/sudoers.d"
+REBOOT_SUDOERS_PATH="${SUDOERS_DIR}/bro-smart-tv-reboot"
 APP_RUNTIME_USER="bro"
 LIRC_CONF_PATH="/etc/lirc/lircd.conf"
 LIRC_PROJECTOR_INCLUDE='include "/bro/app/projector/*.conf"'
@@ -270,6 +272,34 @@ ensure_networkmanager_permissions() {
     log "NetworkManager permissions rule ensured at ${NETWORKMANAGER_POLKIT_RULE_PATH}."
 }
 
+ensure_reboot_sudoers() {
+    if [ ! -d "${SUDOERS_DIR}" ]; then
+        error_exit "Missing sudoers drop-in directory ${SUDOERS_DIR}; cannot configure reboot permissions."
+    fi
+
+    log "Ensuring passwordless reboot permission for user ${APP_RUNTIME_USER}..."
+
+    # Exact-match command (no wildcards) so this grants nothing beyond a plain reboot.
+    rule_content="${APP_RUNTIME_USER} ALL=(root) NOPASSWD: /sbin/shutdown -r now"
+    tmp_sudoers_path="$(mktemp)" || error_exit "Failed to create temp file for sudoers validation."
+    printf '%s\n' "${rule_content}" > "${tmp_sudoers_path}" || \
+        error_exit "Failed to write temp sudoers content."
+
+    # Validate before installing so a bad rule can't lock out sudo entirely.
+    sudo visudo -cf "${tmp_sudoers_path}" || {
+        rm -f "${tmp_sudoers_path}"
+        error_exit "Generated reboot sudoers rule failed validation; aborting install."
+    }
+
+    sudo install -m 0440 -o root -g root "${tmp_sudoers_path}" "${REBOOT_SUDOERS_PATH}" || {
+        rm -f "${tmp_sudoers_path}"
+        error_exit "Failed to install ${REBOOT_SUDOERS_PATH}."
+    }
+    rm -f "${tmp_sudoers_path}"
+
+    log "Reboot permissions ensured at ${REBOOT_SUDOERS_PATH}."
+}
+
 ensure_screencast_tls_cert() {
     cert_exists=0
     key_exists=0
@@ -380,6 +410,7 @@ main() {
     ensure_lirc_projector_include
     ensure_wlan0_static_ip
     ensure_networkmanager_permissions
+    ensure_reboot_sudoers
     ensure_screencast_tls_cert
     ensure_launcher_scripts_executable
     ensure_systemd_service
