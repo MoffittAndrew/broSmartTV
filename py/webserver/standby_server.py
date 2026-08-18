@@ -49,7 +49,11 @@ async def cast(request):
 
 
 async def remote(request):
-    return await redirect_to_standby("/remote")(request)
+    return web.FileResponse(os.path.join(WEBPAGES_DIR, "remote.html"))
+
+
+async def future_page(request):
+    return await redirect_to_standby(request.path)(request)
 
 
 async def standby_page(request):
@@ -81,6 +85,7 @@ def _build_app(wake_event):
     app.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
     app.router.add_get("/power-status", power_status)
     app.router.add_post("/power-on", _make_power_on(wake_event))
+    app.router.add_get("/{page:[^/]+}", future_page)
     return app
 
 

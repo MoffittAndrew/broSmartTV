@@ -1,8 +1,8 @@
 """Virtual remote webpage: serves remote.html and forwards button events into InputInterface.
 
-Only registered on the full screen_cast server (see screen_cast.py) - during
-standby, /remote is aliased to the standby "turn bro on" page instead (see
-standby_server.py), since there is no InputInterface to receive events yet.
+Registered on both server modes: the full server forwards all remote input to
+InputInterface, while the lightweight standby server serves the same page and
+handles only the POWER button until the full server is available.
 """
 
 import os
