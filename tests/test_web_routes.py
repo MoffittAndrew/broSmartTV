@@ -21,6 +21,36 @@ async def test_screen_cast_root_redirects_to_cast_page():
 
 
 @pytest.mark.asyncio
+async def test_full_server_standby_redirects_to_requested_page():
+    request = make_mocked_request("GET", "/standby?next=/remote")
+
+    response = await screen_cast.standby(request)
+
+    assert response.status == 302
+    assert response.headers["Location"] == "/remote"
+
+
+@pytest.mark.asyncio
+async def test_full_server_standby_defaults_to_cast_page():
+    request = make_mocked_request("GET", "/standby")
+
+    response = await screen_cast.standby(request)
+
+    assert response.status == 302
+    assert response.headers["Location"] == "/cast"
+
+
+@pytest.mark.asyncio
+async def test_full_server_standby_rejects_external_redirect_target():
+    request = make_mocked_request("GET", "/standby?next=//example.com")
+
+    response = await screen_cast.standby(request)
+
+    assert response.status == 302
+    assert response.headers["Location"] == "/cast"
+
+
+@pytest.mark.asyncio
 async def test_standby_server_redirects_main_pages_to_standby():
     request = make_mocked_request("GET", "/cast")
 
@@ -37,3 +67,12 @@ async def test_full_server_registers_logs_routes():
     match = await screen_cast.screenCastServer.router.resolve(request)
 
     assert match.handler.__name__ == "current_history"
+
+
+@pytest.mark.asyncio
+async def test_full_server_registers_standby_redirect_route():
+    request = make_mocked_request("GET", "/standby?next=/cast")
+
+    match = await screen_cast.screenCastServer.router.resolve(request)
+
+    assert match.handler is screen_cast.standby

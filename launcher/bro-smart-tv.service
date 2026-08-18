@@ -1,0 +1,25 @@
+[Unit]
+Description=bro Smart TV
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bro
+WorkingDirectory=/bro
+ExecStart=/bro/app/launcher/launch
+# launch's own while-loop already retries launch.py forever with backoff, so
+# Restart=on-failure here is only a safety net for the bash process itself dying.
+Restart=on-failure
+RestartSec=2
+# launch/launch.py deliberately exit(1) on manual cancel, duplicate-instance
+# lock, or fatal env errors and choose not to restart; treat that exit code as
+# success so systemd doesn't override that decision.
+SuccessExitStatus=1
+# Map `systemctl stop` to SIGINT so it hits launch.py's existing
+# KeyboardInterrupt -> exit(130) clean-shutdown path instead of a bare SIGTERM.
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

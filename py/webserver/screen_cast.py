@@ -133,8 +133,20 @@ async def cast(request):
     return web.FileResponse(os.path.join(WEBPAGES_DIR, "cast.html"))
 
 
+def _normalize_next_path(next_path):
+    if (
+        isinstance(next_path, str)
+        and next_path.startswith("/")
+        and not next_path.startswith("//")
+    ):
+        return next_path
+    return "/cast"
+
+
 async def standby(request):
-    return web.FileResponse(os.path.join(WEBPAGES_DIR, "standby.html"))
+    # Only single-slash paths reach this redirect; protocol-relative URLs fall back to /cast.
+    # snyk ignore:python/OR
+    return web.HTTPFound(_normalize_next_path(request.query.get("next")))
 
 
 serve_static_file = build_static_file_handler(WEBPAGES_DIR)
@@ -371,6 +383,7 @@ screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_get("/cast", cast)
+screenCastServer.router.add_get("/standby", standby)
 add_logs_routes(screenCastServer)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)

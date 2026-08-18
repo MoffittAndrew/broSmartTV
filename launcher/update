@@ -293,11 +293,13 @@ restart_services() {
 }
 
 ensure_launcher_scripts_executable() {
-    install_script="${LAUNCHER_DIR}/install"
+    install_script="${LAUNCHER_DIR}/install-bro"
     update_script="${LAUNCHER_DIR}/update"
     launch_script="${LAUNCHER_DIR}/launch"
+    stop_script="${LAUNCHER_DIR}/stop"
+    attach_script="${LAUNCHER_DIR}/attach"
 
-    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+    for script_path in "${install_script}" "${update_script}" "${launch_script}" "${stop_script}" "${attach_script}"; do
         if [ ! -f "${script_path}" ]; then
             error_exit "Expected script not found: ${script_path}"
         fi
