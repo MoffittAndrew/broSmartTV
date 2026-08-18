@@ -20,14 +20,15 @@ except Exception:  # pragma: no cover - environment-dependent import
     sd = None
 
 from globals import SCREEN_CAST
+from app_logging import get_adapter
 
 
-LOG_PREFIX = "[screencast-audio]"
+logger = get_adapter("audio", "audio")
 _SENTINEL = object()
 
 
 def log(message):
-    print(f"{LOG_PREFIX} {message}")
+    logger.info(message)
 
 
 class AudioPlaybackService:

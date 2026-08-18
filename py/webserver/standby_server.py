@@ -7,7 +7,10 @@ screen_cast.py (which pulls in aiortc/audio_playback) - this module only
 needs aiohttp.
 """
 
-print("Importing standby server...")
+from app_logging import get_adapter
+
+logger = get_adapter("standby", "standby")
+logger.info("Importing standby server...")
 
 import os
 from urllib.parse import quote
@@ -15,14 +18,14 @@ from urllib.parse import quote
 from aiohttp import web
 
 from globals import PATH, SCREEN_CAST
+from webserver.logs_routes import add_routes as add_logs_routes, reset_stream_shutdown
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
-LOG_PREFIX = "[standby]"
 WEBPAGES_DIR = os.path.join(PATH, "webpages")
 
 
-def log(message):
-    print(f"{LOG_PREFIX} {message}")
+def log(message, level="INFO", **fields):
+    return logger.log(level, message, **fields)
 
 
 def _normalize_next_path(next_path):
@@ -82,6 +85,7 @@ def _build_app(wake_event):
     app.router.add_get("/cast", cast)
     app.router.add_get("/remote", remote)
     app.router.add_get("/standby", standby_page)
+    add_logs_routes(app)
     app.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
     app.router.add_get("/power-status", power_status)
     app.router.add_post("/power-on", _make_power_on(wake_event))
@@ -99,7 +103,9 @@ async def start_standby_server(wake_event, host=SCREEN_CAST.HOST, port=SCREEN_CA
     if _runner is not None:
         return
 
-    _runner, _site = await start_site(_build_app(wake_event), host, port, LOG_PREFIX)
+    application = _build_app(wake_event)
+    reset_stream_shutdown(application)
+    _runner, _site = await start_site(application, host, port, "standby")
 
 
 async def stop_standby_server():

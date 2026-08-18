@@ -9,9 +9,10 @@ import os
 
 from aiohttp import web
 
+from app_logging import get_adapter
 from globals import PATH, INPUT
 
-LOG_PREFIX = "[remote]"
+logger = get_adapter("remote_control", "webhosting")
 
 # Whitelist of valid button names, built from globals.INPUT so an arbitrary
 # string can't be injected into the InputInterface backlog via the request body.
@@ -33,7 +34,7 @@ _ALLOWED_STATES = {"press", "release"}
 
 
 def log(message):
-    print(f"{LOG_PREFIX} {message}")
+    logger.info(message)
 
 
 async def remote_page(request):

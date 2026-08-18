@@ -1,4 +1,7 @@
-print("Importing remote interface...")
+from app_logging import get_adapter
+
+logger = get_adapter("remote", "remote")
+logger.info("Importing remote interface...")
 
 from globals import DEVICE, REMOTE, INPUT
 
@@ -92,25 +95,25 @@ class RemoteInterface:
         self.__client = client
     
     async def __findRemote(self):
-        print("Scanning for remote...")
+        logger.info("Scanning for remote...")
         self.setDevice(await bleak.BleakScanner.find_device_by_name(self.getName(), timeout=self.getScanTimeout()))
     
     def __callback(self, sender: bleak.BleakGATTCharacteristic, data: bytearray):
         data = None if not data else data.decode()
-        print(f"Recieved remote signal {data}")
+        logger.info("Received remote signal", signal=data)
         if self.getInputInterface() is not None:
             self.getInputInterface().receive(data)
             if data == INPUT.RELEASED_PREFIX + INPUT.POWER:
                 asyncio.create_task(self.disconnect())
         else:
-            print("Cannot handle incoming remote input, remote has no input interface!")
+            logger.error("Cannot handle incoming remote input, remote has no input interface!")
     
     def __disconnected_callback(self, client: bleak.BleakClient):
         if self.isConnected():
-            print("Disconnected from remote.")
+            logger.info("Disconnected from remote.")
             self.setDevice(None)
         else:
-            print("Connection to remote failed.")
+            logger.warning("Connection to remote failed.")
         self.setConnected(False)
         self.setClient(None)
 
@@ -119,15 +122,15 @@ class RemoteInterface:
             self.setClient(client)
             service = client.services.get_service(self.getServiceUUID())
             if service is None:
-                print("Service not found")
+                logger.error("Service not found")
                 return
 
             characteristic = service.get_characteristic(self.getCharacteristicUUID())
             if characteristic is None:
-                print("Characteristic not found")
+                logger.error("Characteristic not found")
                 return
 
-            print("Remote connected")
+            logger.info("Remote connected")
             self.setConnected(True)
             if self.getCallbackOnConnect() is not None:
                 callback = self.getCallbackOnConnect()
@@ -147,20 +150,20 @@ class RemoteInterface:
         while self.isRunning():
             try:
                 if self.getDevice() is None:
-                    print("Remote not found, scanning again...")
+                    logger.info("Remote not found, scanning again...")
                     await self.__findRemote()
                 else:
-                    print("Connecting to remote...")
+                    logger.info("Connecting to remote...")
                     await self.__connectToRemote()
             
             except Exception as e:
-                print(f"An error occurred: {e}")
+                logger.error(f"An error occurred: {e}")
                 self.setDevice(None)
                 await asyncio.sleep(self.getCheckAliveInterval())
     
     async def awaitFindRemote(self):
         
-        print("Initializing remote scan...")
+        logger.info("Initializing remote scan...")
         self.setRunning(True)
         self.setConnected(False)
         
@@ -168,17 +171,17 @@ class RemoteInterface:
         while waiting:
             await self.__findRemote()
             if not self.getDevice():
-                print("Remote not found")
+                logger.info("Remote not found")
             else:
-                print("Remote found!")
+                logger.info("Remote found!")
                 waiting = False
     
     async def disconnect(self):
-        print("Disconnecting from remote...")
+        logger.info("Disconnecting from remote...")
         self.setRunning(False)
         if self.getClient() is not None:
             await self.getClient().disconnect()
         else:
-            print("Cannot disconnect from remote, as there is no remote connected!")
+            logger.warning("Cannot disconnect from remote, as there is no remote connected!")
 
 remoteInterface = RemoteInterface()

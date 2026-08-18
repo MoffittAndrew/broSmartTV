@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bro is pumping out logs</title>
+</head>
+<body data-page="logs">
+  <div data-site-nav></div>
+
+  <main>
+    <h1>application logs</h1>
+
+    <section aria-labelledby="filters-heading">
+      <h2 id="filters-heading">filters</h2>
+      <form id="log-filters">
+        <fieldset>
+          <legend>categories</legend>
+          <div id="category-filter" role="group" aria-label="Log categories"></div>
+        </fieldset>
+        <fieldset>
+          <legend>types</legend>
+          <div id="level-filter" role="group" aria-label="Log types"></div>
+        </fieldset>
+        <fieldset>
+          <legend>sources</legend>
+          <div id="source-filter" role="group" aria-label="Log sources"></div>
+        </fieldset>
+        <button type="submit">apply filters</button>
+        <button type="button" id="clear-filters">clear filters</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="view-heading">
+      <h2 id="view-heading">log view</h2>
+      <p id="connection-status" role="status">connecting...</p>
+      <label for="log-view">logs to view</label>
+      <select id="log-view">
+        <option value="live">live logs</option>
+        <option value="history">previous session</option>
+      </select>
+
+      <div id="history-controls" hidden>
+        <button type="button" id="refresh-files">refresh session list</button>
+        <label for="session-files">session file</label>
+        <select id="session-files">
+          <option value="">select a session</option>
+        </select>
+      </div>
+
+      <div id="log-viewport" tabindex="0" role="region" aria-label="Log entries"
+           style="height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
+        <ol id="records" aria-live="polite"></ol>
+      </div>
+    </section>
+  </main>
+
+  <script src="./site-nav.js"></script>
+  <script type="module" src="./logs.js"></script>
+</body>
+</html>
