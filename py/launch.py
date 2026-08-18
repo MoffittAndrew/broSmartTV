@@ -24,6 +24,7 @@ from app_logging import get_adapter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
+from launch_signals import consume_skip_standby, consume_exit_code
 from webserver.standby_server import start_standby_server, stop_standby_server
 
 
@@ -225,8 +226,12 @@ def main():
     try:
         launch_lock_handle = acquire_launch_lock()
 
-        # Host the standby webpage and wait for either the remote or the web button to wake us
-        asyncio.run(off_phase())
+        # Host the standby webpage and wait for either the remote or the web button to wake us,
+        # unless the previous run asked us to boot straight into the app (e.g. Restart/Reboot buttons).
+        if consume_skip_standby():
+            logger.info("Skipping standby phase (app-triggered restart/reboot).", category="startup")
+        else:
+            asyncio.run(off_phase())
         with qtinter.using_asyncio_from_qt():
             # Switch projector on
             projector_task = asyncio.create_task(projector_on())
@@ -250,6 +255,13 @@ def main():
                 loop.run_until_complete(
                     shutdown_background_tasks([projector_task, remote_task, update_task])
                 )
+
+        # A graceful self-quit (e.g. reboot_device()) returns normally here with no exception,
+        # so honor any exit code it requested instead of falling through to an implicit 0 that
+        # would make the bash loop restart us while a real OS reboot is already underway.
+        requested_exit_code = consume_exit_code()
+        if requested_exit_code:
+            exit(requested_exit_code)
 
     except LaunchAlreadyRunningError as e:
         logger.error(str(e))

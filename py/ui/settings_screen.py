@@ -27,14 +27,14 @@ class SettingsScreen(CustomQWidget):
         self.__currentNetworkLabel.setWordWrap(True)
         self.__currentNetworkLabel.setStyleSheet("font-size: 24px;")
 
-        self.__switchNetworkButton = Button(text="Switch network", clickCallback=self.openWifiOverlay)
+        self.__switchNetworkButton = Button(text="switch network", clickCallback=self.openWifiOverlay)
         self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
 
         self.__currentBranchLabel = QLabel()
         self.__currentBranchLabel.setWordWrap(True)
         self.__currentBranchLabel.setStyleSheet("font-size: 24px;")
 
-        self.__switchBranchButton = Button(text="Switch git branch", clickCallback=self.openBranchMenu)
+        self.__switchBranchButton = Button(text="switch git branch", clickCallback=self.openBranchMenu)
         self.__branchMenuOverlay = MenuOverlay(parent=self, onClose=self._onBranchMenuClosed)
 
         self.__contentSection = VSection(spacing=GUI.SPACING.WIDE)
@@ -50,8 +50,8 @@ class SettingsScreen(CustomQWidget):
         self.__systemHeading = QLabel("System")
         self.__systemHeading.setStyleSheet("font-size: 44px; font-weight: bold;")
 
-        self.__restartButton = Button(text="Restart app", clickCallback=self.confirmRestart)
-        self.__rebootButton = Button(text="Reboot Pi", clickCallback=self.confirmReboot)
+        self.__restartButton = Button(text="restart app", clickCallback=self.confirmRestart)
+        self.__rebootButton = Button(text="reboot bro", clickCallback=self.confirmReboot)
         self.__confirmOverlay = MenuOverlay(parent=self, onClose=self._onConfirmOverlayClosed)
 
         # Cross-section nav link: sections only auto-wire nav within themselves.
@@ -157,7 +157,7 @@ class SettingsScreen(CustomQWidget):
             for branch in branches
         ]
         await self.__branchMenuOverlay.showOverlay(
-            title="Switch git branch",
+            title="please select a git branch",
             message=message,
             options=options,
             navBarButton=self.getNavBarButton(),
@@ -200,10 +200,10 @@ class SettingsScreen(CustomQWidget):
             inputInterface.setSelectedButton(self.getPrimaryButton())
 
     async def confirmRestart(self):
-        await self._showConfirmMenu("Restart app?", "Yes, restart", systemInterface.restart_app)
+        await self._showConfirmMenu("restart app?", "yeah ok", systemInterface.restart_app)
 
     async def confirmReboot(self):
-        await self._showConfirmMenu("Reboot Pi?", "Yes, reboot", systemInterface.reboot_device)
+        await self._showConfirmMenu("reboot bro?", "yeah for sure whatever", systemInterface.reboot_device)
 
     def _onConfirmOverlayClosed(self):
         inputInterface = MAIN_WINDOW.getInputInterface()
