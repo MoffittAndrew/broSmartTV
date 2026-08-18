@@ -93,6 +93,11 @@ class DISPLAY:
 class WIFI:
     KNOWN_NETWORKS_FILE = os.path.join(PATH, "known_networks.json")
 
+class GIT:
+    # Read by launcher/update's read_target_branch() on next restart; this app only edits it.
+    BRANCH_FILE = os.path.join(PATH, "launcher", "branch")
+    DEFAULT_BRANCH = "live"
+
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100

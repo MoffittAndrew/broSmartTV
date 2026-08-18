@@ -11,7 +11,7 @@ The GUI is designed to be built from reusable custom sections and tools, so new 
 2. Primitive UI tools in `ui/tools/`:
 - `Button` and tile/button subclasses
 - `VSection`, `HSection`, `GridSection`
-- Overlay helpers like `OnScreenKeyboard`
+- Overlay helpers like `OnScreenKeyboard`, `WifiOverlay`, `MenuOverlay`
 
 3. Screens in `ui/*.py`:
 - Compose sections and tool widgets
@@ -41,6 +41,18 @@ Do not hardcode new spacing constants in screens/components.
 - Navigation relies on directional links set on interactive widgets.
 - Section primitives auto-wire links where possible.
 - Screen code should only add explicit overrides for special transitions (for example, navbar <-> body, overlay back/close).
+
+## Button Callbacks
+`ui/tools/button.py` supports three independent, optional callbacks per `Button`:
+- `clickCallback` - fires on `Button.click()` when SELECT (Enter) is pressed on a focused button. This is the primary action.
+- `menuCallback` - fires on `Button.menu()` when MENU (Tab) is pressed on a focused button. Used for secondary/contextual actions (for example, CAPS toggle in the on-screen keyboard). Omit entirely when a button has no secondary action.
+- `returnCallback` - fires on `Button.back()` when RETURN (Esc) is pressed on a focused button. Used to back out of a screen/overlay without performing the primary action.
+
+A button can freely mix and match these; a menu/list option button, for example, may only need `clickCallback` and `returnCallback`.
+
+## Overlay Recipes
+- Full-bleed panel (`WifiOverlay`, `OnScreenKeyboard`): covers the whole screen and replaces its content in place. Use for content-heavy overlays (scrollable lists, keyboards).
+- Centered dimmed popup (`MenuOverlay`): dims the whole screen and shows a smaller centered box of options. Use for lightweight choice menus. `MenuOverlay` is intentionally generic - it takes a list of `{"text", "clickCallback"}` option dicts and auto-wires each option's `returnCallback` to close the menu, so it can be reused for any picker, not just git branches.
 
 ## Absolute Position Contract
 Use `getAbsolutePos()` from custom base widgets. It maps each widget into window coordinates via `mapTo(window, QPoint(0, 0))`.
