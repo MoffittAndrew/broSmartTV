@@ -313,9 +313,13 @@ class ToggleButton(Button):
     ## Getters
     
     def getValue(self):
-        if self.__fetchValueCallback is None:
+        fetchValueCallback, args, kwargs = self.getFetchValueCallback()
+        if fetchValueCallback is None:
             raise RuntimeError("ToggleButton requires a fetchValueCallback")
-        return bool(self.__fetchValueCallback(*self.__fetchValueCallbackArgs, **self.__fetchValueCallbackKwargs))
+        return bool(fetchValueCallback(*args, **kwargs))
+    
+    def getFetchValueCallback(self):
+        return self.__fetchValueCallback, self.__fetchValueCallbackArgs, self.__fetchValueCallbackKwargs
     
     def getTrueText(self):
         return self.__trueText
