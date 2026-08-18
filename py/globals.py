@@ -93,6 +93,11 @@ class DISPLAY:
 class WIFI:
     KNOWN_NETWORKS_FILE = os.path.join(PATH, "known_networks.json")
 
+class GIT:
+    # Read by launcher/update's read_target_branch() on next restart; this app only edits it.
+    BRANCH_FILE = os.path.join(PATH, "launcher", "branch")
+    DEFAULT_BRANCH = "live"
+
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
@@ -102,6 +107,10 @@ class _BUTTON:
     COLOR_DISABLED = Qt.gray
     BORDER_THICKNESS = 3
     BG_COLOR = Qt.black
+
+class _MENU:
+    BUTTON_WIDTH = 800
+    BUTTON_HEIGHT = 100
 
 class _NAVBAR:
     BUTTON_WIDTH = 300
@@ -154,6 +163,7 @@ class GUI:
     BG_COLOR = Qt.black
     INPUT_INTERFACE_COLOR = Qt.red
     BUTTON = _BUTTON
+    MENU = _MENU
     NAVBAR = _NAVBAR
     TILE = _TILE
     TILEGRID = _TILEGRID
