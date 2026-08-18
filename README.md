@@ -20,9 +20,5 @@ projector setup, as I never thought that anyone else would ever take an interest
 apparently having a lovely project to showcase to the world counts towards big bonus points for recruiters (hi by the way, I hope you liked my CV), so I've made the repo public
 to prove to everyone that I can actually write code 😭😭
 
-### Developer documentation
-
-- [Application logging](LOGGING.md): logger usage, record structure, storage, filtering, redaction, and the live/historical logs API.
-
 ### Q: I want to hire you
 A: Of course you do, check out my [linkedin](https://www.linkedin.com/in/a-moffitt) to get in touch
