@@ -187,8 +187,11 @@ ensure_wlan0_static_ip() {
     dns_servers_space="$(awk '/^nameserver / {print $2}' /etc/resolv.conf | paste -sd ' ' -)"
     dns_servers_csv="$(awk '/^nameserver / {print $2}' /etc/resolv.conf | paste -sd ',' -)"
 
+    # Static IP pinning is best-effort: a failure here (e.g. a stale/invalid
+    # DNS entry rejected by NetworkManager) shouldn't abort the whole install.
     if [ -z "${wlan0_cidr}" ] || [ -z "${wlan0_gateway}" ]; then
-        error_exit "Could not determine the current wlan0 IPv4 address and gateway for static IP configuration."
+        log "Warning: Could not determine the current wlan0 IPv4 address and gateway, skipping static IP setup."
+        return 0
     fi
 
     if command -v nmcli >/dev/null 2>&1; then
@@ -199,9 +202,12 @@ ensure_wlan0_static_ip() {
             if [ -n "${dns_servers_csv}" ]; then
                 nmcli_args+=(ipv4.dns "${dns_servers_csv}")
             fi
-            sudo nmcli "${nmcli_args[@]}" || error_exit "Failed to persist static wlan0 IP via NetworkManager."
-            log "Pinned wlan0 to ${wlan0_cidr} via NetworkManager."
-            return
+            if sudo nmcli "${nmcli_args[@]}"; then
+                log "Pinned wlan0 to ${wlan0_cidr} via NetworkManager."
+            else
+                log "Warning: Failed to persist static wlan0 IP via NetworkManager, continuing without it."
+            fi
+            return 0
         fi
     fi
 
@@ -209,7 +215,10 @@ ensure_wlan0_static_ip() {
     dhcpcd_config_path="${dhcpcd_config_dir}/${STATIC_IP_CONFIG_NAME}.conf"
     if [ -f /etc/dhcpcd.conf ] || [ -d "${dhcpcd_config_dir}" ]; then
         log "Pinning current wlan0 IP via dhcpcd config ${dhcpcd_config_path}..."
-        sudo mkdir -p "${dhcpcd_config_dir}" || error_exit "Failed to create ${dhcpcd_config_dir}."
+        if ! sudo mkdir -p "${dhcpcd_config_dir}"; then
+            log "Warning: Failed to create ${dhcpcd_config_dir}, skipping static IP setup."
+            return 0
+        fi
 
         dhcpcd_config="interface wlan0
 static ip_address=${wlan0_cidr}
@@ -219,13 +228,16 @@ static routers=${wlan0_gateway}"
 static domain_name_servers=${dns_servers_space}"
         fi
 
-        printf '%s\n' "${dhcpcd_config}" | sudo tee "${dhcpcd_config_path}" >/dev/null || \
-            error_exit "Failed to write ${dhcpcd_config_path}."
-        log "Pinned wlan0 to ${wlan0_cidr} via dhcpcd."
-        return
+        if printf '%s\n' "${dhcpcd_config}" | sudo tee "${dhcpcd_config_path}" >/dev/null; then
+            log "Pinned wlan0 to ${wlan0_cidr} via dhcpcd."
+        else
+            log "Warning: Failed to write ${dhcpcd_config_path}, continuing without static IP."
+        fi
+        return 0
     fi
 
-    error_exit "Could not find a supported network manager for static wlan0 IP configuration."
+    log "Warning: Could not find a supported network manager for static wlan0 IP configuration, skipping."
+    return 0
 }
 
 ensure_networkmanager_permissions() {
