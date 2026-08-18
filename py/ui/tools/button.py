@@ -345,3 +345,7 @@ class ToggleButton(Button):
         self._updateText()
         self.draw()
         self.update()
+    
+    async def click(self):
+        await super().click()
+        self.refresh()
