@@ -16,8 +16,9 @@ def test_consume_skip_standby_is_true_once_then_false(tmp_path):
     assert launch_signals.consume_skip_standby(flag_path) is False
 
 
-def test_consume_exit_code_resets_to_default_after_consume():
-    launch_signals.request_exit_code(201)
+def test_request_reboot_pending_creates_flag(tmp_path):
+    flag_path = str(tmp_path / "reboot-pending.flag")
 
-    assert launch_signals.consume_exit_code() == 201
-    assert launch_signals.consume_exit_code(default=0) == 0
+    launch_signals.request_reboot_pending(flag_path)
+
+    assert Path(flag_path).exists()

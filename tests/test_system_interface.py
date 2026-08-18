@@ -41,34 +41,34 @@ def make_interface(async_command_runner=None, is_raspberry_pi=True):
     teardown = FakeTeardown()
     quit_calls = []
     skip_standby_calls = []
-    exit_code_calls = []
+    reboot_pending_calls = []
     interface = system_interface.SystemInterface(
         teardown=teardown,
         async_command_runner=async_command_runner or FakeAsyncRunner(),
         quit_app=lambda: quit_calls.append(True),
         request_skip_standby=lambda: skip_standby_calls.append(True),
-        request_exit_code=lambda code: exit_code_calls.append(code),
+        request_reboot_pending=lambda: reboot_pending_calls.append(True),
         is_raspberry_pi=is_raspberry_pi,
     )
-    return interface, teardown, quit_calls, skip_standby_calls, exit_code_calls
+    return interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls
 
 
 @pytest.mark.asyncio
 async def test_restart_app_quits_without_touching_projector():
-    interface, teardown, quit_calls, skip_standby_calls, exit_code_calls = make_interface()
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls = make_interface()
 
     await interface.restart_app()
 
     assert teardown.calls == [{"quit_app": True}]
     assert quit_calls == []
     assert skip_standby_calls == [True]
-    assert exit_code_calls == []
+    assert reboot_pending_calls == []
 
 
 @pytest.mark.asyncio
 async def test_reboot_device_runs_shutdown_command_without_projector_then_quits():
     async_runner = FakeAsyncRunner()
-    interface, teardown, quit_calls, skip_standby_calls, exit_code_calls = make_interface(
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls = make_interface(
         async_command_runner=async_runner
     )
 
@@ -78,13 +78,13 @@ async def test_reboot_device_runs_shutdown_command_without_projector_then_quits(
     assert async_runner.commands == [["sudo", "shutdown", "-r", "now"]]
     assert quit_calls == [True]
     assert skip_standby_calls == [True]
-    assert exit_code_calls == [system_interface.EXIT_CODE_REBOOTING]
+    assert reboot_pending_calls == [True]
 
 
 @pytest.mark.asyncio
 async def test_reboot_device_still_quits_when_command_fails():
     async_runner = FakeAsyncRunner(raise_exc=RuntimeError("boom"))
-    interface, teardown, quit_calls, skip_standby_calls, exit_code_calls = make_interface(
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls = make_interface(
         async_command_runner=async_runner
     )
 
@@ -97,7 +97,7 @@ async def test_reboot_device_still_quits_when_command_fails():
 @pytest.mark.asyncio
 async def test_reboot_device_skips_shutdown_command_on_non_raspberry_pi():
     async_runner = FakeAsyncRunner()
-    interface, teardown, quit_calls, skip_standby_calls, exit_code_calls = make_interface(
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls = make_interface(
         async_command_runner=async_runner, is_raspberry_pi=False
     )
 

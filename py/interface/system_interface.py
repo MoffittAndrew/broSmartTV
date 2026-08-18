@@ -10,8 +10,7 @@ from PyQt5.QtCore import QCoreApplication
 
 from globals import DEVICE
 from launch_signals import (
-    EXIT_CODE_REBOOTING,
-    request_exit_code as _request_exit_code_default,
+    request_reboot_pending as _request_reboot_pending_default,
     request_skip_standby as _request_skip_standby_default,
 )
 from teardown import teardown_app
@@ -26,7 +25,7 @@ class SystemInterface:
         async_command_runner=None,
         quit_app=None,
         request_skip_standby=None,
-        request_exit_code=None,
+        request_reboot_pending=None,
         is_raspberry_pi=None,
         *args,
         **kwargs,
@@ -35,7 +34,7 @@ class SystemInterface:
         self.__async_command_runner = async_command_runner or self._run_async_command
         self.__quit_app = quit_app or QCoreApplication.quit
         self.__request_skip_standby = request_skip_standby or _request_skip_standby_default
-        self.__request_exit_code = request_exit_code or _request_exit_code_default
+        self.__request_reboot_pending = request_reboot_pending or _request_reboot_pending_default
         self.__is_raspberry_pi = DEVICE.IS_RASPBERRY_PI if is_raspberry_pi is None else is_raspberry_pi
 
     async def _run_async_command(self, command):
@@ -63,9 +62,8 @@ class SystemInterface:
     async def reboot_device(self):
         logger.info("Rebooting device...", category="system")
         self.__request_skip_standby()
-        # A graceful self-quit returns 0 normally, which would make the bash loop restart
-        # us mid-reboot; request 201 so it recognizes this and doesn't race the real shutdown.
-        self.__request_exit_code(EXIT_CODE_REBOOTING)
+        # The shell must see this even if SIGINT interrupts Python before the app exits normally.
+        self.__request_reboot_pending()
         # Stop services but don't quit yet - we still need this process alive to await the command below.
         await self.__teardown(quit_app=False)
 

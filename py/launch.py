@@ -24,7 +24,7 @@ from app_logging import get_adapter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
-from launch_signals import consume_skip_standby, consume_exit_code
+from launch_signals import consume_skip_standby
 from webserver.standby_server import start_standby_server, stop_standby_server
 
 
@@ -255,13 +255,6 @@ def main():
                 loop.run_until_complete(
                     shutdown_background_tasks([projector_task, remote_task, update_task])
                 )
-
-        # A graceful self-quit (e.g. reboot_device()) returns normally here with no exception,
-        # so honor any exit code it requested instead of falling through to an implicit 0 that
-        # would make the bash loop restart us while a real OS reboot is already underway.
-        requested_exit_code = consume_exit_code()
-        if requested_exit_code:
-            exit(requested_exit_code)
 
     except LaunchAlreadyRunningError as e:
         logger.error(str(e))
