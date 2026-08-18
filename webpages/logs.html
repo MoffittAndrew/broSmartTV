@@ -16,15 +16,15 @@
       <form id="log-filters">
         <fieldset>
           <legend>categories</legend>
-          <select id="category-filter" name="category" multiple size="6" aria-label="Log categories"></select>
+          <div id="category-filter" role="group" aria-label="Log categories"></div>
         </fieldset>
         <fieldset>
           <legend>types</legend>
-          <select id="level-filter" name="level" multiple size="6" aria-label="Log types"></select>
+          <div id="level-filter" role="group" aria-label="Log types"></div>
         </fieldset>
         <fieldset>
           <legend>sources</legend>
-          <select id="source-filter" name="source" multiple size="6" aria-label="Log sources"></select>
+          <div id="source-filter" role="group" aria-label="Log sources"></div>
         </fieldset>
         <button type="submit">apply filters</button>
         <button type="button" id="clear-filters">clear filters</button>

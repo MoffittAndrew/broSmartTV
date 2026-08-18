@@ -52,11 +52,15 @@ function setOptions(select, values, selectedValues) {
   const sorted = [...values].sort();
   select.replaceChildren();
   sorted.forEach((value) => {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = value;
-    option.selected = selectedValues.has(value);
-    select.appendChild(option);
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = value;
+    checkbox.dataset.filterValue = value;
+    checkbox.checked = selectedValues.has(value);
+    label.appendChild(checkbox);
+    label.append(` ${value}`);
+    select.appendChild(label);
   });
 }
 
@@ -80,9 +84,16 @@ function updateFilterOptions(records) {
 }
 
 function readFilters() {
-  state.filters.category = new Set([...elements.category.selectedOptions].map((option) => option.value));
-  state.filters.level = new Set([...elements.level.selectedOptions].map((option) => option.value.toUpperCase()));
-  state.filters.source = new Set([...elements.source.selectedOptions].map((option) => option.value));
+  state.filters.category = readFilterGroup(elements.category);
+  state.filters.level = readFilterGroup(elements.level, true);
+  state.filters.source = readFilterGroup(elements.source);
+}
+
+function readFilterGroup(group, uppercase = false) {
+  return new Set(
+    [...group.querySelectorAll('input[type="checkbox"]:checked')]
+      .map((checkbox) => uppercase ? checkbox.value.toUpperCase() : checkbox.value),
+  );
 }
 
 function isAtLatest() {
@@ -240,6 +251,11 @@ elements.form.addEventListener('submit', (event) => {
 elements.view.addEventListener('change', () => switchView(elements.view.value).catch((error) => {
   elements.status.textContent = error.message;
 }));
+filterNames.forEach((name) => {
+  elements[name].addEventListener('change', () => {
+    state.filters[name] = readFilterGroup(elements[name], name === 'level');
+  });
+});
 elements.viewport.addEventListener('scroll', () => {
   state.followLatest = isAtLatest();
 });
@@ -248,9 +264,9 @@ elements.clear.addEventListener('click', () => {
     state.filters[name].clear();
   });
   filterNames.forEach((name) => {
-    const select = elements[name];
-    [...select.options].forEach((option) => {
-      option.selected = false;
+    state.filters[name].clear();
+    elements[name].querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.checked = false;
     });
   });
   applyFilters();

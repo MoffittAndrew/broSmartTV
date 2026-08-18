@@ -1,6 +1,6 @@
 from app_logging import get_adapter
 
-logger = get_adapter("ir", "remote")
+logger = get_adapter("ir", "projector")
 logger.info("Importing infrared interface...")
 
 import subprocess
