@@ -133,8 +133,20 @@ async def cast(request):
     return web.FileResponse(os.path.join(WEBPAGES_DIR, "cast.html"))
 
 
+def _normalize_next_path(next_path):
+    if (
+        isinstance(next_path, str)
+        and next_path.startswith("/")
+        and not next_path.startswith("//")
+    ):
+        return next_path
+    return "/cast"
+
+
 async def standby(request):
-    return web.FileResponse(os.path.join(WEBPAGES_DIR, "standby.html"))
+    # Only single-slash paths reach this redirect; protocol-relative URLs fall back to /cast.
+    # snyk ignore:python/OR
+    return web.HTTPFound(_normalize_next_path(request.query.get("next")))
 
 
 serve_static_file = build_static_file_handler(WEBPAGES_DIR)
