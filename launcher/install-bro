@@ -340,7 +340,7 @@ ensure_systemd_service() {
 }
 
 ensure_launcher_scripts_executable() {
-    install_script="${LAUNCHER_DIR}/install"
+    install_script="${LAUNCHER_DIR}/install-bro"
     update_script="${LAUNCHER_DIR}/update"
     launch_script="${LAUNCHER_DIR}/launch"
     stop_script="${LAUNCHER_DIR}/stop"
