@@ -1,7 +1,7 @@
 print("Importing onscreen keyboard...")
 
 from globals import DISPLAY, GUI
-from ui.tools.button import Button
+from ui.tools.button import Button, ToggleButton
 from ui.gui import CustomQWidget
 from ui.tools.section import HSection, GridSection
 
@@ -88,8 +88,8 @@ class OnScreenKeyboard(CustomQWidget):
             button = self._makeKeyButton(keyText)
             self.__symbolButtons.append(button)
 
-        self.__capsButton = self._makeActionButton("CAPS OFF", self._toggleCaps, width=GUI.KEYBOARD.BUTTON_WIDTH * 2)
-        self.__spaceButton = self._makeSpaceButton()
+        self.__capsButton = self._makeCapsButton(width=GUI.KEYBOARD.BUTTON_WIDTH * 2)
+        self.__spaceButton = self._makeSpaceButton(width=GUI.KEYBOARD.SPACEBAR_WIDTH)
         self.__backspaceButton = self._makeActionButton("DELETE", self._backspace, width=GUI.KEYBOARD.BUTTON_WIDTH * 2)
         self.__clearButton = self._makeActionButton("CLEAR", self._clear, width=GUI.KEYBOARD.BUTTON_WIDTH)
         self.__cancelButton = self._makeActionButton("CANCEL", self._cancel, width=GUI.KEYBOARD.BUTTON_WIDTH)
@@ -151,11 +151,28 @@ class OnScreenKeyboard(CustomQWidget):
     def _makeKeyButton(self, keyText):
         return Button(width=GUI.KEYBOARD.BUTTON_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=keyText, clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
 
-    def _makeSpaceButton(self):
-        return Button(width=GUI.KEYBOARD.SPACEBAR_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
+    def _makeCapsButton(self, width=GUI.KEYBOARD.BUTTON_WIDTH):
+        return ToggleButton(
+            width=width,
+            height=GUI.KEYBOARD.BUTTON_HEIGHT,
+            trueText="CAPS ON",
+            falseText="CAPS OFF",
+            fetchValueCallback=self._getCapsEnabled,
+            clickCallback=self._toggleCaps,
+        )
+
+    def _makeSpaceButton(self, width=GUI.KEYBOARD.SPACEBAR_WIDTH):
+        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
 
     def _makeActionButton(self, text, clickCallback, width=GUI.KEYBOARD.BUTTON_WIDTH):
         return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=text, clickCallback=clickCallback, menuCallback=self._toggleCaps, returnCallback=self._cancel)
+
+    def _getCapsEnabled(self):
+        return self.__capsEnabled
+    
+    async def _toggleCaps(self):
+        self.__capsEnabled = not self.__capsEnabled
+        self._applyCapsState()
 
     def _applyCapsState(self):
         numberRow = GUI.KEYBOARD.CAPS_SYMBOL_NUMBER_ROW if self.__capsEnabled else GUI.KEYBOARD.KEY_ROWS[0]
@@ -172,8 +189,6 @@ class OnScreenKeyboard(CustomQWidget):
                     button.setText(baseText)
                 button.draw()
 
-        self.__capsButton.setText("CAPS ON" if self.__capsEnabled else "CAPS OFF")
-        self.__capsButton.draw()
         self._redrawAllButtons()
 
     def _redrawAllButtons(self):
@@ -197,10 +212,6 @@ class OnScreenKeyboard(CustomQWidget):
         for button in controls:
             button.draw()
             button.update()
-
-    async def _toggleCaps(self):
-        self.__capsEnabled = not self.__capsEnabled
-        self._applyCapsState()
 
     def _renderText(self):
         visibleText = self.__text

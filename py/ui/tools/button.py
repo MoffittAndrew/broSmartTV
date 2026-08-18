@@ -1,5 +1,7 @@
 print("Importing button class...")
 
+import inspect
+
 from globals import INPUT, GUI
 from ui.gui import CustomQLabel
 
@@ -295,25 +297,51 @@ class Button(CustomQLabel):
 class ToggleButton(Button):
     def __init__(
         self,
-        value:bool = True,
+        fetchValueCallback=None,
+        trueText = "",
+        falseText = "",
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        
-        self.setValue(value)
+
+        self.setFetchValueCallback(fetchValueCallback)
+        self.setTrueText(trueText)
+        self.setFalseText(falseText)
+        self.refresh()
         
     ## Getters
     
     def getValue(self):
-        return self.__value
+        if self.__fetchValueCallback is None:
+            raise RuntimeError("ToggleButton requires a fetchValueCallback")
+        return bool(self.__fetchValueCallback(*self.__fetchValueCallbackArgs, **self.__fetchValueCallbackKwargs))
+    
+    def getTrueText(self):
+        return self.__trueText
+    
+    def getFalseText(self):
+        return self.__falseText
         
     ## Setters
         
-    def setValue(self, value = None):
-        self.__value = bool(value)
+    def setFetchValueCallback(self, callback, *args, **kwargs):
+        self.__fetchValueCallback = callback
+        self.__fetchValueCallbackArgs = args
+        self.__fetchValueCallbackKwargs = kwargs
+    
+    def setTrueText(self, trueText = ""):
+        self.__trueText = str(trueText)
+    
+    def setFalseText(self, falseText = ""):
+        self.__falseText = str(falseText)
     
     # Other
-    
-    def toggle(self):
-        self.setValue(not self.getValue())
+
+    def _updateText(self):
+        self.setText(self.getTrueText() if self.getValue() else self.getFalseText())
+
+    def refresh(self):
+        self._updateText()
+        self.draw()
+        self.update()
