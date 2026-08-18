@@ -1,6 +1,6 @@
 const PAGE_REGISTRY = [
-  { slug: 'cast', label: 'Screen Cast', href: '/cast' },
-  { slug: 'remote', label: 'Remote', href: '/remote' },
+  { slug: 'cast', label: 'screen cast', href: '/cast' },
+  { slug: 'remote', label: 'virtual remote', href: '/remote' },
 ];
 
 function buildNav() {
