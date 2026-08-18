@@ -23,7 +23,7 @@ LAUNCHER_DIR="${APP_DIR}/launcher"
 VENV_DIR="${DIR}/.venv"
 VENV_PYTHON="${VENV_DIR}/bin/python"
 EXIT_CODE_ALREADY_RUNNING=200
-REBOOT_PENDING_FLAG_PATH="/tmp/brosmarttv-reboot-pending.flag"
+REBOOT_PENDING_FLAG_PATH="/bro/brosmarttv-reboot-pending.flag"
 RESTART_TIMEOUT=5
 
 export QT_QPA_PLATFORM=eglfs
@@ -55,7 +55,6 @@ main() {
         exit_code=$?
 
         if [ -e "${REBOOT_PENDING_FLAG_PATH}" ]; then
-            rm -f "${REBOOT_PENDING_FLAG_PATH}"
             log "App requested a device reboot; not restarting."
             exit 1
         fi

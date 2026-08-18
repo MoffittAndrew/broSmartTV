@@ -24,7 +24,7 @@ from app_logging import get_adapter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
-from launch_signals import consume_skip_standby
+from launch_signals import consume_reboot_pending, consume_skip_standby
 from webserver.standby_server import start_standby_server, stop_standby_server
 
 
@@ -261,7 +261,8 @@ def main():
 
         # Host the standby webpage and wait for either the remote or the web button to wake us,
         # unless the previous run asked us to boot straight into the app (e.g. Restart/Reboot buttons).
-        if consume_skip_standby():
+        reboot_pending = consume_reboot_pending()
+        if consume_skip_standby() or reboot_pending:
             logger.info("Skipping standby phase (app-triggered restart/reboot).", category="startup")
             startup_trigger = "app"
         else:

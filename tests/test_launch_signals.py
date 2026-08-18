@@ -22,3 +22,5 @@ def test_request_reboot_pending_creates_flag(tmp_path):
     launch_signals.request_reboot_pending(flag_path)
 
     assert Path(flag_path).exists()
+    assert launch_signals.consume_reboot_pending(flag_path) is True
+    assert launch_signals.consume_reboot_pending(flag_path) is False
