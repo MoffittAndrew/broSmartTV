@@ -67,7 +67,7 @@ class MenuOverlay(CustomQWidget):
     def setOptions(self, options):
         buttons = []
         for option in options:
-            button = Button(text=option["text"])
+            button = Button(text=option["text"], width=GUI.MENU.BUTTON_WIDTH, height=GUI.MENU.BUTTON_HEIGHT)
             button.setClickCallback(option["clickCallback"])
             # Every option can back out of the menu without triggering its clickCallback.
             button.setReturnCallback(self.hideOverlay)

@@ -58,8 +58,10 @@ class GitInterface:
             logger.error("Failed to fetch git branches", error=error_text)
             raise RuntimeError(error_text or "Failed to fetch remote branches.")
 
+        # Only refs/remotes/origin, not refs/heads: local branches can go stale (deleted
+        # upstream but never pruned locally), so they don't reflect what's pullable from GitHub.
         list_result = self._run_command(
-            ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes/origin"],
+            ["git", "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"],
             timeout=15,
         )
         if list_result.returncode != 0:

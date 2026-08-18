@@ -108,6 +108,10 @@ class _BUTTON:
     BORDER_THICKNESS = 3
     BG_COLOR = Qt.black
 
+class _MENU:
+    BUTTON_WIDTH = 800
+    BUTTON_HEIGHT = 100
+
 class _NAVBAR:
     BUTTON_WIDTH = 300
     BUTTON_HEIGHT = 100
@@ -159,6 +163,7 @@ class GUI:
     BG_COLOR = Qt.black
     INPUT_INTERFACE_COLOR = Qt.red
     BUTTON = _BUTTON
+    MENU = _MENU
     NAVBAR = _NAVBAR
     TILE = _TILE
     TILEGRID = _TILEGRID

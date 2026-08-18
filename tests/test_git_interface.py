@@ -65,7 +65,7 @@ def test_refresh_available_branches_parses_and_dedupes(tmp_path):
         "git fetch": FakeCompletedProcess(returncode=0),
         "for-each-ref": FakeCompletedProcess(
             returncode=0,
-            stdout="live\ndev\norigin/live\norigin/dev\norigin/feature-x\norigin/HEAD\n",
+            stdout="origin/live\norigin/dev\norigin/feature-x\norigin/HEAD\n",
         ),
     })
     interface = make_interface(tmp_path, command_runner=runner)
@@ -74,6 +74,21 @@ def test_refresh_available_branches_parses_and_dedupes(tmp_path):
 
     assert branches == ["dev", "feature-x", "live"]
     assert interface.getAvailableBranches() == ["dev", "feature-x", "live"]
+
+
+def test_refresh_available_branches_excludes_stale_local_only_branches(tmp_path):
+    # A branch once checked out on the Pi but since deleted from GitHub should not appear,
+    # since only refs/remotes/origin (what's actually pullable) is queried.
+    runner = RecordingCommandRunner({
+        "git fetch": FakeCompletedProcess(returncode=0),
+        "for-each-ref": FakeCompletedProcess(returncode=0, stdout="origin/live\n"),
+    })
+    interface = make_interface(tmp_path, command_runner=runner)
+
+    branches = interface.refreshAvailableBranches()
+
+    assert branches == ["live"]
+    assert not any("refs/heads" in command for command in runner.commands)
 
 
 def test_refresh_available_branches_raises_on_fetch_failure(tmp_path):
