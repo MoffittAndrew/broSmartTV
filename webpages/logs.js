@@ -14,6 +14,8 @@ const state = {
   },
   eventSource: null,
   historicalFile: '',
+  view: 'live',
+  followLatest: true,
 };
 
 const elements = {
@@ -23,10 +25,12 @@ const elements = {
   source: document.querySelector('#source-filter'),
   clear: document.querySelector('#clear-filters'),
   status: document.querySelector('#connection-status'),
-  live: document.querySelector('#live-records'),
+  view: document.querySelector('#log-view'),
+  historyControls: document.querySelector('#history-controls'),
+  viewport: document.querySelector('#log-viewport'),
+  records: document.querySelector('#records'),
   files: document.querySelector('#session-files'),
   refreshFiles: document.querySelector('#refresh-files'),
-  historical: document.querySelector('#historical-records'),
 };
 
 function queryForFilters() {
@@ -81,7 +85,18 @@ function readFilters() {
   state.filters.source = new Set([...elements.source.selectedOptions].map((option) => option.value));
 }
 
-function appendRecord(list, record) {
+function isAtLatest() {
+  const distanceFromBottom = elements.viewport.scrollHeight
+    - elements.viewport.scrollTop
+    - elements.viewport.clientHeight;
+  return distanceFromBottom <= 8;
+}
+
+function scrollToLatest() {
+  elements.viewport.scrollTop = elements.viewport.scrollHeight;
+}
+
+function appendRecord(record) {
   if (!recordMatches(record)) return;
 
   const item = document.createElement('li');
@@ -95,13 +110,17 @@ function appendRecord(list, record) {
     item.appendChild(fields);
   }
 
-  list.appendChild(item);
-  while (list.children.length > MAX_VISIBLE_RECORDS) list.removeChild(list.firstChild);
+  elements.records.appendChild(item);
+  while (elements.records.children.length > MAX_VISIBLE_RECORDS) {
+    elements.records.removeChild(elements.records.firstChild);
+  }
+  if (state.view === 'live' && state.followLatest) scrollToLatest();
 }
 
-function replaceRecords(list, records) {
-  list.replaceChildren();
-  records.forEach((record) => appendRecord(list, record));
+function replaceRecords(records, shouldFollow = false) {
+  elements.records.replaceChildren();
+  records.forEach((record) => appendRecord(record));
+  if (shouldFollow) scrollToLatest();
 }
 
 async function fetchJson(url) {
@@ -119,7 +138,7 @@ function closeLiveStream() {
 
 async function loadLiveHistory() {
   const payload = await fetchJson(`/logs/api/history?${queryForFilters()}`);
-  replaceRecords(elements.live, payload.records || []);
+  replaceRecords(payload.records || [], true);
 }
 
 async function loadFilterOptions() {
@@ -142,7 +161,7 @@ function connectLiveStream() {
     try {
       const record = JSON.parse(event.data);
       updateFilterOptions([record]);
-      appendRecord(elements.live, record);
+      appendRecord(record);
     } catch (error) {
       elements.status.textContent = 'received an invalid log record';
     }
@@ -154,11 +173,14 @@ function connectLiveStream() {
 
 async function applyFilters() {
   readFilters();
-  closeLiveStream();
   try {
-    await loadLiveHistory();
-    connectLiveStream();
-    if (state.historicalFile) await loadHistoricalFile(state.historicalFile);
+    if (state.view === 'live') {
+      closeLiveStream();
+      await loadLiveHistory();
+      connectLiveStream();
+    } else if (state.historicalFile) {
+      await loadHistoricalFile(state.historicalFile);
+    }
   } catch (error) {
     elements.status.textContent = error.message;
   }
@@ -185,16 +207,41 @@ async function loadFiles() {
 async function loadHistoricalFile(filename) {
   state.historicalFile = filename;
   if (!filename) {
-    elements.historical.replaceChildren();
+    elements.records.replaceChildren();
     return;
   }
   const payload = await fetchJson(`/logs/api/files/${encodeURIComponent(filename)}?${queryForFilters()}`);
-  replaceRecords(elements.historical, payload.records || []);
+  replaceRecords(payload.records || [], false);
+}
+
+async function switchView(view) {
+  state.view = view;
+  elements.historyControls.hidden = view !== 'history';
+  if (view === 'history') {
+    closeLiveStream();
+    elements.status.textContent = 'historical session';
+    if (!state.historicalFile) {
+      elements.records.replaceChildren();
+      return;
+    }
+    await loadHistoricalFile(state.historicalFile);
+    return;
+  }
+
+  state.followLatest = true;
+  await loadLiveHistory();
+  connectLiveStream();
 }
 
 elements.form.addEventListener('submit', (event) => {
   event.preventDefault();
   applyFilters();
+});
+elements.view.addEventListener('change', () => switchView(elements.view.value).catch((error) => {
+  elements.status.textContent = error.message;
+}));
+elements.viewport.addEventListener('scroll', () => {
+  state.followLatest = isAtLatest();
 });
 elements.clear.addEventListener('click', () => {
   filterNames.forEach((name) => {

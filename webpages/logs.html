@@ -31,23 +31,26 @@
       </form>
     </section>
 
-    <section aria-labelledby="live-heading">
-      <h2 id="live-heading">live logs</h2>
+    <section aria-labelledby="view-heading">
+      <h2 id="view-heading">log view</h2>
       <p id="connection-status" role="status">connecting...</p>
-      <div style="max-height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
-        <ol id="live-records" aria-live="polite"></ol>
-      </div>
-    </section>
-
-    <section aria-labelledby="history-heading">
-      <h2 id="history-heading">previous sessions</h2>
-      <button type="button" id="refresh-files">refresh session list</button>
-      <label for="session-files">session file</label>
-      <select id="session-files">
-        <option value="">select a session</option>
+      <label for="log-view">logs to view</label>
+      <select id="log-view">
+        <option value="live">live logs</option>
+        <option value="history">previous session</option>
       </select>
-      <div style="max-height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
-        <ol id="historical-records"></ol>
+
+      <div id="history-controls" hidden>
+        <button type="button" id="refresh-files">refresh session list</button>
+        <label for="session-files">session file</label>
+        <select id="session-files">
+          <option value="">select a session</option>
+        </select>
+      </div>
+
+      <div id="log-viewport" tabindex="0" role="region" aria-label="Log entries"
+           style="height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
+        <ol id="records" aria-live="polite"></ol>
       </div>
     </section>
   </main>
