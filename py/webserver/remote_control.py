@@ -1,17 +1,18 @@
 """Virtual remote webpage: serves remote.html and forwards button events into InputInterface.
 
-Only registered on the full screen_cast server (see screen_cast.py) - during
-standby, /remote is aliased to the standby "turn bro on" page instead (see
-standby_server.py), since there is no InputInterface to receive events yet.
+Registered on both server modes: the full server forwards all remote input to
+InputInterface, while the lightweight standby server serves the same page and
+handles only the POWER button until the full server is available.
 """
 
 import os
 
 from aiohttp import web
 
+from app_logging import get_adapter
 from globals import PATH, INPUT
 
-LOG_PREFIX = "[remote]"
+logger = get_adapter("remote_control", "webhosting")
 
 # Whitelist of valid button names, built from globals.INPUT so an arbitrary
 # string can't be injected into the InputInterface backlog via the request body.
@@ -33,7 +34,7 @@ _ALLOWED_STATES = {"press", "release"}
 
 
 def log(message):
-    print(f"{LOG_PREFIX} {message}")
+    logger.info(message)
 
 
 async def remote_page(request):

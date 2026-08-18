@@ -21,13 +21,28 @@ const pressedButtons = new Set();
 
 async function sendInput(button, state) {
   try {
-    await fetch("/input", {
+    let response = null;
+    if (button === "POWER" && state === "press") {
+      response = await fetch("/power-on", { method: "POST" });
+      if (response.ok) return;
+    }
+
+    response = await fetch("/input", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ button, state }),
     });
+
+    if (!response.ok && !(button === "POWER" && state !== "press")) {
+      console.warn(`Input request rejected (${response.status}): ${button} ${state}`);
+    }
   } catch (err) {
-    console.error(`Failed to send ${state} for ${button}`, err);
+    // The standby server is replaced by the full server after POWER is pressed.
+    // The release request can cross that handoff and fail without affecting the
+    // already-loaded remote page or the power transition.
+    if (!(button === "POWER" && state === "release")) {
+      console.error(`Failed to send ${state} for ${button}`, err);
+    }
   }
 }
 

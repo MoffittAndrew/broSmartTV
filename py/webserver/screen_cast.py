@@ -1,7 +1,10 @@
 # this code was written by AI (I gave up)
 # Launches the screen cast (via RTC) webserver and forwards video frames to the Qt UI
 
-print("Importing screen cast server...")
+from app_logging import get_adapter
+
+logger = get_adapter("screencast", "screencast")
+logger.info("Importing screen cast server...")
 
 import os
 import asyncio
@@ -12,12 +15,11 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
+from webserver.logs_routes import add_routes as add_logs_routes, reset_stream_shutdown
 from webserver import remote_control
 from webserver import aioice_compat
 
 aioice_compat.apply()
-
-LOG_PREFIX = "[screencast]"
 
 pcs = set()
 active_pc = None  # only one active peer connection at a time
@@ -29,8 +31,8 @@ _connection_handler = None
 _disconnect_handler = None
 
 
-def log(message):
-    print(f"{LOG_PREFIX} {message}")
+def log(message, level="INFO", **fields):
+    return logger.log(level, message, **fields)
 
 
 def setFrameHandler(callback):
@@ -131,8 +133,20 @@ async def cast(request):
     return web.FileResponse(os.path.join(WEBPAGES_DIR, "cast.html"))
 
 
+def _normalize_next_path(next_path):
+    if (
+        isinstance(next_path, str)
+        and next_path.startswith("/")
+        and not next_path.startswith("//")
+    ):
+        return next_path
+    return "/cast"
+
+
 async def standby(request):
-    return web.FileResponse(os.path.join(WEBPAGES_DIR, "standby.html"))
+    # Only single-slash paths reach this redirect; protocol-relative URLs fall back to /cast.
+    # snyk ignore:python/OR
+    return web.HTTPFound(_normalize_next_path(request.query.get("next")))
 
 
 serve_static_file = build_static_file_handler(WEBPAGES_DIR)
@@ -369,6 +383,8 @@ screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_get("/cast", cast)
+screenCastServer.router.add_get("/standby", standby)
+add_logs_routes(screenCastServer)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
@@ -386,7 +402,8 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     if _runner is not None:
         return
 
-    _runner, _site = await start_site(screenCastServer, host, port, LOG_PREFIX)
+    reset_stream_shutdown(screenCastServer)
+    _runner, _site = await start_site(screenCastServer, host, port, "screencast")
 
 async def stopScreenCastServer():
     global _runner, _site

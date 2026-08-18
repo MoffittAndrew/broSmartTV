@@ -23,6 +23,7 @@ LAUNCHER_DIR="${APP_DIR}/launcher"
 VENV_DIR="${DIR}/.venv"
 VENV_PYTHON="${VENV_DIR}/bin/python"
 EXIT_CODE_ALREADY_RUNNING=200
+RESTART_TIMEOUT=5
 
 export QT_QPA_PLATFORM=eglfs
 export QT_QPA_EGLFS_KMS_CONFIG="${LAUNCHER_DIR}/eglfs_kms_conf.json"
@@ -62,8 +63,8 @@ main() {
             exit 1
         fi
 
-        log "launch.py exited with code ${exit_code}; restarting in 5s..."
-        sleep 5
+        log "launch.py exited with code ${exit_code}; restarting in ${RESTART_TIMEOUT}s..."
+        sleep "${RESTART_TIMEOUT}"
     done
 }
 

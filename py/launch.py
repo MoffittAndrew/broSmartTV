@@ -18,12 +18,16 @@ bash launch loop can automatically restart the app.
 import asyncio
 import os
 import sys
-import traceback
 import qtinter
+
+from app_logging import get_adapter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
 from webserver.standby_server import start_standby_server, stop_standby_server
+
+
+logger = get_adapter("launcher", "startup")
 
 reload_modules = [
     "globals",
@@ -43,9 +47,13 @@ def request_restart(reason, exc=None):
         return
 
     _restart_requested = True
-    print(f"Fatal error: {reason}")
+    logger.error(f"Fatal error: {reason}")
     if exc is not None:
-        traceback.print_exception(type(exc), exc, exc.__traceback__)
+        logger.error(
+            "Launcher exception",
+            exception_type=type(exc).__name__,
+            exception_message=str(exc),
+        )
 
     app = globals().get("APP")
     if app is not None:
@@ -61,11 +69,8 @@ def append_update_log_line(line):
     if not line:
         return
 
-    print(line)
+    logger.info(line, category="update")
 
-    launch_screen = globals().get("LAUNCH_SCREEN")
-    if launch_screen is not None:
-        launch_screen.append_log_line(line)
 
 def init_qt():
     """Initialize the minimal launch UI shown before main.py is ready."""
@@ -87,13 +92,13 @@ def init_qt():
 async def projector_on():
     """Power on the projector while launch/update work continues."""
     from interface.projector_interface import projectorInterface
-    print("Switching projector on...")
+    logger.info("Switching projector on...", category="projector")
     await projectorInterface.on()
 
 
 def launch():
     """Import main.py and transition from launch screen to the full UI."""
-    print("Launching main program...")
+    logger.info("Launching main program...")
     from main import MAIN_WINDOW
     from webserver.screen_cast import startScreenCastServer
     MAIN_WINDOW.show()
@@ -101,7 +106,7 @@ def launch():
     LAUNCH_SCREEN.stop()
     LAUNCH_SCREEN.hide()
     
-    print("Starting screen cast server...")
+    logger.info("Starting screen cast server...", category="screencast")
     asyncio.create_task(start_screen_cast_server(startScreenCastServer))
 
 
@@ -215,7 +220,7 @@ async def shutdown_background_tasks(tasks):
     try:
         await asyncio.wait_for(asyncio.gather(*pending, return_exceptions=True), timeout=2)
     except asyncio.TimeoutError:
-        print("Timed out while shutting down background tasks.")
+        logger.warning("Timed out while shutting down background tasks.", category="teardown")
 
 
 def main():
@@ -234,11 +239,11 @@ def main():
             init_qt()
             
             # Run the update script, then launch smart TV
-            print("Starting launch screen...")
+            logger.info("Starting launch screen...")
             LAUNCH_SCREEN.show()
             update_task = asyncio.create_task(updateThenLaunch())
             APP.exec_()
-            print("App closed.")
+            logger.info("App closed.", category="teardown")
 
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -251,11 +256,10 @@ def main():
                 )
 
     except LaunchAlreadyRunningError as e:
-        print(e)
+        logger.error(str(e))
         exit(EXIT_ALREADY_RUNNING)
     except KeyboardInterrupt:
-        print()
-        print("Launch script manually cancelled by user")
+        logger.warning("Launch script manually cancelled by user", category="teardown")
         exit(130)
     except Exception as e:
         request_restart("Launcher crashed unexpectedly", e)
@@ -263,6 +267,6 @@ def main():
         release_launch_lock(launch_lock_handle)
 
 if __name__ == "__main__":
-    print("Starting launch.py...")
+    logger.info("Starting launch.py...")
     main()
-    print("Exiting launch.py...")
+    logger.info("Exiting launch.py...", category="teardown")

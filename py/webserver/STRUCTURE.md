@@ -9,6 +9,8 @@ The website is intentionally route-first instead of home-page-first.
 - / redirects to /cast
 - /cast is the main cast page
 - /remote is the virtual remote page
+- /logs is the live and historical diagnostics page, available in both awake
+	and standby server modes
 - /standby is the dedicated standby page while the TV is powered down
 
 The root page is not a landing page; it exists only as a redirect target so the browser always lands on the primary app page.
@@ -30,9 +32,21 @@ While the TV is in standby mode, the off-state server overrides the main pages a
 Example:
 
 - /cast -> /standby?next=/cast
-- /remote -> /standby?next=/remote
+- /remote stays on the real virtual remote page in both server modes
 
-The standby page then powers the TV back on and sends the user back to the target page once the app server is active again. This keeps the flow centralized and avoids repeating redirect logic across every page.
+The standby remote uses the existing `/power-on` endpoint for its POWER press.
+Other buttons remain unavailable until the full server is running. The page
+itself is not reloaded during this transition.
+
+The standby page can still power the TV on directly, and sends the user back to
+the target page once the app server is active again. The virtual remote uses
+its own POWER button instead, so it remains available without navigating to a
+different page.
+
+`/logs` is an intentional exception to the standby redirect model. It remains
+available while the TV is off so operators can inspect previous session files
+in `BRO_LOG_DIR` (normally `/bro/var/log` on the Pi). Its API exposes bounded,
+filtered JSONL records and an SSE stream for the current process session.
 
 ## Static assets
 
@@ -47,6 +61,11 @@ To add a new main page:
 1. Add the page file under the webpages directory.
 2. Add a matching item to the page registry in the shared nav script.
 3. Add the route in the server to serve the page while the TV is on.
-4. If the page should be blocked while the TV is off, rely on the shared standby redirect mechanism rather than a page-specific workaround.
+4. If the page should be blocked while the TV is off, add its awake-server route and let the standby server's fallback route redirect it with `?next=/destination`.
 
 This makes future expansion simple and keeps the website structure predictable for future work.
+
+For diagnostics consumers, reuse the structured records and filter semantics
+from the logs API: repeated values within `category`, `level`, or `source` are
+ORed, while different filter dimensions are ANDed. Do not expose arbitrary log
+paths or bypass the logger's redaction policy.
