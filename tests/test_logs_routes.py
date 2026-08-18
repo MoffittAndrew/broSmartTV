@@ -66,3 +66,22 @@ async def test_list_sessions_only_returns_session_files(monkeypatch, tmp_path):
     assert [item["filename"] for item in json.loads(response.body)["files"]] == [
         "session-20260818T000000Z-test.jsonl"
     ]
+
+
+@pytest.mark.asyncio
+async def test_filter_options_include_current_and_historical_values(monkeypatch, tmp_path):
+    logger = app_logging.AppLogger()
+    logger.emit("info", "current", source="remote", category="remote")
+    (tmp_path / "session-20260818T000000Z-test.jsonl").write_text(
+        json.dumps({"level": "ERROR", "source": "screen", "category": "screencast"}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(logs_routes, "get_logger", lambda: logger)
+    monkeypatch.setattr(logs_routes, "get_log_dir", lambda: tmp_path)
+
+    response = await logs_routes.filter_options(_request("/logs/api/options"))
+    payload = json.loads(response.body)
+
+    assert {"remote", "screencast"}.issubset(payload["categories"])
+    assert {"ERROR", "INFO", "WARNING"}.issubset(payload["levels"])
+    assert {"remote", "screen"}.issubset(payload["sources"])

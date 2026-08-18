@@ -23,6 +23,35 @@ SESSION_FILE_PATTERN = re.compile(r"^session-[A-Za-z0-9TzZ-]+\.jsonl$")
 MAX_RECORDS = 1000
 MAX_FILE_RECORDS = 5000
 MAX_SSE_QUEUE = 200
+SHUTDOWN_KEY = "logs_stream_shutdown"
+KNOWN_CATEGORIES = {
+    "audio",
+    "gui",
+    "projector",
+    "remote",
+    "screencast",
+    "startup",
+    "standby",
+    "teardown",
+    "update",
+    "webhosting",
+    "wifi",
+}
+KNOWN_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+KNOWN_SOURCES = {
+    "audio",
+    "gui",
+    "ir",
+    "launcher",
+    "main",
+    "remote",
+    "remote_control",
+    "screencast",
+    "standby",
+    "teardown",
+    "webserver",
+    "wifi",
+}
 
 
 def _query_values(request: web.Request, name: str) -> set[str] | None:
@@ -113,6 +142,22 @@ async def current_history(request: web.Request) -> web.Response:
     return web.json_response({"records": _filtered_records(records, request)})
 
 
+async def filter_options(request: web.Request) -> web.Response:
+    """Return filter values from current history and available session files."""
+    records = [record.to_dict() for record in get_logger().history()]
+    root = _safe_log_dir()
+    if root.exists():
+        for path in root.iterdir():
+            if path.is_file() and SESSION_FILE_PATTERN.fullmatch(path.name):
+                records.extend(_read_session_records(path)[-MAX_RECORDS:])
+
+    return web.json_response({
+        "categories": sorted(KNOWN_CATEGORIES | {record.get("category", "") for record in records if record.get("category")}),
+        "levels": sorted(KNOWN_LEVELS | {str(record.get("level", "")).upper() for record in records if record.get("level")}),
+        "sources": sorted(KNOWN_SOURCES | {record.get("source", "") for record in records if record.get("source")}),
+    })
+
+
 async def list_sessions(request: web.Request) -> web.Response:
     root = _safe_log_dir()
     if not root.exists():
@@ -144,6 +189,8 @@ async def log_stream(request: web.Request) -> web.StreamResponse:
     logger = get_logger()
     queue: asyncio.Queue[LogRecord] = asyncio.Queue(maxsize=MAX_SSE_QUEUE)
     loop = asyncio.get_running_loop()
+    shutdown_event = request.app[SHUTDOWN_KEY]
+    unsubscribe = None
 
     def enqueue(record: LogRecord) -> None:
         def put_record() -> None:
@@ -182,24 +229,53 @@ async def log_stream(request: web.Request) -> web.StreamResponse:
         )
         try:
             while True:
-                try:
-                    record = await asyncio.wait_for(queue.get(), timeout=15)
+                queue_task = asyncio.create_task(queue.get())
+                shutdown_task = asyncio.create_task(shutdown_event.wait())
+                done, pending = await asyncio.wait(
+                    (queue_task, shutdown_task),
+                    timeout=15,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+
+                if shutdown_task in done:
+                    break
+                if queue_task in done:
+                    record = queue_task.result()
                     await response.write(f"data: {json.dumps(record.to_dict(), ensure_ascii=True)}\n\n".encode())
-                except asyncio.TimeoutError:
+                else:
                     await response.write(b": keep-alive\n\n")
         finally:
             unsubscribe()
     except (asyncio.CancelledError, ConnectionResetError, RuntimeError):
-        unsubscribe = locals().get("unsubscribe")
         if unsubscribe is not None:
             unsubscribe()
+    finally:
+        if not response._eof_sent:
+            try:
+                await response.write_eof()
+            except (ConnectionResetError, RuntimeError):
+                pass
     return response
 
 
 def add_routes(application: web.Application) -> None:
     """Register logs page, replay, historical, and live-stream routes."""
+    application[SHUTDOWN_KEY] = asyncio.Event()
+
+    async def stop_streams(_application):
+        application[SHUTDOWN_KEY].set()
+
+    application.on_shutdown.append(stop_streams)
     application.router.add_get("/logs", logs_page)
     application.router.add_get("/logs/api/history", current_history)
+    application.router.add_get("/logs/api/options", filter_options)
     application.router.add_get("/logs/api/files", list_sessions)
     application.router.add_get("/logs/api/files/{filename}", session_history)
     application.router.add_get("/logs/api/stream", log_stream)
+
+
+def reset_stream_shutdown(application: web.Application) -> None:
+    """Allow a shared application object to be started again after cleanup."""
+    application[SHUTDOWN_KEY].clear()

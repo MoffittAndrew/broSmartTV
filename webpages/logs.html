@@ -34,7 +34,9 @@
     <section aria-labelledby="live-heading">
       <h2 id="live-heading">live logs</h2>
       <p id="connection-status" role="status">connecting...</p>
-      <ol id="live-records" aria-live="polite"></ol>
+      <div style="max-height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
+        <ol id="live-records" aria-live="polite"></ol>
+      </div>
     </section>
 
     <section aria-labelledby="history-heading">
@@ -44,7 +46,9 @@
       <select id="session-files">
         <option value="">select a session</option>
       </select>
-      <ol id="historical-records"></ol>
+      <div style="max-height: 24rem; overflow-y: auto; border: 1px solid currentColor;">
+        <ol id="historical-records"></ol>
+      </div>
     </section>
   </main>
 

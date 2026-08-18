@@ -15,7 +15,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
-from webserver.logs_routes import add_routes as add_logs_routes
+from webserver.logs_routes import add_routes as add_logs_routes, reset_stream_shutdown
 from webserver import remote_control
 from webserver import aioice_compat
 
@@ -389,6 +389,7 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     if _runner is not None:
         return
 
+    reset_stream_shutdown(screenCastServer)
     _runner, _site = await start_site(screenCastServer, host, port, "screencast")
 
 async def stopScreenCastServer():

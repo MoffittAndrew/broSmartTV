@@ -18,7 +18,7 @@ from urllib.parse import quote
 from aiohttp import web
 
 from globals import PATH, SCREEN_CAST
-from webserver.logs_routes import add_routes as add_logs_routes
+from webserver.logs_routes import add_routes as add_logs_routes, reset_stream_shutdown
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
 WEBPAGES_DIR = os.path.join(PATH, "webpages")
@@ -103,7 +103,9 @@ async def start_standby_server(wake_event, host=SCREEN_CAST.HOST, port=SCREEN_CA
     if _runner is not None:
         return
 
-    _runner, _site = await start_site(_build_app(wake_event), host, port, "standby")
+    application = _build_app(wake_event)
+    reset_stream_shutdown(application)
+    _runner, _site = await start_site(application, host, port, "standby")
 
 
 async def stop_standby_server():

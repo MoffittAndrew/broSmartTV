@@ -7,6 +7,11 @@ const state = {
     level: new Set(),
     source: new Set(),
   },
+  available: {
+    category: new Set(),
+    level: new Set(),
+    source: new Set(),
+  },
   eventSource: null,
   historicalFile: '',
 };
@@ -62,9 +67,12 @@ function updateFilterOptions(records) {
     if (record.level) values.level.add(record.level.toUpperCase());
     if (record.source) values.source.add(record.source);
   });
-  setOptions(elements.category, values.category, state.filters.category);
-  setOptions(elements.level, values.level, state.filters.level);
-  setOptions(elements.source, values.source, state.filters.source);
+  values.category.forEach((value) => state.available.category.add(value));
+  values.level.forEach((value) => state.available.level.add(value));
+  values.source.forEach((value) => state.available.source.add(value));
+  setOptions(elements.category, state.available.category, state.filters.category);
+  setOptions(elements.level, state.available.level, state.filters.level);
+  setOptions(elements.source, state.available.source, state.filters.source);
 }
 
 function readFilters() {
@@ -111,8 +119,17 @@ function closeLiveStream() {
 
 async function loadLiveHistory() {
   const payload = await fetchJson(`/logs/api/history?${queryForFilters()}`);
-  updateFilterOptions(payload.records || []);
   replaceRecords(elements.live, payload.records || []);
+}
+
+async function loadFilterOptions() {
+  const payload = await fetchJson('/logs/api/options');
+  state.available.category = new Set(payload.categories || []);
+  state.available.level = new Set((payload.levels || []).map((level) => level.toUpperCase()));
+  state.available.source = new Set(payload.sources || []);
+  setOptions(elements.category, state.available.category, state.filters.category);
+  setOptions(elements.level, state.available.level, state.filters.level);
+  setOptions(elements.source, state.available.source, state.filters.source);
 }
 
 function connectLiveStream() {
@@ -198,7 +215,7 @@ elements.files.addEventListener('change', () => loadHistoricalFile(elements.file
   elements.status.textContent = error.message;
 }));
 
-Promise.all([loadLiveHistory(), loadFiles()])
+Promise.all([loadFilterOptions(), loadLiveHistory(), loadFiles()])
   .then(connectLiveStream)
   .catch((error) => {
     elements.status.textContent = error.message;
