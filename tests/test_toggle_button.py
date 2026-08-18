@@ -14,22 +14,20 @@ import ui.gui
 from ui.tools.button import ToggleButton
 
 
-def test_toggle_button_reads_and_updates_owner_state():
+def test_toggle_button_reads_owner_state_after_click_callback():
     state = {"enabled": False}
-    requested_values = []
 
     def fetch_value():
         return state["enabled"]
 
-    def set_value(value):
-        requested_values.append(value)
-        state["enabled"] = value
+    async def toggle_owner_value():
+        state["enabled"] = not state["enabled"]
 
     button = ToggleButton(
         fetchValueCallback=fetch_value,
-        toggleCallback=set_value,
         trueText="ON",
         falseText="OFF",
+        clickCallback=toggle_owner_value,
     )
 
     assert button.getValue() is False
@@ -37,7 +35,6 @@ def test_toggle_button_reads_and_updates_owner_state():
 
     asyncio.run(button.click())
 
-    assert requested_values == [True]
     assert state["enabled"] is True
     assert button.getValue() is True
     assert button.getText() == "ON"

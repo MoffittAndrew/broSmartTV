@@ -1,7 +1,5 @@
 print("Importing button class...")
 
-import inspect
-
 from globals import INPUT, GUI
 from ui.gui import CustomQLabel
 
@@ -303,12 +301,12 @@ class ToggleButton(Button):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-
+        # Button.__init__() calls self.draw(), which dispatches to this class.
+        # Set these fields first so the initial draw can read the owner-held value.
         self.setFetchValueCallback(fetchValueCallback)
         self.setTrueText(trueText)
         self.setFalseText(falseText)
-        self.refresh()
+        super().__init__(*args, **kwargs)
         
     ## Getters
     
@@ -344,6 +342,16 @@ class ToggleButton(Button):
 
     def _updateText(self):
         self.setText(self.getTrueText() if self.getValue() else self.getFalseText())
+
+    async def click(self):
+        await super().click()
+        self.draw()
+        self.update()
+
+    async def menu(self):
+        await super().menu()
+        self.draw()
+        self.update()
 
     def draw(self):
         self._updateText()
