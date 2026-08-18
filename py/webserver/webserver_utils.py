@@ -12,16 +12,13 @@ import ssl
 
 from aiohttp import web
 
+from app_logging import get_adapter
 from globals import SCREEN_CAST
-
-
-def log(prefix, message):
-    print(f"{prefix} {message}")
 
 
 def build_static_file_handler(static_root):
     """Return an aiohttp handler serving files under static_root, rejecting traversal outside it."""
-    static_root = os.path.normpath(static_root)
+    static_root = os.path.realpath(static_root)
 
     async def serve_static_file(request):
         filename = request.match_info.get("filename", "")
@@ -32,7 +29,7 @@ def build_static_file_handler(static_root):
         if not safe_path or safe_path == "." or safe_path.startswith(".."):
             raise web.HTTPForbidden()
 
-        target = os.path.normpath(os.path.join(static_root, safe_path))
+        target = os.path.realpath(os.path.join(static_root, safe_path))
         if os.path.commonpath([static_root, target]) != static_root or not os.path.isfile(target):
             raise web.HTTPNotFound()
 
@@ -42,6 +39,7 @@ def build_static_file_handler(static_root):
 
 
 async def start_site(application, host, port, log_prefix):
+    logger = get_adapter("webserver", log_prefix)
     runner = web.AppRunner(application)
     await runner.setup()
 
@@ -53,8 +51,8 @@ async def start_site(application, host, port, log_prefix):
             ssl_context.load_cert_chain(SCREEN_CAST.SSL_CERT, SCREEN_CAST.SSL_KEY)
             scheme = "https"
         except Exception as exc:
-            log(log_prefix, f"Failed to enable HTTPS: {exc}")
-            log(log_prefix, "Falling back to HTTP.")
+            logger.error(f"Failed to enable HTTPS: {exc}")
+            logger.warning("Falling back to HTTP.")
             ssl_context = None
 
     site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
@@ -71,9 +69,9 @@ async def start_site(application, host, port, log_prefix):
         raise RuntimeError(f"Server could not bind {host}:{port}: {exc}") from exc
 
     if SCREEN_CAST.IP is not None:
-        log(log_prefix, f"Started at {scheme}://{SCREEN_CAST.IP}:{port}")
+        logger.info(f"Started at {scheme}://{SCREEN_CAST.IP}:{port}")
     else:
-        log(log_prefix, f"Started on port {port} (LAN IP unavailable, scheme={scheme})")
+        logger.info(f"Started on port {port} (LAN IP unavailable, scheme={scheme})")
 
     return runner, site
 

@@ -1,4 +1,7 @@
-print("Importing wifi interface...")
+from app_logging import get_adapter
+
+logger = get_adapter("wifi", "wifi")
+logger.info("Importing wifi interface...")
 
 import asyncio
 import json
@@ -244,8 +247,10 @@ class WifiInterface:
         return self._parse_nmcli_wifi_list(result.stdout)
 
     async def connectToNetwork(self, network: Network, password=None):
-        print(
-            f"[wifi_interface] connect requested: ssid='{network.ssid if network is not None else None}', password_arg_provided={password is not None}"
+        logger.info(
+            "Wi-Fi connection requested",
+            ssid=network.ssid if network is not None else None,
+            password_arg_provided=password is not None,
         )
         if network is None or not network.ssid.strip():
             raise ValueError("A network with a valid SSID is required.")
@@ -256,7 +261,7 @@ class WifiInterface:
             provided_password = known_network.password
 
         if network.requiresPassword and not provided_password:
-            print(f"[wifi_interface] connect rejected: ssid='{network.ssid}' requires password but none available")
+            logger.warning("Wi-Fi connection rejected: password required", ssid=network.ssid)
             raise ValueError(f"Network '{network.ssid}' requires a password.")
 
         backend = self._require_backend(["nmcli"])
@@ -267,23 +272,20 @@ class WifiInterface:
         if provided_password:
             command.extend(["password", provided_password])
 
-        print(
-            f"[wifi_interface] running nmcli connect: ssid='{network.ssid}', using_password={bool(provided_password)}"
+        logger.info(
+            "Running Wi-Fi connection command",
+            ssid=network.ssid,
+            using_password=bool(provided_password),
         )
 
         result = await self.__async_command_runner(command)
-        if result.stdout:
-            print(f"[wifi_interface] nmcli stdout: {result.stdout.strip()}")
-        if result.stderr:
-            print(f"[wifi_interface] nmcli stderr: {result.stderr.strip()}")
-        print(f"[wifi_interface] nmcli return code: {result.returncode}")
+        logger.info("Wi-Fi connection command completed", return_code=result.returncode)
         if result.returncode != 0:
             error_text = (result.stderr or result.stdout or "").strip()
             error_text_lower = error_text.lower()
             if "not authorized to control networking" in error_text_lower or "not authorized" in error_text_lower:
-                print(
-                    "[wifi_interface] permission denied by NetworkManager. "
-                    "Grant this app/user permission to manage networking (polkit/sudoers)."
+                logger.error(
+                    "NetworkManager permission denied; configure app-user permissions."
                 )
                 raise PermissionError(
                     "Not authorized to control networking. Configure NetworkManager permissions for this app user."
@@ -303,8 +305,8 @@ class WifiInterface:
             and connected_network.password != known_network.password
         ):
             self.saveKnownNetwork(connected_network)
-            print(f"[wifi_interface] known network updated: ssid='{network.ssid}'")
-        print(f"[wifi_interface] connect success persisted: ssid='{network.ssid}'")
+            logger.info("Known Wi-Fi network updated", ssid=network.ssid)
+        logger.info("Wi-Fi connection persisted", ssid=network.ssid)
         return connected_network
 
     def saveKnownNetwork(self, network: Network):

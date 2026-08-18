@@ -7,7 +7,10 @@ screen_cast.py (which pulls in aiortc/audio_playback) - this module only
 needs aiohttp.
 """
 
-print("Importing standby server...")
+from app_logging import get_adapter
+
+logger = get_adapter("standby", "standby")
+logger.info("Importing standby server...")
 
 import os
 from urllib.parse import quote
@@ -17,12 +20,11 @@ from aiohttp import web
 from globals import PATH, SCREEN_CAST
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
-LOG_PREFIX = "[standby]"
 WEBPAGES_DIR = os.path.join(PATH, "webpages")
 
 
-def log(message):
-    print(f"{LOG_PREFIX} {message}")
+def log(message, level="INFO", **fields):
+    return logger.log(level, message, **fields)
 
 
 def _normalize_next_path(next_path):
@@ -99,7 +101,7 @@ async def start_standby_server(wake_event, host=SCREEN_CAST.HOST, port=SCREEN_CA
     if _runner is not None:
         return
 
-    _runner, _site = await start_site(_build_app(wake_event), host, port, LOG_PREFIX)
+    _runner, _site = await start_site(_build_app(wake_event), host, port, "standby")
 
 
 async def stop_standby_server():

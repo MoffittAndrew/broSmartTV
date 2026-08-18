@@ -1,7 +1,10 @@
 # this code was written by AI (I gave up)
 # Launches the screen cast (via RTC) webserver and forwards video frames to the Qt UI
 
-print("Importing screen cast server...")
+from app_logging import get_adapter
+
+logger = get_adapter("screencast", "screencast")
+logger.info("Importing screen cast server...")
 
 import os
 import asyncio
@@ -17,8 +20,6 @@ from webserver import aioice_compat
 
 aioice_compat.apply()
 
-LOG_PREFIX = "[screencast]"
-
 pcs = set()
 active_pc = None  # only one active peer connection at a time
 _track_tasks = set()
@@ -29,8 +30,8 @@ _connection_handler = None
 _disconnect_handler = None
 
 
-def log(message):
-    print(f"{LOG_PREFIX} {message}")
+def log(message, level="INFO", **fields):
+    return logger.log(level, message, **fields)
 
 
 def setFrameHandler(callback):
@@ -386,7 +387,7 @@ async def startScreenCastServer(host=SCREEN_CAST.HOST, port=SCREEN_CAST.PORT):
     if _runner is not None:
         return
 
-    _runner, _site = await start_site(screenCastServer, host, port, LOG_PREFIX)
+    _runner, _site = await start_site(screenCastServer, host, port, "screencast")
 
 async def stopScreenCastServer():
     global _runner, _site

@@ -9,7 +9,11 @@ There are two startup paths:
     the Qt event loop.
 """
 
-print("Starting...")
+from app_logging import get_adapter
+
+
+logger = get_adapter("main", "startup")
+logger.info("Starting...")
 
 from PyQt5.QtWidgets import QApplication
 from typing import cast
@@ -19,7 +23,7 @@ if app_instance is None:
     app_instance = QApplication([])
 APP = cast(QApplication, app_instance)
 
-print("Starting imports...")
+logger.info("Starting imports...")
 from ui.gui import MAIN_WINDOW, ScreenCastView
 from interface.input_interface import inputInterface
 #from interface.web_interface import webInterface
@@ -37,7 +41,7 @@ from ui.home import homeScreen
 
 import asyncio
 import qtinter
-print("Completed imports.")
+logger.info("Completed imports.")
 
 
 def request_shutdown():
@@ -58,7 +62,7 @@ async def start_screen_cast_server():
     try:
         await startScreenCastServer()
     except Exception as exc:
-        print(f"Failed to start screen cast server: {exc}")
+        logger.error(f"Failed to start screen cast server: {exc}", category="screencast")
         await teardown_app(projector_interface=projectorInterface, quit_app=True)
 
 # NOTE - this only runs when launching the script directly (i.e. from a PC)
@@ -68,13 +72,13 @@ def main():
     with qtinter.using_asyncio_from_qt():  # enable asyncio in qt code
         reset_shutdown_state()
         asyncio.create_task(remoteInterface.connect())
-        print("Starting GUI...")
+        logger.info("Starting GUI...", category="gui")
         MAIN_WINDOW.show()
-        print("Starting screen cast server...")
+        logger.info("Starting screen cast server...", category="screencast")
         asyncio.create_task(start_screen_cast_server())
         APP.aboutToQuit.connect(request_shutdown)
         APP.exec_()
-        print("App closed.")
+        logger.info("App closed.", category="teardown")
 
 # Module-level setup that runs on import (used by both startup paths):
 # - link interfaces together
@@ -98,6 +102,6 @@ setConnectionHandler(MAIN_WINDOW.showScreenCast)
 setDisconnectHandler(MAIN_WINDOW.hideScreenCast)
 
 if __name__ == "__main__":
-    print("Running main event loop...")
+    logger.info("Running main event loop...")
     main()
-    print("Exiting...")
+    logger.info("Exiting...", category="teardown")

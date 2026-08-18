@@ -1,15 +1,15 @@
-print("Importing infrared interface...")
+from app_logging import get_adapter
+
+logger = get_adapter("ir", "remote")
+logger.info("Importing infrared interface...")
 
 import subprocess
 
 from globals import DEVICE
 
 
-LOG_PREFIX = "[ir_interface]"
-
-
 def log(message):
-    print(f"{LOG_PREFIX} {message}")
+    logger.info(message)
 
 class IRInterface:
     def __init__(self, *args, **kwargs):
