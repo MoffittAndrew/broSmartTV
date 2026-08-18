@@ -67,3 +67,12 @@ async def test_full_server_registers_logs_routes():
     match = await screen_cast.screenCastServer.router.resolve(request)
 
     assert match.handler.__name__ == "current_history"
+
+
+@pytest.mark.asyncio
+async def test_full_server_registers_standby_redirect_route():
+    request = make_mocked_request("GET", "/standby?next=/cast")
+
+    match = await screen_cast.screenCastServer.router.resolve(request)
+
+    assert match.handler is screen_cast.standby
