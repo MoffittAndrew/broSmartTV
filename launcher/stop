@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -u
+
+# Stops the smart TV app service.
+# Sends SIGINT (unit's KillSignal), reusing launch.py's Ctrl+C shutdown path.
+
+SERVICE_NAME="bro-smart-tv"
+logprefix="[stop]"
+
+echo "$logprefix Stopping ${SERVICE_NAME}.service..."
+sudo systemctl stop "${SERVICE_NAME}" || {
+    echo "$logprefix Failed to stop ${SERVICE_NAME}.service."
+    exit 1
+}
+
+echo "$logprefix Stopped ${SERVICE_NAME}.service."

@@ -40,6 +40,9 @@ APP_RUNTIME_USER="bro"
 LIRC_CONF_PATH="/etc/lirc/lircd.conf"
 LIRC_PROJECTOR_INCLUDE='include "/bro/app/projector/*.conf"'
 LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/projector/*.conf"'
+SYSTEMD_SERVICE_NAME="bro-smart-tv"
+SYSTEMD_UNIT_SOURCE_PATH="${LAUNCHER_DIR}/${SYSTEMD_SERVICE_NAME}.service"
+SYSTEMD_UNIT_INSTALL_PATH="/etc/systemd/system/${SYSTEMD_SERVICE_NAME}.service"
 
 # Override with env vars if needed.
 DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
@@ -319,12 +322,30 @@ run_update() {
     update || error_exit "update command failed."
 }
 
+ensure_systemd_service() {
+    if [ ! -f "${SYSTEMD_UNIT_SOURCE_PATH}" ]; then
+        error_exit "Expected systemd unit not found: ${SYSTEMD_UNIT_SOURCE_PATH}"
+    fi
+
+    log "Installing systemd unit ${SYSTEMD_SERVICE_NAME}.service..."
+    sudo cp "${SYSTEMD_UNIT_SOURCE_PATH}" "${SYSTEMD_UNIT_INSTALL_PATH}" || \
+        error_exit "Failed to copy systemd unit to ${SYSTEMD_UNIT_INSTALL_PATH}."
+    sudo systemctl daemon-reload || error_exit "Failed to reload systemd units."
+    # Enable only (no start here) so install never launches the GUI mid-session;
+    # the service activates on the next boot, or via a manual systemctl start.
+    sudo systemctl enable "${SYSTEMD_SERVICE_NAME}" || \
+        error_exit "Failed to enable ${SYSTEMD_SERVICE_NAME}.service."
+
+    log "${SYSTEMD_SERVICE_NAME}.service is enabled but not started; reboot or run 'sudo systemctl start ${SYSTEMD_SERVICE_NAME}' to launch it now."
+}
+
 ensure_launcher_scripts_executable() {
     install_script="${LAUNCHER_DIR}/install"
     update_script="${LAUNCHER_DIR}/update"
     launch_script="${LAUNCHER_DIR}/launch"
+    stop_script="${LAUNCHER_DIR}/stop"
 
-    for script_path in "${install_script}" "${update_script}" "${launch_script}"; do
+    for script_path in "${install_script}" "${update_script}" "${launch_script}" "${stop_script}"; do
         if [ ! -f "${script_path}" ]; then
             error_exit "Expected script not found: ${script_path}"
         fi
@@ -348,6 +369,7 @@ main() {
     ensure_networkmanager_permissions
     ensure_screencast_tls_cert
     ensure_launcher_scripts_executable
+    ensure_systemd_service
     run_update
 
     log "Install complete."
