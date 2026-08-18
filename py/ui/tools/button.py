@@ -295,25 +295,64 @@ class Button(CustomQLabel):
 class ToggleButton(Button):
     def __init__(
         self,
-        value:bool = True,
+        fetchValueCallback=None,
+        trueText = "",
+        falseText = "",
         *args,
         **kwargs,
     ):
+        # Button.__init__() calls self.draw(), which dispatches to this class.
+        # Set these fields first so the initial draw can read the owner-held value.
+        self.setFetchValueCallback(fetchValueCallback)
+        self.setTrueText(trueText)
+        self.setFalseText(falseText)
         super().__init__(*args, **kwargs)
-        
-        self.setValue(value)
         
     ## Getters
     
     def getValue(self):
-        return self.__value
+        fetchValueCallback, args, kwargs = self.getFetchValueCallback()
+        if fetchValueCallback is None:
+            raise RuntimeError("ToggleButton requires a fetchValueCallback")
+        return bool(fetchValueCallback(*args, **kwargs))
+    
+    def getFetchValueCallback(self):
+        return self.__fetchValueCallback, self.__fetchValueCallbackArgs, self.__fetchValueCallbackKwargs
+    
+    def getTrueText(self):
+        return self.__trueText
+    
+    def getFalseText(self):
+        return self.__falseText
         
     ## Setters
         
-    def setValue(self, value = None):
-        self.__value = bool(value)
+    def setFetchValueCallback(self, callback, *args, **kwargs):
+        self.__fetchValueCallback = callback
+        self.__fetchValueCallbackArgs = args
+        self.__fetchValueCallbackKwargs = kwargs
+    
+    def setTrueText(self, trueText = ""):
+        self.__trueText = str(trueText)
+    
+    def setFalseText(self, falseText = ""):
+        self.__falseText = str(falseText)
     
     # Other
-    
-    def toggle(self):
-        self.setValue(not self.getValue())
+
+    def _updateText(self):
+        self.setText(self.getTrueText() if self.getValue() else self.getFalseText())
+
+    async def click(self):
+        await super().click()
+        self.draw()
+        self.update()
+
+    async def menu(self):
+        await super().menu()
+        self.draw()
+        self.update()
+
+    def draw(self):
+        self._updateText()
+        super().draw()

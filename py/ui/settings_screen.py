@@ -3,11 +3,14 @@ print("Importing settings screen...")
 from globals import DISPLAY, GUI
 from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
+from ui.tools.menu_overlay import MenuOverlay
 from ui.tools.section import VSection
 from ui.wifi_overlay import WifiOverlay
 
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
+from interface.git_interface import gitInterface
+from interface.system_interface import systemInterface
 from interface.wifi_interface import wifiInterface
 
 class SettingsScreen(CustomQWidget):
@@ -24,8 +27,15 @@ class SettingsScreen(CustomQWidget):
         self.__currentNetworkLabel.setWordWrap(True)
         self.__currentNetworkLabel.setStyleSheet("font-size: 24px;")
 
-        self.__switchNetworkButton = Button(text="Switch network", clickCallback=self.openWifiOverlay)
+        self.__switchNetworkButton = Button(text="switch network", clickCallback=self.openWifiOverlay)
         self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
+
+        self.__currentBranchLabel = QLabel()
+        self.__currentBranchLabel.setWordWrap(True)
+        self.__currentBranchLabel.setStyleSheet("font-size: 24px;")
+
+        self.__switchBranchButton = Button(text="switch git branch", clickCallback=self.openBranchMenu)
+        self.__branchMenuOverlay = MenuOverlay(parent=self, onClose=self._onBranchMenuClosed)
 
         self.__contentSection = VSection(spacing=GUI.SPACING.WIDE)
         self.__contentSection.setMargins(*GUI.MARGINS.STANDARD)
@@ -33,12 +43,34 @@ class SettingsScreen(CustomQWidget):
             self.__heading,
             self.__currentNetworkLabel,
             self.__switchNetworkButton,
+            self.__currentBranchLabel,
+            self.__switchBranchButton,
+        ])
+
+        self.__systemHeading = QLabel("System")
+        self.__systemHeading.setStyleSheet("font-size: 44px; font-weight: bold;")
+
+        self.__restartButton = Button(text="restart app", clickCallback=self.confirmRestart)
+        self.__rebootButton = Button(text="reboot bro", clickCallback=self.confirmReboot)
+        self.__confirmOverlay = MenuOverlay(parent=self, onClose=self._onConfirmOverlayClosed)
+
+        # Cross-section nav link: sections only auto-wire nav within themselves.
+        self.__switchBranchButton.setNavDown(self.__restartButton)
+        self.__restartButton.setNavUp(self.__switchBranchButton)
+
+        self.__systemSection = VSection(spacing=GUI.SPACING.WIDE)
+        self.__systemSection.setMargins(*GUI.MARGINS.STANDARD)
+        self.__systemSection.setWidgets([
+            self.__systemHeading,
+            self.__restartButton,
+            self.__rebootButton,
         ])
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.__contentSection)
+        layout.addWidget(self.__systemSection)
         layout.addStretch(1)
 
         self.setFixedWidth(DISPLAY.WIDTH)
@@ -47,6 +79,7 @@ class SettingsScreen(CustomQWidget):
         
         self.setNavBarButton(navBarButton)
         self.refreshCurrentNetwork()
+        self.refreshCurrentBranch()
         
     ## Getters
     
@@ -56,6 +89,10 @@ class SettingsScreen(CustomQWidget):
     def getPrimaryButton(self):
         if self.__wifiOverlay.isOverlayVisible():
             return self.__wifiOverlay.getPrimaryButton()
+        if self.__branchMenuOverlay.isOverlayVisible():
+            return self.__branchMenuOverlay.getPrimaryButton()
+        if self.__confirmOverlay.isOverlayVisible():
+            return self.__confirmOverlay.getPrimaryButton()
         return self.__switchNetworkButton
 
     def getCurrentNetwork(self):
@@ -84,6 +121,12 @@ class SettingsScreen(CustomQWidget):
         except Exception:
             self.__currentNetwork = None
             self.__currentNetworkLabel.setText("Current network: unavailable")
+
+    def refreshCurrentBranch(self):
+        try:
+            self.__currentBranchLabel.setText(f"Current branch: {gitInterface.getCurrentBranch()}")
+        except Exception:
+            self.__currentBranchLabel.setText("Current branch: unavailable")
     
     def setNavBarButton(self, navBarButton):
         self.__navBarButton = navBarButton
@@ -101,13 +144,84 @@ class SettingsScreen(CustomQWidget):
         if inputInterface is not None:
             inputInterface.setSelectedButton(self.getPrimaryButton())
 
+    async def openBranchMenu(self):
+        message = ""
+        try:
+            branches = gitInterface.refreshAvailableBranches()
+        except Exception as error:
+            branches = []
+            message = f"Could not refresh branches: {error}"
+
+        options = [
+            {"text": branch, "clickCallback": self._makeBranchSelectCallback(branch)}
+            for branch in branches
+        ]
+        await self.__branchMenuOverlay.showOverlay(
+            title="please select a git branch",
+            message=message,
+            options=options,
+            navBarButton=self.getNavBarButton(),
+        )
+
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
+    def _makeBranchSelectCallback(self, branch):
+        async def onSelect():
+            try:
+                gitInterface.switchBranch(branch)
+            except Exception:
+                pass
+            await self.__branchMenuOverlay.hideOverlay()
+            self.refreshCurrentBranch()
+
+        return onSelect
+
+    def _onBranchMenuClosed(self):
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
+    async def _showConfirmMenu(self, title, confirmText, onConfirm):
+        async def _onConfirm():
+            await self.__confirmOverlay.hideOverlay()
+            await onConfirm()
+
+        options = [{"text": confirmText, "clickCallback": _onConfirm}]
+        await self.__confirmOverlay.showOverlay(
+            title=title,
+            options=options,
+            navBarButton=self.getNavBarButton(),
+        )
+
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
+    async def confirmRestart(self):
+        await self._showConfirmMenu("restart app?", "yeah ok", systemInterface.restart_app)
+
+    async def confirmReboot(self):
+        await self._showConfirmMenu("reboot bro?", "yeah for sure whatever", systemInterface.reboot_device)
+
+    def _onConfirmOverlayClosed(self):
+        inputInterface = MAIN_WINDOW.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setSelectedButton(self.getPrimaryButton())
+
     def showEvent(self, a0):
         self.__wifiOverlay.hide()
+        self.__branchMenuOverlay.hide()
+        self.__confirmOverlay.hide()
         self.refreshCurrentNetwork()
+        self.refreshCurrentBranch()
         return super().showEvent(a0)
 
     def resizeEvent(self, a0):
         super().resizeEvent(a0)
         self.__wifiOverlay.setGeometry(0, 0, self.width(), self.height())
+        self.__branchMenuOverlay.setGeometry(0, 0, self.width(), self.height())
+        self.__confirmOverlay.setGeometry(0, 0, self.width(), self.height())
 
 settingsScreen = SettingsScreen()

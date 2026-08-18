@@ -24,6 +24,7 @@ from app_logging import get_adapter
 
 from interface.remote_interface import remoteInterface
 from launcher_lock import acquire_launch_lock, release_launch_lock, LaunchAlreadyRunningError
+from launch_signals import consume_reboot_pending, consume_skip_standby
 from webserver.standby_server import start_standby_server, stop_standby_server
 
 
@@ -31,9 +32,14 @@ logger = get_adapter("launcher", "startup")
 
 reload_modules = [
     "globals",
+    # Configuration and lightweight web modules are safe after off_phase() has stopped standby.
+    "launch_signals",
+    "webserver.logs_routes",
+    "webserver.webserver_utils",
+    "webserver.standby_server",
     "interface.projector_interface",
     "interface.ir_interface",
-    #"interface.remote_interface", don't reload this, it will break the remote connection
+    "interface.remote_interface",
 ]
 
 _restart_requested = False
@@ -49,11 +55,7 @@ def request_restart(reason, exc=None):
     _restart_requested = True
     logger.error(f"Fatal error: {reason}")
     if exc is not None:
-        logger.error(
-            "Launcher exception",
-            exception_type=type(exc).__name__,
-            exception_message=str(exc),
-        )
+        logger.exception("Launcher exception", exc, reason=reason)
 
     app = globals().get("APP")
     if app is not None:
@@ -117,8 +119,10 @@ async def start_screen_cast_server(start_server):
     except Exception as exc:
         request_restart("Failed to start screen cast server", exc)
 
-async def updateThenLaunch():
+async def updateThenLaunch(remote_task_holder, reload_remote_interface):
     """Run updater, reload selected modules, then launch main."""
+    global remoteInterface
+
     from globals import DEVICE
 
     # Run the update script to pull code changes from github
@@ -153,14 +157,26 @@ async def updateThenLaunch():
         finally:
             # Load the updated code into memory
             append_update_log_line("Reloading imported modules...")
-            import sys
-            for mod in reload_modules:
+            modules_to_reload = reload_modules
+            if not reload_remote_interface:
+                modules_to_reload = [
+                    mod for mod in reload_modules if mod != "interface.remote_interface"
+                ]
+            for mod in modules_to_reload:
                 sys.modules.pop(mod, None)
             append_update_log_line("Reloaded modules.")
+
+            if reload_remote_interface:
+                from interface.remote_interface import remoteInterface as refreshed_remote_interface
+
+                remoteInterface = refreshed_remote_interface
     
     else:
         append_update_log_line("Skipping update script on non-Raspberry Pi device.")
     
+    # Start the connection only after optional module replacement is complete.
+    remote_task_holder.append(asyncio.create_task(remoteInterface.connect()))
+
     # Launch the smart TV
     try:
         launch()
@@ -182,16 +198,28 @@ async def off_phase():
     re-scans for the remote if it hasn't been found yet, so nothing is lost
     and the remote can still be paired/connected normally afterward).
     """
-    wake_event = asyncio.Event()
+    class WakeSignal:
+        def __init__(self):
+            self.event = asyncio.Event()
+            self.source = None
+
+        def set(self, source="web"):
+            self.source = source
+            self.event.set()
+
+        async def wait(self):
+            await self.event.wait()
+
+    wake_signal = WakeSignal()
 
     async def find_remote_and_wake():
         await awaitFindRemote()
-        wake_event.set()
+        wake_signal.set("remote")
 
-    await start_standby_server(wake_event)
+    await start_standby_server(wake_signal)
     remote_task = asyncio.create_task(find_remote_and_wake())
 
-    await wake_event.wait()
+    await wake_signal.wait()
 
     await stop_standby_server()
 
@@ -201,6 +229,8 @@ async def off_phase():
             await remote_task
         except asyncio.CancelledError:
             pass
+
+    return wake_signal.source
 
 
 async def shutdown_background_tasks(tasks):
@@ -229,30 +259,45 @@ def main():
     try:
         launch_lock_handle = acquire_launch_lock()
 
-        # Host the standby webpage and wait for either the remote or the web button to wake us
-        asyncio.run(off_phase())
+        # Host the standby webpage and wait for either the remote or the web button to wake us,
+        # unless the previous run asked us to boot straight into the app (e.g. Restart/Reboot buttons).
+        reboot_pending = consume_reboot_pending()
+        if consume_skip_standby() or reboot_pending:
+            logger.info("Skipping standby phase (app-triggered restart/reboot).", category="startup")
+            startup_trigger = "app"
+        else:
+            startup_trigger = asyncio.run(off_phase())
         with qtinter.using_asyncio_from_qt():
             # Switch projector on
             projector_task = asyncio.create_task(projector_on())
-            remote_task = asyncio.create_task(remoteInterface.connect())
+            remote_task_holder = []
 
             init_qt()
             
             # Run the update script, then launch smart TV
             logger.info("Starting launch screen...")
             LAUNCH_SCREEN.show()
-            update_task = asyncio.create_task(updateThenLaunch())
+            update_task = asyncio.create_task(
+                updateThenLaunch(
+                    remote_task_holder,
+                    reload_remote_interface=startup_trigger != "remote",
+                )
+            )
             APP.exec_()
             logger.info("App closed.", category="teardown")
 
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 loop.create_task(
-                    shutdown_background_tasks([projector_task, remote_task, update_task])
+                    shutdown_background_tasks(
+                        [projector_task, *remote_task_holder, update_task]
+                    )
                 )
             else:
                 loop.run_until_complete(
-                    shutdown_background_tasks([projector_task, remote_task, update_task])
+                    shutdown_background_tasks(
+                        [projector_task, *remote_task_holder, update_task]
+                    )
                 )
 
     except LaunchAlreadyRunningError as e:

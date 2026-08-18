@@ -116,9 +116,20 @@ function appendRecord(record) {
   item.appendChild(summary);
 
   if (record.fields && Object.keys(record.fields).length > 0) {
-    const fields = document.createElement('pre');
-    fields.textContent = JSON.stringify(record.fields, null, 2);
-    item.appendChild(fields);
+    if (record.fields.traceback) {
+      const traceback = document.createElement('pre');
+      traceback.textContent = `traceback:\n${record.fields.traceback}`;
+      item.appendChild(traceback);
+    }
+
+    const otherFields = Object.fromEntries(
+      Object.entries(record.fields).filter(([name]) => name !== 'traceback'),
+    );
+    if (Object.keys(otherFields).length > 0) {
+      const fields = document.createElement('pre');
+      fields.textContent = JSON.stringify(otherFields, null, 2);
+      item.appendChild(fields);
+    }
   }
 
   elements.records.appendChild(item);

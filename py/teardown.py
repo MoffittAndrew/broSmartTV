@@ -27,19 +27,19 @@ async def teardown_app(projector_interface=None, quit_app=False):
             try:
                 await projector_interface.off()
             except Exception as exc:
-                logger.error(f"Projector shutdown failed: {exc}", component="projector")
+                logger.exception("Projector shutdown failed", exc, component="projector")
 
         try:
             await stopAudioPlayback()
         except Exception as exc:
-            logger.error(f"Audio playback shutdown failed: {exc}", component="audio")
+            logger.exception("Audio playback shutdown failed", exc, component="audio")
 
         try:
             await stopScreenCastServer()
         except Exception as exc:
-            logger.error(f"Screen cast shutdown failed: {exc}", component="screencast")
+            logger.exception("Screen cast shutdown failed", exc, component="screencast")
 
         if quit_app:
             QCoreApplication.quit()
     except Exception as exc:
-        logger.error(f"Teardown failed: {exc}")
+        logger.exception("Teardown failed", exc)
