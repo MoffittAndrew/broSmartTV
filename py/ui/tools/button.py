@@ -341,11 +341,6 @@ class ToggleButton(Button):
     def _updateText(self):
         self.setText(self.getTrueText() if self.getValue() else self.getFalseText())
 
-    def refresh(self):
+    def draw(self):
         self._updateText()
-        self.draw()
-        self.update()
-    
-    async def click(self):
-        await super().click()
-        self.refresh()
+        super().draw()

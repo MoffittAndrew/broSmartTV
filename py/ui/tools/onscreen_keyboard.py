@@ -149,7 +149,14 @@ class OnScreenKeyboard(CustomQWidget):
         self._applyCapsState()
 
     def _makeKeyButton(self, keyText):
-        return Button(width=GUI.KEYBOARD.BUTTON_WIDTH, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=keyText, clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
+        return Button(
+            width=GUI.KEYBOARD.BUTTON_WIDTH,
+            height=GUI.KEYBOARD.BUTTON_HEIGHT,
+            text=keyText,
+            clickCallback=self._addText,
+            menuCallback=self._toggleCaps,
+            returnCallback=self._cancel
+        )
 
     def _makeCapsButton(self, width=GUI.KEYBOARD.BUTTON_WIDTH):
         return ToggleButton(
@@ -159,13 +166,29 @@ class OnScreenKeyboard(CustomQWidget):
             falseText="CAPS OFF",
             fetchValueCallback=self._getCapsEnabled,
             clickCallback=self._toggleCaps,
+            menuCallback=self._toggleCaps,
+            returnCallback=self._cancel
         )
 
     def _makeSpaceButton(self, width=GUI.KEYBOARD.SPACEBAR_WIDTH):
-        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text="SPACE", clickCallback=self._addText, menuCallback=self._toggleCaps, returnCallback=self._cancel)
+        return Button(
+            width=width,
+            height=GUI.KEYBOARD.BUTTON_HEIGHT,
+            text="SPACE",
+            clickCallback=self._addText,
+            menuCallback=self._toggleCaps,
+            returnCallback=self._cancel
+        )
 
     def _makeActionButton(self, text, clickCallback, width=GUI.KEYBOARD.BUTTON_WIDTH):
-        return Button(width=width, height=GUI.KEYBOARD.BUTTON_HEIGHT, text=text, clickCallback=clickCallback, menuCallback=self._toggleCaps, returnCallback=self._cancel)
+        return Button(
+            width=width,
+            height=GUI.KEYBOARD.BUTTON_HEIGHT,
+            text=text,
+            clickCallback=clickCallback,
+            menuCallback=self._toggleCaps,
+            returnCallback=self._cancel
+        )
 
     def _getCapsEnabled(self):
         return self.__capsEnabled
@@ -174,7 +197,10 @@ class OnScreenKeyboard(CustomQWidget):
         self.__capsEnabled = not self.__capsEnabled
         self._applyCapsState()
 
-    def _applyCapsState(self):
+    def _applyCapsState(self, value=None):
+        if value is not None:
+            self.__capsEnabled = bool(value)
+        
         numberRow = GUI.KEYBOARD.CAPS_SYMBOL_NUMBER_ROW if self.__capsEnabled else GUI.KEYBOARD.KEY_ROWS[0]
         for columnIndex, button in enumerate(self.__keyButtons[0]):
             button.setText(numberRow[columnIndex])
@@ -281,10 +307,9 @@ class OnScreenKeyboard(CustomQWidget):
         self.__masked = bool(masked)
         self.__maxLength = max(1, int(maxLength))
         self.__text = str(initialText)
-        self.__capsEnabled = False
         self.__promptLabel.setText(str(prompt))
         self.__statusLabel.setText("")
-        self._applyCapsState()
+        self._applyCapsState(False)
         self._renderText()
         self.getPrimaryButton()
         self.__isVisibleOverlay = True
