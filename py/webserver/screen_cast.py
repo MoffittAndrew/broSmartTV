@@ -15,6 +15,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 from globals import PATH, SCREEN_CAST
 from audio_playback import submitAudioFrame, stopAudioPlayback
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
+from webserver.logs_routes import add_routes as add_logs_routes
 from webserver import remote_control
 from webserver import aioice_compat
 
@@ -370,6 +371,7 @@ screenCastServer = web.Application()
 screenCastServer.on_shutdown.append(on_shutdown)
 screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_get("/cast", cast)
+add_logs_routes(screenCastServer)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)

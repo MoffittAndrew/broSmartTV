@@ -253,8 +253,23 @@ def get_logger(*, history_size: int = 1000, log_dir: str | os.PathLike[str] | No
     return _app_logger
 
 
-def get_adapter(source: str, category: str, **kwargs: object) -> LoggerAdapter:
-    return LoggerAdapter(get_logger(**kwargs), source, category)
+def get_adapter(
+    source: str,
+    category: str,
+    *,
+    history_size: int = 1000,
+    log_dir: str | os.PathLike[str] | None = None,
+) -> LoggerAdapter:
+    return LoggerAdapter(
+        get_logger(history_size=history_size, log_dir=log_dir),
+        source,
+        category,
+    )
+
+
+def get_log_dir() -> Path:
+    """Return the configured runtime log directory without opening a file."""
+    return _default_log_dir()
 
 
 def reset_logger() -> None:

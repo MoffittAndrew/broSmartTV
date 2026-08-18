@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bro is pumping out logs</title>
+</head>
+<body data-page="logs">
+  <div data-site-nav></div>
+
+  <main>
+    <h1>application logs</h1>
+
+    <section aria-labelledby="filters-heading">
+      <h2 id="filters-heading">filters</h2>
+      <form id="log-filters">
+        <fieldset>
+          <legend>categories</legend>
+          <select id="category-filter" name="category" multiple size="6" aria-label="Log categories"></select>
+        </fieldset>
+        <fieldset>
+          <legend>types</legend>
+          <select id="level-filter" name="level" multiple size="6" aria-label="Log types"></select>
+        </fieldset>
+        <fieldset>
+          <legend>sources</legend>
+          <select id="source-filter" name="source" multiple size="6" aria-label="Log sources"></select>
+        </fieldset>
+        <button type="submit">apply filters</button>
+        <button type="button" id="clear-filters">clear filters</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="live-heading">
+      <h2 id="live-heading">live logs</h2>
+      <p id="connection-status" role="status">connecting...</p>
+      <ol id="live-records" aria-live="polite"></ol>
+    </section>
+
+    <section aria-labelledby="history-heading">
+      <h2 id="history-heading">previous sessions</h2>
+      <button type="button" id="refresh-files">refresh session list</button>
+      <label for="session-files">session file</label>
+      <select id="session-files">
+        <option value="">select a session</option>
+      </select>
+      <ol id="historical-records"></ol>
+    </section>
+  </main>
+
+  <script src="./site-nav.js"></script>
+  <script type="module" src="./logs.js"></script>
+</body>
+</html>

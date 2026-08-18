@@ -28,3 +28,12 @@ async def test_standby_server_redirects_main_pages_to_standby():
 
     assert response.status == 302
     assert response.headers["Location"] == "/standby?next=/cast"
+
+
+@pytest.mark.asyncio
+async def test_full_server_registers_logs_routes():
+    request = make_mocked_request("GET", "/logs/api/history")
+
+    match = await screen_cast.screenCastServer.router.resolve(request)
+
+    assert match.handler.__name__ == "current_history"

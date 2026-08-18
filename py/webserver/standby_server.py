@@ -18,6 +18,7 @@ from urllib.parse import quote
 from aiohttp import web
 
 from globals import PATH, SCREEN_CAST
+from webserver.logs_routes import add_routes as add_logs_routes
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 
 WEBPAGES_DIR = os.path.join(PATH, "webpages")
@@ -84,6 +85,7 @@ def _build_app(wake_event):
     app.router.add_get("/cast", cast)
     app.router.add_get("/remote", remote)
     app.router.add_get("/standby", standby_page)
+    add_logs_routes(app)
     app.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
     app.router.add_get("/power-status", power_status)
     app.router.add_post("/power-on", _make_power_on(wake_event))
