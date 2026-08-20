@@ -9,8 +9,18 @@ Validates the three prerequisites the QWebEngineView redesign depends on:
 3. A Widevine CDM binary for the Pi's architecture enables real DRM playback.
 
 Usage on the Pi (from /bro/app, using the shared venv):
+    # REQUIRED on Pi 5: the default kernel (bcm2712_defconfig) uses 16K pages, but Qt5
+    # WebEngine's bundled Chromium hardcodes 4K page-size assumptions and crashes with
+    # "page_allocator_internals_posix.h Check failed: Invalid argument (22)" under it.
+    # launcher/install-bro's ensure_4k_page_kernel now does this automatically (adds
+    # kernel=kernel8.img to /boot/firmware/config.txt, needs a reboot to take effect) -
+    # confirm with `getconf PAGESIZE` (should print 4096, not 16384). See
+    # https://github.com/raspberrypi/bookworm-feedback/issues/107.
     export QT_QPA_PLATFORM=eglfs
-    export QT_QPA_EGLFS_KMS_CONFIG=/bro/app/broSmartTV/launcher/eglfs_kms_conf.json
+    export QT_QPA_EGLFS_KMS_CONFIG=/bro/app/launcher/eglfs_kms_conf.json
+    # DevTools binds to loopback only; for LAN access either tunnel with
+    # `ssh -L 9222:localhost:9222 bro@<pi-ip>` or add --remote-debugging-address=0.0.0.0 below.
+    # export QTWEBENGINE_CHROMIUM_FLAGS=--remote-debugging-address=0.0.0.0
     # Only needed once a Widevine CDM binary has been sourced for this device's arch - launcher/launch
     # sets this automatically from /bro/widevine/libwidevinecdm.so once that file exists there.
     # export QTWEBENGINE_CHROMIUM_FLAGS=--widevine-path=/bro/widevine/libwidevinecdm.so
