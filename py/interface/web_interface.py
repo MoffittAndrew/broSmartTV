@@ -114,6 +114,7 @@ class WebInterface(CustomQWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.__view)
+        self.hide()
 
     def getInputInterface(self):
         return self.__inputInterface

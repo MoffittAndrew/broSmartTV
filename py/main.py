@@ -96,6 +96,7 @@ def main():
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
 MAIN_WINDOW.addWidget(webInterface)
+webInterface.hide()
 
 inputInterface.setProjectorInterface(projectorInterface)
 inputInterface.setWebInterface(webInterface)
