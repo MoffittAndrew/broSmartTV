@@ -40,7 +40,7 @@ What to check manually once it's running:
 import os
 import sys
 
-os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", "9222")
+os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", "8080")
 
 from PyQt5.QtCore import QUrl
 from PyQt5.QtGui import QPalette, QColor
