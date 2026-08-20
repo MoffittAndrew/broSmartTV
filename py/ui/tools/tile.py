@@ -4,9 +4,9 @@
 print("Importing tile class...")
 
 from globals import GUI
-from ui.tools.button import Button#, ToggleButton
+from ui.tools.button import Button, ToggleButton
 from interface.input_interface import inputInterface
-#from web_interface import webInterface
+from interface.web_interface import webInterface
 
 class Tile(Button):
     def __init__(
@@ -148,19 +148,37 @@ class WebTile(Tile):
     ):
         super().__init__(*args, **kwargs)
         
-        menuOptions = [
-            Button(text = TILE.EDIT_URL_TEXT, clickCallback = self.editURL),
-            ToggleButton(text = TILE.TOGGLE_MUSIC_TEXT, clickCallback = self.toggleIsMusic),
-            ToggleButton(text = TILE.TOGGLE_SEARCH_TEXT, clickCallback = self.toggleHasSearch),
-            ToggleButton(text = TILE.TOGGLE_PIRATE_TEXT, clickCallback = self.toggleIsPirate),
-        ]
-        for menuOption in menuOptions:
-            self.addMenuOption(menuOption)
-        
+        # Set backing state before building the ToggleButtons below: their fetchValueCallback
+        # runs immediately during construction (Button.__init__ -> draw()).
         self.setURL(url)
         self.setIsMusic(isMusic)
         self.setHasSearch(hasSearch)
         self.setIsPirate(isPirate)
+        
+        menuOptions = [
+            Button(text = GUI.TILE.EDIT_URL_TEXT, clickCallback = self.editURL),
+            ToggleButton(
+                trueText = f"{GUI.TILE.TOGGLE_MUSIC_TEXT} yes",
+                falseText = f"{GUI.TILE.TOGGLE_MUSIC_TEXT} no",
+                fetchValueCallback = self.isMusic,
+                clickCallback = self.toggleIsMusic,
+            ),
+            ToggleButton(
+                trueText = f"{GUI.TILE.TOGGLE_SEARCH_TEXT} yes",
+                falseText = f"{GUI.TILE.TOGGLE_SEARCH_TEXT} no",
+                fetchValueCallback = self.hasSearch,
+                clickCallback = self.toggleHasSearch,
+            ),
+            ToggleButton(
+                trueText = f"{GUI.TILE.TOGGLE_PIRATE_TEXT} yes",
+                falseText = f"{GUI.TILE.TOGGLE_PIRATE_TEXT} no",
+                fetchValueCallback = self.isPirate,
+                clickCallback = self.toggleIsPirate,
+            ),
+        ]
+        for menuOption in menuOptions:
+            self.addMenuOption(menuOption)
+        
         self.setClickCallback(self.openURL)
         
     ## Getters
@@ -194,38 +212,36 @@ class WebTile(Tile):
         
     def setIsMusic(self, isMusic):
         self.__isMusic = bool(isMusic)
-        for menuOption in self.getMenuOptions():
-            if menuOption.getText() == TILE.TOGGLE_MUSIC_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(self.isMusic())
         
     def setHasSearch(self, hasSearch):
         self.__hasSearch = bool(hasSearch)
-        for menuOption in self.getMenuOptions():
-            if menuOption.getText() == TILE.TOGGLE_SEARCH_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(self.hasSearch())
     
     def setIsPirate(self, isPirate):
         self.__isPirate = bool(isPirate)
-        for menuOption in self.getMenuOptions():
-            if menuOption.getText() == TILE.TOGGLE_PIRATE_TEXT and type(menuOption) == ToggleButton:
-                menuOption.setValue(self.isPirate())
         
     ## Callbacks
     
-    def openURL(self):
+    async def openURL(self):
         incognito = False
         if self.isPirate():
             incognito = True
         webInterface.openURL(self.getURL(), incognito)
     
-    def editURL(self):
-        return
+    async def editURL(self):
+        window = self.window()
+        if window is None or not hasattr(window, "openTextInput"):
+            return
+
+        def onSubmit(text):
+            self.setURL(text)
+
+        window.openTextInput(prompt="Enter URL", initialText=self.getURL(), onSubmit=onSubmit)
     
-    def toggleIsMusic(self):
+    async def toggleIsMusic(self):
         self.setIsMusic(not self.isMusic())
     
-    def toggleHasSearch(self):
+    async def toggleHasSearch(self):
         self.setHasSearch(not self.hasSearch())
     
-    def toggleIsPirate(self):
+    async def toggleIsPirate(self):
         self.setIsPirate(not self.isPirate())

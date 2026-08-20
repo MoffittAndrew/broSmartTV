@@ -15,8 +15,13 @@ from app_logging import get_adapter
 logger = get_adapter("main", "startup")
 logger.info("Starting...")
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 from typing import cast
+
+# QtWebEngine (used by interface.web_interface) requires this attribute set before any
+# QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
+QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
 
 app_instance = QApplication.instance()
 if app_instance is None:
@@ -93,6 +98,8 @@ MAIN_WINDOW.addWidget(homeScreen)
 MAIN_WINDOW.addWidget(webInterface)
 
 inputInterface.setProjectorInterface(projectorInterface)
+inputInterface.setWebInterface(webInterface)
+webInterface.setInputInterface(inputInterface)
 keyboardInterface.setInputInterface(inputInterface)
 remoteInterface.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboardInterface)
