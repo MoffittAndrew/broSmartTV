@@ -182,10 +182,27 @@ class WebInterface(CustomQWidget):
         if window is None or not hasattr(window, "openTextInput"):
             return
 
+        inputInterface = self.getInputInterface()
+
+        def restoreWebMode():
+            if inputInterface is not None:
+                inputInterface.setWebMode(self)
+
         def onSubmit(text):
+            restoreWebMode()
             self._runJs(f"window.__broNav.setValue({json.dumps(text)});")
 
-        window.openTextInput(prompt="Enter text", initialText=self.__lastFocusValue, onSubmit=onSubmit)
+        # The keyboard is an ordinary GUI overlay, so input must leave WEB mode while it is
+        # open or NAV would keep moving focus around the webpage instead of between keys.
+        if inputInterface is not None:
+            inputInterface.setMode(INPUT.MODES.GUI)
+
+        window.openTextInput(
+            prompt="Enter text",
+            initialText=self.__lastFocusValue,
+            onSubmit=onSubmit,
+            onCancel=restoreWebMode,
+        )
 
     async def closeAndReturnHome(self):
         self.__view.setUrl(QUrl("about:blank"))
