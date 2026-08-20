@@ -135,7 +135,7 @@ class DeviceTile(Tile):
         return
 
 
-"""
+
 class WebTile(Tile):
     def __init__(
         self,
@@ -229,4 +229,3 @@ class WebTile(Tile):
     
     def toggleIsPirate(self):
         self.setIsPirate(not self.isPirate())
-"""

@@ -26,7 +26,7 @@ APP = cast(QApplication, app_instance)
 logger.info("Starting imports...")
 from ui.gui import MAIN_WINDOW, ScreenCastView
 from interface.input_interface import inputInterface
-#from interface.web_interface import webInterface
+from interface.web_interface import webInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
@@ -90,7 +90,7 @@ def main():
 # - configure screencast display handlers
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
-#MAIN_WINDOW.addWidget(webInterface)
+MAIN_WINDOW.addWidget(webInterface)
 
 inputInterface.setProjectorInterface(projectorInterface)
 keyboardInterface.setInputInterface(inputInterface)
