@@ -19,7 +19,7 @@ Usage on the Pi (from /bro/app, using the shared venv):
     export QT_QPA_PLATFORM=eglfs
     export QT_QPA_EGLFS_KMS_CONFIG=/bro/app/launcher/eglfs_kms_conf.json
     # DevTools binds to loopback only; for LAN access either tunnel with
-    # `ssh -L 9222:localhost:9222 bro@<pi-ip>` or add --remote-debugging-address=0.0.0.0 below.
+    # `ssh -L 8080:localhost:8080 bro@<pi-ip>` or add --remote-debugging-address=0.0.0.0 below.
     # export QTWEBENGINE_CHROMIUM_FLAGS=--remote-debugging-address=0.0.0.0
     # Only needed once a Widevine CDM binary has been sourced for this device's arch - launcher/launch
     # sets this automatically from /bro/widevine/libwidevinecdm.so once that file exists there.
@@ -32,7 +32,7 @@ What to check manually once it's running:
   way InputInterface now stacks) render ABOVE the web content? Confirms Qt-native stacking
   works for a real QWebEngineView the way it never reliably could for an embedded foreign HWND.
 - Open browser DevTools (this script enables remote debugging) from another machine at
-  http://<pi-ip>:9222 and check chrome://gpu plus play a known H.264 test video.
+  http://<pi-ip>:8080 and check chrome://gpu plus play a known H.264 test video.
 - Load a DRM test page (e.g. https://demo.castlabs.com/ or https://bitmovin.com/demos/drm)
   and confirm playback succeeds once QTWEBENGINE_CHROMIUM_FLAGS points at a sourced CDM.
 """

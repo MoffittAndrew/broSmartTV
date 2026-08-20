@@ -153,7 +153,13 @@ class WebInterface(CustomQWidget):
     def _applyFocusInfo(self, result):
         if not result:
             return
-        self.__lastFocusRect = {"x": result["x"], "y": result["y"], "width": result["width"], "height": result["height"]}
+        # getBoundingClientRect() returns floats; Qt's setGeometry() only accepts ints.
+        self.__lastFocusRect = {
+            "x": int(result["x"]),
+            "y": int(result["y"]),
+            "width": int(result["width"]),
+            "height": int(result["height"]),
+        }
         self.__isEditableFocus = bool(result.get("editable"))
         self.__lastFocusValue = result.get("value") or ""
         inputInterface = self.getInputInterface()
