@@ -33,6 +33,7 @@ LAUNCH_SCRIPT_PATH="${LAUNCHER_DIR}/launch"
 SCREENCAST_CERT_DIR="${APP_DIR}/certs"
 SCREENCAST_CERT_PATH="${SCREENCAST_CERT_DIR}/screen-cast.crt"
 SCREENCAST_KEY_PATH="${SCREENCAST_CERT_DIR}/screen-cast.key"
+GPIO_IR_TX_PIN="${GPIO_IR_TX_PIN:-17}"
 STATIC_IP_CONFIG_NAME="bro-smart-tv"
 POLKIT_RULES_DIR="/etc/polkit-1/rules.d"
 NETWORKMANAGER_POLKIT_RULE_PATH="${POLKIT_RULES_DIR}/49-bro-smart-tv-networkmanager.rules"
@@ -271,6 +272,31 @@ ensure_4k_page_kernel() {
     fi
 }
 
+ensure_gpio_ir_tx_overlay() {
+    config_txt_path="/boot/firmware/config.txt"
+    if [ ! -f "${config_txt_path}" ]; then
+        config_txt_path="/boot/config.txt"
+    fi
+
+    if [ ! -f "${config_txt_path}" ]; then
+        log "Warning: Could not find config.txt, skipping GPIO IR transmitter setup."
+        return 0
+    fi
+
+    gpio_ir_tx_overlay="dtoverlay=gpio-ir-tx,gpio_pin=${GPIO_IR_TX_PIN}"
+    if grep -Fxq "${gpio_ir_tx_overlay}" "${config_txt_path}"; then
+        log "GPIO IR transmitter already configured on GPIO ${GPIO_IR_TX_PIN} in ${config_txt_path}."
+        return 0
+    fi
+
+    log "Enabling GPIO IR transmitter on GPIO ${GPIO_IR_TX_PIN} in ${config_txt_path}..."
+    if printf '\n%s\n' "${gpio_ir_tx_overlay}" | sudo tee -a "${config_txt_path}" >/dev/null; then
+        log "GPIO IR transmitter configured; a reboot is required for this to take effect."
+    else
+        log "Warning: Failed to update ${config_txt_path} for GPIO IR transmitter, continuing without it."
+    fi
+}
+
 ensure_networkmanager_permissions() {
     if ! command -v nmcli >/dev/null 2>&1; then
         log "Skipping NetworkManager permission rule setup because nmcli is not available."
@@ -442,6 +468,7 @@ main() {
     ensure_reboot_sudoers
     ensure_screencast_tls_cert
     ensure_4k_page_kernel
+    ensure_gpio_ir_tx_overlay
     ensure_launcher_scripts_executable
     ensure_systemd_service
     run_update

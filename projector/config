@@ -1,3 +1,0 @@
-[all]
-# IR transmitter
-dtoverlay=gpio-ir-tx,gpio_pin=17
