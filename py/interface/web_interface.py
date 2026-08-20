@@ -170,6 +170,7 @@ class WebInterface(CustomQWidget):
 
         self.__lastFocusRect = None
         self.__view.load(QUrl(url))
+        self.show()
 
         inputInterface = self.getInputInterface()
         if inputInterface is not None:
@@ -247,6 +248,7 @@ class WebInterface(CustomQWidget):
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         self.__view.setUrl(QUrl("about:blank"))
+        self.hide()
         self._setWindowTab()
 
 webInterface = WebInterface()

@@ -252,7 +252,11 @@ class InputInterface(CustomQLabel):
     async def home(self):
         if self.inOtherMode():
             await self.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
-        if self.inProjectorMode():
+        if self.inWebMode():
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                await webInterface.closeAndReturnHome()
+        elif self.inProjectorMode():
             await self.getProjectorInterface().menu()
         else:
             MAIN_WINDOW.setTab()
