@@ -5,7 +5,7 @@ print("Importing tiles...")
 from globals import PATH
 from ui.tools.tile import Tile, ProjectorTile, DeviceTile, WebTile
 
-from os import listdir
+from os import listdir, makedirs
 from os.path import isfile, join
 
 
@@ -24,6 +24,10 @@ def _sortTiles(tiles):
 
 
 def _getTilesFromPath(path, TileType):
+    
+    # Git doesn't track empty directories, so a fresh/incomplete deployment can be
+    # missing these entirely - create them instead of crashing on listdir().
+    makedirs(path, exist_ok=True)
     
     tiles = []
     tileFiles = [f for f in listdir(path) if isfile(join(path, f))]
