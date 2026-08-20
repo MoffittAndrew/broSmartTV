@@ -242,6 +242,35 @@ static domain_name_servers=${dns_servers_space}"
     return 0
 }
 
+ensure_4k_page_kernel() {
+    # Pi 5's default kernel (bcm2712_defconfig) uses 16K pages; Qt5 WebEngine's bundled
+    # Chromium hardcodes 4K page-size assumptions and crashes with
+    # "page_allocator_internals_posix.h Check failed: Invalid argument (22)" under it.
+    # Official RPi-endorsed fix: force the 4K-page kernel image. Harmless no-op on
+    # boards that already default to kernel8.img. See raspberrypi/bookworm-feedback#107.
+    config_txt_path="/boot/firmware/config.txt"
+    if [ ! -f "${config_txt_path}" ]; then
+        config_txt_path="/boot/config.txt"
+    fi
+
+    if [ ! -f "${config_txt_path}" ]; then
+        log "Warning: Could not find config.txt, skipping 4K page-size kernel setup."
+        return 0
+    fi
+
+    if grep -q '^kernel=kernel8.img' "${config_txt_path}"; then
+        log "4K page-size kernel already configured in ${config_txt_path}."
+        return 0
+    fi
+
+    log "Forcing 4K page-size kernel (kernel8.img) in ${config_txt_path} for QtWebEngine compatibility..."
+    if printf '\n# QtWebEngine crashes under the default 16K-page kernel; force 4K pages.\nkernel=kernel8.img\n' | sudo tee -a "${config_txt_path}" >/dev/null; then
+        log "4K page-size kernel configured; a reboot is required for this to take effect."
+    else
+        log "Warning: Failed to update ${config_txt_path} for 4K page-size kernel, continuing without it."
+    fi
+}
+
 ensure_networkmanager_permissions() {
     if ! command -v nmcli >/dev/null 2>&1; then
         log "Skipping NetworkManager permission rule setup because nmcli is not available."
@@ -412,6 +441,7 @@ main() {
     ensure_networkmanager_permissions
     ensure_reboot_sudoers
     ensure_screencast_tls_cert
+    ensure_4k_page_kernel
     ensure_launcher_scripts_executable
     ensure_systemd_service
     run_update

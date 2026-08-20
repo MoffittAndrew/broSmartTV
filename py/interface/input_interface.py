@@ -20,10 +20,14 @@ class InputInterface(CustomQLabel):
         self.setRoundness(GUI.BUTTON.ROUNDNESS)
         self.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
         self.setProjectorInterface(projectorInterface)
+        self.__webInterface = None
         self.__backlog = []
         self.__isProcessingBacklog = False
         
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # WindowStaysOnTopHint is unreliable here since this widget is a child (added via
+        # addWidget->setParent), not a top-level window; stacking instead relies on the same
+        # show()+raise_() pattern setSelectedButton() already uses, matching other overlays.
+        self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
     
     def inGUIMode(self):
@@ -44,8 +48,8 @@ class InputInterface(CustomQLabel):
     def getOldMode(self):
         return self.__oldMode
 
-    def getWebDriver(self):
-        return self.__webdriver
+    def getWebInterface(self):
+        return self.__webInterface
     
     def getSelectedButton(self):
         return self.__selectedButton
@@ -69,9 +73,13 @@ class InputInterface(CustomQLabel):
     def setOldMode(self, oldMode):
         self.__oldMode = oldMode
     
-    def setWebDriver(self, webdriver):
-        self.__webdriver = webdriver
-    
+    def setWebInterface(self, webInterface):
+        self.__webInterface = webInterface
+
+    def setWebMode(self, webInterface):
+        self.setWebInterface(webInterface)
+        self.setMode(INPUT.MODES.WEB)
+
     def setSelectedButton(self, button):
         self.__selectedButton = button
         if button is not None:
@@ -170,14 +178,14 @@ class InputInterface(CustomQLabel):
     async def select(self):
         if self.inProjectorMode():
             await self.getProjectorInterface().select()
+        elif self.inWebMode():
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                await webInterface.select()
         else:
             selectedButton = self.getSelectedButton()
             if selectedButton is not None:
                 await selectedButton.click()
-                if self.inWebMode() and not isinstance(selectedButton, Button):
-                    driver = self.getWebDriver()
-                    if not driver.elementExists(selectedButton):
-                        self.setSelectedButton(driver.getDefaultElement())
             else:
                 print("No initial selected button set.")
     
@@ -191,30 +199,14 @@ class InputInterface(CustomQLabel):
                 await self.getProjectorInterface().navDown()
             elif index == INPUT.NAV_LEFT:
                 await self.getProjectorInterface().navLeft()
+        elif self.inWebMode():
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                await webInterface.navigate(index)
         elif not self.inOtherMode():
             selectedButton = self.getSelectedButton()
             if selectedButton is not None:
-                if not self.inWebMode():
-                    newButton = selectedButton.getNavButton(index)
-                
-                else:
-                    driver = self.getWebDriver()
-                    if driver is not None:
-                        if index == INPUT.NAV_UP:
-                            newButtonLocator = driver.getElementAbove(selectedButton)
-                        elif index == INPUT.NAV_RIGHT:
-                            newButtonLocator = driver.getElementRight(selectedButton)
-                        elif index == INPUT.NAV_DOWN:
-                            newButtonLocator = driver.getElementBelow(selectedButton)
-                        elif index == INPUT.NAV_LEFT:
-                            newButtonLocator = driver.getElementLeft(selectedButton)
-                        else:
-                            newButtonLocator = None
-                        newButton = driver.find_element(newButtonLocator)
-                    else:
-                        print("No webdriver set!")
-                        newButton = None
-                
+                newButton = selectedButton.getNavButton(index)
                 if newButton is not None:
                     self.setSelectedButton(newButton)
             else:
@@ -235,10 +227,13 @@ class InputInterface(CustomQLabel):
     async def back(self):
         if self.inGUIMode():
             await self.getSelectedButton().back()
-        if self.inProjectorMode():
+        elif self.inProjectorMode():
             await self.getProjectorInterface().back()
         elif self.inWebMode():
-            self.getWebDriver().quit()
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                await webInterface.closeAndReturnHome()
+            self.setMode(self.getOldMode())
     
     async def menu(self):
         if self.inGUIMode():
@@ -257,7 +252,11 @@ class InputInterface(CustomQLabel):
     async def home(self):
         if self.inOtherMode():
             await self.switchProjectorInputChannel(PROJECTOR.CHANNELS.HDMI)
-        if self.inProjectorMode():
+        if self.inWebMode():
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                await webInterface.closeAndReturnHome()
+        elif self.inProjectorMode():
             await self.getProjectorInterface().menu()
         else:
             MAIN_WINDOW.setTab()

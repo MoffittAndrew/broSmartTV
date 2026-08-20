@@ -84,6 +84,9 @@ def init_qt():
     from PyQt5.QtCore import Qt
     from ui.launch_screen import LaunchScreen
 
+    # QtWebEngine (used by interface.web_interface, imported later via main.py) requires
+    # this attribute set before any QApplication/QCoreApplication instance is constructed.
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     APP = QApplication([])
 
     # Hide mouse pointer
