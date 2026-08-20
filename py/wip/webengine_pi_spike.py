@@ -1,5 +1,8 @@
 """Phase 0 feasibility spike - run this manually ON THE PI, not as part of the app.
 
+See broSmartTV/WEB_INTEGRATION.md for the full write-up of the web integration this
+validates (architecture, navigation, keyboard, DRM/Widevine).
+
 Validates the three prerequisites the QWebEngineView redesign depends on:
 1. QWebEngineView actually renders/composites under QT_QPA_PLATFORM=eglfs.
 2. Proprietary codecs (H.264) are enabled in the installed QtWebEngine build.
@@ -8,8 +11,9 @@ Validates the three prerequisites the QWebEngineView redesign depends on:
 Usage on the Pi (from /bro/app, using the shared venv):
     export QT_QPA_PLATFORM=eglfs
     export QT_QPA_EGLFS_KMS_CONFIG=/bro/app/broSmartTV/launcher/eglfs_kms_conf.json
-    # Only needed once a Widevine CDM binary has been sourced for this device's arch:
-    # export QTWEBENGINE_CHROMIUM_FLAGS=--widevine-path=/path/to/libwidevinecdm.so
+    # Only needed once a Widevine CDM binary has been sourced for this device's arch - launcher/launch
+    # sets this automatically from /bro/widevine/libwidevinecdm.so once that file exists there.
+    # export QTWEBENGINE_CHROMIUM_FLAGS=--widevine-path=/bro/widevine/libwidevinecdm.so
     /bro/.venv/bin/python webengine_pi_spike.py
 
 What to check manually once it's running:

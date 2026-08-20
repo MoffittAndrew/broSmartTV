@@ -141,6 +141,14 @@ ensure_system_pyqt5() {
     python3 -c "import PyQt5" >/dev/null 2>&1 || sudo apt-get install -y python3-pyqt5
 }
 
+ensure_system_qtwebengine() {
+    log "Ensuring system QtWebEngine bindings are installed..."
+    # No PyQtWebEngine wheel exists for Pi's ARM architecture on PyPI (see requirements.txt),
+    # so - like PyQt5 itself - this comes from the distro's prebuilt apt package instead.
+    python3 -c "import PyQt5.QtWebEngineWidgets" >/dev/null 2>&1 || \
+        sudo apt-get install -y python3-pyqt5.qtwebengine
+}
+
 ensure_openssl() {
     if command -v openssl >/dev/null 2>&1; then
         return 0
@@ -322,6 +330,7 @@ main() {
 
     ensure_venv
     ensure_system_pyqt5 || error_exit "Failed to install system PyQt5."
+    ensure_system_qtwebengine || error_exit "Failed to install system QtWebEngine bindings."
 
     if ! ensure_internet; then
         log "Error when checking for updates, please check internet connection."
