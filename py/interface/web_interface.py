@@ -102,6 +102,7 @@ class WebInterface(CustomQWidget):
         super().__init__(*args, **kwargs)
         self.__inputInterface = None
         self.__incognitoProfile = None
+        self.__retiredProfiles = []
         self.__lastFocusRect = None
         self.__isEditableFocus = False
         self.__lastFocusValue = ""
@@ -120,26 +121,60 @@ class WebInterface(CustomQWidget):
     def setInputInterface(self, inputInterface):
         self.__inputInterface = inputInterface
 
+    def _setWindowTab(self, tab=None):
+        parent = self.parent()
+        setTab = getattr(parent, "setTab", None)
+        if callable(setTab):
+            setTab(tab)
+
     def getPrimaryButton(self):
         # None until the first loadFinished callback resolves a focus rect; InputInterface
         # already tolerates a None selection (see setSelectedButton's early-return branch).
         return FocusedElement(self.__lastFocusRect) if self.__lastFocusRect is not None else None
 
+    def _replacePage(self, page):
+        oldPage = self.__view.page()
+        self.__view.setPage(page)
+        if oldPage is not None:
+            oldPage.deleteLater()
+        return oldPage
+
+    def _retireProfileAfterPageDelete(self, profile, page):
+        if profile is None:
+            return
+
+        self.__retiredProfiles.append(profile)
+
+        def releaseProfile():
+            if profile in self.__retiredProfiles:
+                self.__retiredProfiles.remove(profile)
+            profile.deleteLater()
+
+        if page is None:
+            releaseProfile()
+        else:
+            page.destroyed.connect(releaseProfile)
+
     def openURL(self, url, incognito=False):
         if incognito:
+            oldProfile = self.__incognitoProfile
             # A profile constructed without a storage name is off-the-record (mirrors old --incognito flag).
             self.__incognitoProfile = QWebEngineProfile()
-            self.__view.setPage(QWebEnginePage(self.__incognitoProfile, self.__view))
-        elif self.__view.page().profile().isOffTheRecord():
-            self.__view.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            oldPage = self._replacePage(QWebEnginePage(self.__incognitoProfile, self.__view))
+            self._retireProfileAfterPageDelete(oldProfile, oldPage)
+        elif self.__incognitoProfile is not None:
+            oldProfile = self.__incognitoProfile
+            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
             self.__incognitoProfile = None
+            self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
         self.__lastFocusRect = None
         self.__view.load(QUrl(url))
 
-        if self.getInputInterface() is not None:
-            self.getInputInterface().setWebMode(self)
-        self.parent().setTab(self)
+        inputInterface = self.getInputInterface()
+        if inputInterface is not None:
+            inputInterface.setWebMode(self)
+        self._setWindowTab(self)
 
     def _onLoadFinished(self, ok):
         if not ok:
@@ -205,10 +240,13 @@ class WebInterface(CustomQWidget):
         )
 
     async def closeAndReturnHome(self):
-        self.__view.setUrl(QUrl("about:blank"))
+        self.__view.stop()
         if self.__incognitoProfile is not None:
-            self.__view.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            oldProfile = self.__incognitoProfile
+            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
             self.__incognitoProfile = None
-        self.parent().setTab()
+            self._retireProfileAfterPageDelete(oldProfile, oldPage)
+        self.__view.setUrl(QUrl("about:blank"))
+        self._setWindowTab()
 
 webInterface = WebInterface()
