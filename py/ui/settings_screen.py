@@ -21,18 +21,18 @@ class SettingsScreen(CustomQWidget):
         self.__currentNetwork = None
 
         self.__heading = QLabel("Wifi")
-        self.__heading.setStyleSheet("font-size: 44px; font-weight: bold;")
+        self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
 
         self.__currentNetworkLabel = QLabel()
         self.__currentNetworkLabel.setWordWrap(True)
-        self.__currentNetworkLabel.setStyleSheet("font-size: 24px;")
+        self.__currentNetworkLabel.setStyleSheet("font-size: 24px; color: white;")
 
         self.__switchNetworkButton = Button(text="switch network", clickCallback=self.openWifiOverlay)
         self.__wifiOverlay = WifiOverlay(parent=self, onClose=self._onOverlayClosed)
 
         self.__currentBranchLabel = QLabel()
         self.__currentBranchLabel.setWordWrap(True)
-        self.__currentBranchLabel.setStyleSheet("font-size: 24px;")
+        self.__currentBranchLabel.setStyleSheet("font-size: 24px; color: white;")
 
         self.__switchBranchButton = Button(text="switch git branch", clickCallback=self.openBranchMenu)
         self.__branchMenuOverlay = MenuOverlay(parent=self, onClose=self._onBranchMenuClosed)
@@ -48,7 +48,7 @@ class SettingsScreen(CustomQWidget):
         ])
 
         self.__systemHeading = QLabel("System")
-        self.__systemHeading.setStyleSheet("font-size: 44px; font-weight: bold;")
+        self.__systemHeading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
 
         self.__restartButton = Button(text="restart app", clickCallback=self.confirmRestart)
         self.__rebootButton = Button(text="reboot bro", clickCallback=self.confirmReboot)

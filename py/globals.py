@@ -310,6 +310,3 @@ class SCREEN_CAST:
     ]
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
-class WEB:
-    CHROMIUM_PATH = "/usr/lib/chromium-browser/chromedriver"
-    MAX_GET_WINDOW_TRIES = 30

@@ -15,8 +15,13 @@ from app_logging import get_adapter
 logger = get_adapter("main", "startup")
 logger.info("Starting...")
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 from typing import cast
+
+# QtWebEngine (used by interface.web_interface) requires this attribute set before any
+# QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
+QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
 
 app_instance = QApplication.instance()
 if app_instance is None:
@@ -26,7 +31,7 @@ APP = cast(QApplication, app_instance)
 logger.info("Starting imports...")
 from ui.gui import MAIN_WINDOW, ScreenCastView
 from interface.input_interface import inputInterface
-#from interface.web_interface import webInterface
+from interface.web_interface import webInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
@@ -90,9 +95,12 @@ def main():
 # - configure screencast display handlers
 MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
-#MAIN_WINDOW.addWidget(webInterface)
+MAIN_WINDOW.addWidget(webInterface)
+webInterface.hide()
 
 inputInterface.setProjectorInterface(projectorInterface)
+inputInterface.setWebInterface(webInterface)
+webInterface.setInputInterface(inputInterface)
 keyboardInterface.setInputInterface(inputInterface)
 remoteInterface.setInputInterface(inputInterface)
 MAIN_WINDOW.setKeyboard(keyboardInterface)
