@@ -42,6 +42,10 @@ venv.bak/
 .cursorignore
 .cursorindexingignore
 
+# Development
+.vscode/
+.github/
+
 
 
 ### Project-specific
