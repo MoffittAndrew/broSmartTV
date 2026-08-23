@@ -30,6 +30,11 @@ from globals import WEBDEBUG
 os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", str(WEBDEBUG.CDP_PORT))
 print(f"[webdebug] Available at: https://bro/webdebug?token={WEBDEBUG.TOKEN}")
 
+if os.getenv("BRO_WEBENGINE_DISABLE_GPU") == "1":
+    chromiumFlags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    chromiumFlags = f"{chromiumFlags} --disable-gpu --disable-gpu-compositing".strip()
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = chromiumFlags
+
 # QtWebEngine (used by interface.web_interface) requires this attribute set before any
 # QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
