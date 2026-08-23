@@ -1,4 +1,7 @@
-print("Importing web interface...")
+from app_logging import get_adapter
+
+logger = get_adapter("web", "web")
+logger.info("Importing web interface...")
 
 import json
 
@@ -176,6 +179,7 @@ class WebInterface(CustomQWidget):
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
         self.__lastFocusRect = None
+        logger.info("Loading webpage", url=url, incognito=incognito)
         self.__view.load(QUrl(url))
         self.show()
 
@@ -186,7 +190,11 @@ class WebInterface(CustomQWidget):
 
     def _onLoadFinished(self, ok):
         if not ok:
+            # QWebEnginePage doesn't hand us an error message/code here, so we can only
+            # log that navigation failed, not why (Qt logs the underlying network error itself).
+            logger.error("Webpage failed to load", url=self.__view.url().toString())
             return
+        logger.info("Webpage loaded", url=self.__view.url().toString())
         self.__view.page().runJavaScript(_NAV_HELPERS_JS)
         self._runJs("window.__broNav.focusFirst();")
 
@@ -248,6 +256,7 @@ class WebInterface(CustomQWidget):
         )
 
     async def closeAndReturnHome(self):
+        logger.info("Shutting down webpage", url=self.__view.url().toString())
         self.__view.stop()
         if self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
