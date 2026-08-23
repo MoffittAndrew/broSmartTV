@@ -238,6 +238,10 @@ class InputInterface(CustomQLabel):
     async def menu(self):
         if self.inGUIMode():
             await self.getSelectedButton().menu()
+        elif self.inWebMode():
+            webInterface = self.getWebInterface()
+            if webInterface is not None:
+                webInterface.debugPage(reason="menu")
     
     async def volUp(self):
         await self.getProjectorInterface().volUp()

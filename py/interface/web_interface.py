@@ -102,6 +102,80 @@ class FocusedElement:
         self.rect = rect
 
 
+_WEB_DEBUG_SNAPSHOT_JS = """
+(function() {
+    function rectOf(el) {
+        var rect = el.getBoundingClientRect();
+        return {
+            x: Math.round(rect.left),
+            y: Math.round(rect.top),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height)
+        };
+    }
+    function describe(el) {
+        if (!el) { return null; }
+        var style = window.getComputedStyle(el);
+        var tag = el.tagName ? el.tagName.toLowerCase() : "";
+        var text = "";
+        if (tag !== "input" && tag !== "textarea") {
+            text = (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        }
+        return {
+            tag: tag,
+            id: el.id || "",
+            className: String(el.className || "").slice(0, 120),
+            role: el.getAttribute("role") || "",
+            ariaLabel: el.getAttribute("aria-label") || "",
+            type: el.getAttribute("type") || "",
+            text: text,
+            rect: rectOf(el),
+            display: style.display,
+            visibility: style.visibility,
+            opacity: style.opacity,
+            color: style.color,
+            backgroundColor: style.backgroundColor,
+            zIndex: style.zIndex,
+            pointerEvents: style.pointerEvents
+        };
+    }
+    var focusable = Array.prototype.slice.call(document.querySelectorAll(
+        'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
+    ));
+    var visibleFocusable = focusable.filter(function(el) {
+        var rect = el.getBoundingClientRect();
+        var style = window.getComputedStyle(el);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    });
+    var samplePoints = [
+        [window.innerWidth / 2, window.innerHeight / 2],
+        [window.innerWidth / 2, window.innerHeight / 3],
+        [window.innerWidth / 2, window.innerHeight * 2 / 3]
+    ];
+    return {
+        href: window.location.href,
+        title: document.title,
+        readyState: document.readyState,
+        bodyTextLength: document.body ? (document.body.innerText || "").length : 0,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        body: document.body ? describe(document.body) : null,
+        activeElement: describe(document.activeElement),
+        focusableCount: focusable.length,
+        visibleFocusableCount: visibleFocusable.length,
+        visibleFocusable: visibleFocusable.slice(0, 20).map(describe),
+        iframes: Array.prototype.slice.call(document.querySelectorAll("iframe")).slice(0, 10).map(function(el) {
+            var info = describe(el);
+            info.src = (el.getAttribute("src") || "").slice(0, 200);
+            return info;
+        }),
+        elementsFromPoints: samplePoints.map(function(point) {
+            return { point: { x: Math.round(point[0]), y: Math.round(point[1]) }, element: describe(document.elementFromPoint(point[0], point[1])) };
+        })
+    };
+})()
+"""
+
+
 _JS_CONSOLE_LOG_METHODS = {
     QWebEnginePage.InfoMessageLevel: consoleLogger.info,
     QWebEnginePage.WarningMessageLevel: consoleLogger.warning,
@@ -220,6 +294,18 @@ class WebInterface(CustomQWidget):
 
     def _runJs(self, script):
         self.__view.page().runJavaScript(script, self._applyFocusInfo)
+
+    def debugPage(self, reason="manual"):
+        self.__view.page().runJavaScript(
+            _WEB_DEBUG_SNAPSHOT_JS,
+            lambda result: self._logDebugSnapshot(reason, result),
+        )
+
+    def _logDebugSnapshot(self, reason, result):
+        if not result:
+            logger.warning("Web debug snapshot returned no result", reason=reason)
+            return
+        logger.info("Web debug snapshot", reason=reason, snapshot=result)
 
     def _applyFocusInfo(self, result):
         if not result:
