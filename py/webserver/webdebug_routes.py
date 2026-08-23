@@ -62,6 +62,11 @@ def _rewrite_cdp_body(body_text, request):
     rewritten = body_text.replace(f"ws://127.0.0.1:{WEBDEBUG.CDP_PORT}", f"{ws_scheme}://{proxy_host}")
     rewritten = rewritten.replace(f"127.0.0.1:{WEBDEBUG.CDP_PORT}", proxy_host)
     rewritten = rewritten.replace('"/devtools/', '"/webdebug/devtools/')
+    if ws_scheme == "wss":
+        # inspector.html only opens a secure websocket if told via `wss=`; fed `ws=` while the
+        # frontend itself was loaded over https, the browser silently blocks it as mixed content
+        # - every panel stays blank forever with no visible error, since no connection ever forms.
+        rewritten = rewritten.replace("?ws=", "?wss=")
     return rewritten
 
 
