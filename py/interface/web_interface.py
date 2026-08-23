@@ -1,6 +1,7 @@
 from app_logging import get_adapter
 
 logger = get_adapter("web", "web")
+consoleLogger = get_adapter("console", "web")
 logger.info("Importing web interface...")
 
 import json
@@ -102,9 +103,9 @@ class FocusedElement:
 
 
 _JS_CONSOLE_LOG_METHODS = {
-    QWebEnginePage.InfoMessageLevel: logger.info,
-    QWebEnginePage.WarningMessageLevel: logger.warning,
-    QWebEnginePage.ErrorMessageLevel: logger.error,
+    QWebEnginePage.InfoMessageLevel: consoleLogger.info,
+    QWebEnginePage.WarningMessageLevel: consoleLogger.warning,
+    QWebEnginePage.ErrorMessageLevel: consoleLogger.error,
 }
 
 
@@ -112,8 +113,8 @@ class _LoggingWebEnginePage(QWebEnginePage):
     """Forwards the page's JS console output (errors, warnings, console.log) into the app logger
     instead of letting Qt print it straight to the process console."""
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
-        logMethod = _JS_CONSOLE_LOG_METHODS.get(level, logger.info)
-        logMethod(f"Webpage console message: {message}", js_source=sourceID, js_line=lineNumber)
+        logMethod = _JS_CONSOLE_LOG_METHODS.get(level, consoleLogger.info)
+        logMethod(message, js_source=sourceID, js_line=lineNumber)
 
 
 class WebInterface(CustomQWidget):
