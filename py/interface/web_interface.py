@@ -109,6 +109,17 @@ _JS_CONSOLE_LOG_METHODS = {
 }
 
 
+# Some streaming identity flows reject Qt/Raspberry-Pi user-agent metadata even when the page loads.
+_DESKTOP_CHROME_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36"
+)
+
+
+def _configureWebProfile(profile):
+    profile.setHttpUserAgent(_DESKTOP_CHROME_USER_AGENT)
+
+
 class _LoggingWebEnginePage(QWebEnginePage):
     """Forwards the page's JS console output (errors, warnings, console.log) into the app logger
     instead of letting Qt print it straight to the process console."""
@@ -131,7 +142,9 @@ class WebInterface(CustomQWidget):
         self.__view.setFixedSize(DISPLAY.WIDTH, DISPLAY.HEIGHT)
         # Replace the view's lazily-created default page up front so console logging is
         # active even before the first openURL()/incognito switch installs one explicitly.
-        self.__view.setPage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+        defaultProfile = QWebEngineProfile.defaultProfile()
+        _configureWebProfile(defaultProfile)
+        self.__view.setPage(_LoggingWebEnginePage(defaultProfile, self.__view))
         self.__view.loadFinished.connect(self._onLoadFinished)
 
         layout = QVBoxLayout(self)
@@ -189,11 +202,14 @@ class WebInterface(CustomQWidget):
             oldProfile = self.__incognitoProfile
             # A profile constructed without a storage name is off-the-record (mirrors old --incognito flag).
             self.__incognitoProfile = QWebEngineProfile()
+            _configureWebProfile(self.__incognitoProfile)
             oldPage = self._replacePage(_LoggingWebEnginePage(self.__incognitoProfile, self.__view))
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         elif self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
@@ -281,7 +297,9 @@ class WebInterface(CustomQWidget):
         self.__view.stop()
         if self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         self.__view.setUrl(QUrl("about:blank"))
