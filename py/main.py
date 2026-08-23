@@ -37,7 +37,8 @@ if os.getenv("BRO_WEBENGINE_DISABLE_GPU") == "1":
 
 # QtWebEngine (used by interface.web_interface) requires this attribute set before any
 # QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
-QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+if QApplication.instance() is None:
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
 
 app_instance = QApplication.instance()
 if app_instance is None:
