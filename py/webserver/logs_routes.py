@@ -49,6 +49,7 @@ KNOWN_SOURCES = {
     "screencast",
     "standby",
     "teardown",
+    "webdebug",
     "webserver",
     "wifi",
 }

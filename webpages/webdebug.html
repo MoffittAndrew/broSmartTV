@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bro web debug</title>
+</head>
+<body data-page="webdebug">
+  <div data-site-nav></div>
+
+  <main>
+    <h1>remote debugging</h1>
+    <p>
+      Full Chrome DevTools access to the embedded browser view. Requires the token printed to
+      the app's stdout/journal at startup, appended once as <code>?token=...</code> on this page's
+      URL; after that it's remembered in a cookie for this browser.
+    </p>
+    <ul id="targets"></ul>
+  </main>
+
+  <script src="./site-nav.js"></script>
+  <script type="module" src="./webdebug.js"></script>
+</body>
+</html>

@@ -2,6 +2,7 @@ const PAGE_REGISTRY = [
   { slug: 'cast', label: 'screen cast', href: '/cast' },
   { slug: 'remote', label: 'virtual remote', href: '/remote' },
   { slug: 'logs', label: 'logs', href: '/logs' },
+  { slug: 'webdebug', label: 'web debug', href: '/webdebug' },
 ];
 
 function buildNav() {

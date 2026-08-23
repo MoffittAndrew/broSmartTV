@@ -14,9 +14,21 @@ from app_logging import get_adapter
 logger = get_adapter("main", "startup")
 logger.info("Starting...")
 
+import os
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 from typing import cast
+
+from globals import WEBDEBUG
+
+# Must be set before interface.web_interface (imported below) pulls in QtWebEngineWidgets, or
+# Chromium never opens the CDP port. A bare port number makes Qt/Chromium bind 127.0.0.1 only;
+# webserver/webdebug_routes.py is the only thing allowed to reach it, and only once its own
+# token gate passes. Never print WEBDEBUG.TOKEN via `logger` - that feeds the unauthenticated
+# /logs page, which would leak the very secret that gates remote code execution in the browser.
+os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", str(WEBDEBUG.CDP_PORT))
+print(f"[webdebug] token (append as /webdebug?token=...): {WEBDEBUG.TOKEN}")
 
 # QtWebEngine (used by interface.web_interface) requires this attribute set before any
 # QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
