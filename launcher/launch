@@ -35,9 +35,6 @@ WIDEVINE_CDM_PATH="${DIR}/widevine/libwidevinecdm.so"
 if [ -f "${WIDEVINE_CDM_PATH}" ]; then
     export QTWEBENGINE_CHROMIUM_FLAGS="--widevine-path=${WIDEVINE_CDM_PATH}"
 fi
-if [ "${BRO_WEBENGINE_DISABLE_GPU:-}" = "1" ]; then
-    export QTWEBENGINE_CHROMIUM_FLAGS="${QTWEBENGINE_CHROMIUM_FLAGS:-} --disable-gpu --disable-gpu-compositing"
-fi
 # Ensure runtime imports come from /bro/.venv and not ~/.local user-site.
 export PYTHONNOUSERSITE=1
 unset PYTHONPATH

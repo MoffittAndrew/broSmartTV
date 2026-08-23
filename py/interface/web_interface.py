@@ -96,121 +96,10 @@ _NAV_DIRECTION_JS = {
 }
 
 
-_SITE_VISIBILITY_FIXES_JS = """
-(function() {
-    if (!/(^|\.)disneyplus\.com$/.test(window.location.hostname)) { return; }
-    if (window.location.pathname.indexOf('/identity/login') !== 0) { return; }
-
-    var style = document.getElementById('bro-disney-identity-visibility-fix');
-    if (!style) {
-        style = document.createElement('style');
-        style.id = 'bro-disney-identity-visibility-fix';
-        document.head.appendChild(style);
-    }
-    style.textContent = '\n\
-        body, main, section, form, div, p, h1, h2, h3, label, span {\n\
-            color: #f7f8fb !important;\n\
-        }\n\
-        input, textarea, select {\n\
-            background: #ffffff !important;\n\
-            color: #17171c !important;\n\
-            border-color: rgba(255, 255, 255, 0.5) !important;\n\
-        }\n\
-        input::placeholder, textarea::placeholder {\n\
-            color: #62666f !important;\n\
-            opacity: 1 !important;\n\
-        }\n\
-        button[type="submit"] {\n\
-            background: #0063e5 !important;\n\
-            border-color: #0063e5 !important;\n\
-            color: #ffffff !important;\n\
-        }\n\
-        a, button.TextLink {\n\
-            color: #8fb8ff !important;\n\
-        }\n\
-    ';
-})()
-"""
-
-
 class FocusedElement:
     """Mirrors the `.rect` dict contract InputInterface already expects from non-Button selections."""
     def __init__(self, rect):
         self.rect = rect
-
-
-_WEB_DEBUG_SNAPSHOT_JS = """
-(function() {
-    function rectOf(el) {
-        var rect = el.getBoundingClientRect();
-        return {
-            x: Math.round(rect.left),
-            y: Math.round(rect.top),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height)
-        };
-    }
-    function describe(el) {
-        if (!el) { return null; }
-        var style = window.getComputedStyle(el);
-        var tag = el.tagName ? el.tagName.toLowerCase() : "";
-        var text = "";
-        if (tag !== "input" && tag !== "textarea") {
-            text = (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80);
-        }
-        return {
-            tag: tag,
-            id: el.id || "",
-            className: String(el.className || "").slice(0, 120),
-            role: el.getAttribute("role") || "",
-            ariaLabel: el.getAttribute("aria-label") || "",
-            type: el.getAttribute("type") || "",
-            text: text,
-            rect: rectOf(el),
-            display: style.display,
-            visibility: style.visibility,
-            opacity: style.opacity,
-            color: style.color,
-            backgroundColor: style.backgroundColor,
-            zIndex: style.zIndex,
-            pointerEvents: style.pointerEvents
-        };
-    }
-    var focusable = Array.prototype.slice.call(document.querySelectorAll(
-        'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
-    ));
-    var visibleFocusable = focusable.filter(function(el) {
-        var rect = el.getBoundingClientRect();
-        var style = window.getComputedStyle(el);
-        return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
-    });
-    var samplePoints = [
-        [window.innerWidth / 2, window.innerHeight / 2],
-        [window.innerWidth / 2, window.innerHeight / 3],
-        [window.innerWidth / 2, window.innerHeight * 2 / 3]
-    ];
-    return {
-        href: window.location.href,
-        title: document.title,
-        readyState: document.readyState,
-        bodyTextLength: document.body ? (document.body.innerText || "").length : 0,
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        body: document.body ? describe(document.body) : null,
-        activeElement: describe(document.activeElement),
-        focusableCount: focusable.length,
-        visibleFocusableCount: visibleFocusable.length,
-        visibleFocusable: visibleFocusable.slice(0, 20).map(describe),
-        iframes: Array.prototype.slice.call(document.querySelectorAll("iframe")).slice(0, 10).map(function(el) {
-            var info = describe(el);
-            info.src = (el.getAttribute("src") || "").slice(0, 200);
-            return info;
-        }),
-        elementsFromPoints: samplePoints.map(function(point) {
-            return { point: { x: Math.round(point[0]), y: Math.round(point[1]) }, element: describe(document.elementFromPoint(point[0], point[1])) };
-        })
-    };
-})()
-"""
 
 
 _JS_CONSOLE_LOG_METHODS = {
@@ -218,6 +107,17 @@ _JS_CONSOLE_LOG_METHODS = {
     QWebEnginePage.WarningMessageLevel: consoleLogger.warning,
     QWebEnginePage.ErrorMessageLevel: consoleLogger.error,
 }
+
+
+# Some streaming identity flows reject Qt/Raspberry-Pi user-agent metadata even when the page loads.
+_DESKTOP_CHROME_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36"
+)
+
+
+def _configureWebProfile(profile):
+    profile.setHttpUserAgent(_DESKTOP_CHROME_USER_AGENT)
 
 
 class _LoggingWebEnginePage(QWebEnginePage):
@@ -242,7 +142,9 @@ class WebInterface(CustomQWidget):
         self.__view.setFixedSize(DISPLAY.WIDTH, DISPLAY.HEIGHT)
         # Replace the view's lazily-created default page up front so console logging is
         # active even before the first openURL()/incognito switch installs one explicitly.
-        self.__view.setPage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+        defaultProfile = QWebEngineProfile.defaultProfile()
+        _configureWebProfile(defaultProfile)
+        self.__view.setPage(_LoggingWebEnginePage(defaultProfile, self.__view))
         self.__view.loadFinished.connect(self._onLoadFinished)
 
         layout = QVBoxLayout(self)
@@ -300,11 +202,14 @@ class WebInterface(CustomQWidget):
             oldProfile = self.__incognitoProfile
             # A profile constructed without a storage name is off-the-record (mirrors old --incognito flag).
             self.__incognitoProfile = QWebEngineProfile()
+            _configureWebProfile(self.__incognitoProfile)
             oldPage = self._replacePage(_LoggingWebEnginePage(self.__incognitoProfile, self.__view))
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         elif self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
@@ -327,23 +232,10 @@ class WebInterface(CustomQWidget):
             return
         logger.info(f'Webpage loaded "{url}"', url=url)
         self.__view.page().runJavaScript(_NAV_HELPERS_JS)
-        self.__view.page().runJavaScript(_SITE_VISIBILITY_FIXES_JS)
         self._runJs("window.__broNav.focusFirst();")
 
     def _runJs(self, script):
         self.__view.page().runJavaScript(script, self._applyFocusInfo)
-
-    def debugPage(self, reason="manual"):
-        self.__view.page().runJavaScript(
-            _WEB_DEBUG_SNAPSHOT_JS,
-            lambda result: self._logDebugSnapshot(reason, result),
-        )
-
-    def _logDebugSnapshot(self, reason, result):
-        if not result:
-            logger.warning("Web debug snapshot returned no result", reason=reason)
-            return
-        logger.info("Web debug snapshot", reason=reason, snapshot=result)
 
     def _applyFocusInfo(self, result):
         if not result:
@@ -370,7 +262,6 @@ class WebInterface(CustomQWidget):
         if self.__isEditableFocus:
             self._openKeyboardForFocusedField()
         else:
-            self.__view.page().runJavaScript(_SITE_VISIBILITY_FIXES_JS)
             self._runJs("window.__broNav.activate();")
 
     def _openKeyboardForFocusedField(self):
@@ -406,7 +297,9 @@ class WebInterface(CustomQWidget):
         self.__view.stop()
         if self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         self.__view.setUrl(QUrl("about:blank"))
