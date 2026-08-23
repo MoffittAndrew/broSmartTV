@@ -160,7 +160,6 @@ class SettingsScreen(CustomQWidget):
             title="please select a git branch",
             message=message,
             options=options,
-            navBarButton=self.getNavBarButton(),
         )
 
         inputInterface = MAIN_WINDOW.getInputInterface()
@@ -192,7 +191,6 @@ class SettingsScreen(CustomQWidget):
         await self.__confirmOverlay.showOverlay(
             title=title,
             options=options,
-            navBarButton=self.getNavBarButton(),
         )
 
         inputInterface = MAIN_WINDOW.getInputInterface()

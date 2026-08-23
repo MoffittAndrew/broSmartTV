@@ -77,14 +77,12 @@ class MenuOverlay(CustomQWidget):
         self.__optionButtons = buttons
         self.__primaryButton = buttons[0] if buttons else None
 
-    async def showOverlay(self, title="", message="", options=None, navBarButton=None):
+    async def showOverlay(self, title="", message="", options=None):
         self.__titleLabel.setText(title)
         self.__messageLabel.setText(message)
         self.__messageLabel.setVisible(bool(message))
 
         self.setOptions(options or [])
-        if navBarButton is not None and self.__optionButtons:
-            self.__optionButtons[0].setNavUp(navBarButton)
 
         self.show()
         self.raise_()
