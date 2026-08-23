@@ -17,6 +17,7 @@ from audio_playback import submitAudioFrame, stopAudioPlayback
 from webserver.webserver_utils import start_site, stop_site, build_static_file_handler
 from webserver.logs_routes import add_routes as add_logs_routes, reset_stream_shutdown
 from webserver import remote_control
+from webserver import webdebug_routes
 from webserver import aioice_compat
 
 aioice_compat.apply()
@@ -385,6 +386,9 @@ screenCastServer.router.add_get("/", index)
 screenCastServer.router.add_get("/cast", cast)
 screenCastServer.router.add_get("/standby", standby)
 add_logs_routes(screenCastServer)
+# Registered before the static-file catch-all below, since some proxied devtools assets end in
+# .html/.js and would otherwise be shadowed by that broader pattern.
+webdebug_routes.add_routes(screenCastServer)
 screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)

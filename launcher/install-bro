@@ -10,8 +10,9 @@ set -u
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
 # 6) Install and configure LIRC for projector IR control.
-# 7) Ensure launch/update scripts are executable.
-# 8) Run update via the update command.
+# 7) Provision Widevine CDM at /bro/widevine/libwidevinecdm.so.
+# 8) Ensure launch/update scripts are executable.
+# 9) Run update via the update command.
 
 logprefix="[install]"
 log() {
@@ -46,6 +47,10 @@ LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/projector/*.conf"'
 SYSTEMD_SERVICE_NAME="bro-smart-tv"
 SYSTEMD_UNIT_SOURCE_PATH="${LAUNCHER_DIR}/${SYSTEMD_SERVICE_NAME}.service"
 SYSTEMD_UNIT_INSTALL_PATH="/etc/systemd/system/${SYSTEMD_SERVICE_NAME}.service"
+WIDEVINE_PACKAGE_NAME="libwidevinecdm0"
+WIDEVINE_CDM_SOURCE_PATH="/opt/WidevineCdm/gmp-widevinecdm/latest/libwidevinecdm.so"
+WIDEVINE_CDM_DIR="${BRO_DIR}/widevine"
+WIDEVINE_CDM_DEST_PATH="${WIDEVINE_CDM_DIR}/libwidevinecdm.so"
 
 # Override with env vars if needed.
 DEFAULT_APP_REPO_URL="https://github.com/MoffittAndrew/broSmartTV.git"
@@ -152,6 +157,22 @@ else:
 
 path.write_text(text)
 PY
+}
+
+ensure_widevine_cdm() {
+    log "Installing ${WIDEVINE_PACKAGE_NAME} package for DRM playback support..."
+    sudo apt-get update || error_exit "Failed to refresh package lists before installing ${WIDEVINE_PACKAGE_NAME}."
+    sudo apt-get install -y "${WIDEVINE_PACKAGE_NAME}" || error_exit "Failed to install ${WIDEVINE_PACKAGE_NAME}."
+
+    if [ ! -f "${WIDEVINE_CDM_SOURCE_PATH}" ]; then
+        error_exit "Expected Widevine CDM binary not found at ${WIDEVINE_CDM_SOURCE_PATH} after install."
+    fi
+
+    mkdir -p "${WIDEVINE_CDM_DIR}" || error_exit "Failed to create ${WIDEVINE_CDM_DIR}."
+    cp "${WIDEVINE_CDM_SOURCE_PATH}" "${WIDEVINE_CDM_DEST_PATH}" || \
+        error_exit "Failed to copy Widevine CDM to ${WIDEVINE_CDM_DEST_PATH}."
+
+    log "Widevine CDM provisioned at ${WIDEVINE_CDM_DEST_PATH}."
 }
 
 ensure_launcher_on_path() {
@@ -469,6 +490,7 @@ main() {
     ensure_screencast_tls_cert
     ensure_4k_page_kernel
     ensure_gpio_ir_tx_overlay
+    ensure_widevine_cdm
     ensure_launcher_scripts_executable
     ensure_systemd_service
     run_update

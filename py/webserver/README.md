@@ -11,6 +11,9 @@ The website is intentionally route-first instead of home-page-first.
 - /remote is the virtual remote page
 - /logs is the live and historical diagnostics page, available in both awake
 	and standby server modes
+- /webdebug is a token-gated reverse proxy into the embedded QWebEngineView's Chrome DevTools
+	Protocol port (see `webdebug_routes.py`), only registered on the awake-mode server since
+	there's nothing to debug before the Qt app/WebEngine view exist
 - /standby is the dedicated standby page while the TV is powered down
 
 The root page is not a landing page; it exists only as a redirect target so the browser always lands on the primary app page.
@@ -21,7 +24,7 @@ All main pages use the same shared navigation shell loaded from the static webpa
 
 - Pages should include a container such as a data-site-nav element
 - The shared nav is built from a registry rather than by hardcoding page links in each HTML file
-- Future pages should be added to the same registry rather than creating one-off links in a template
+- Future pages should be added to the same registry (`site-nav.js`) rather than creating one-off links in a template
 
 This keeps navigation consistent and makes CSS styling easy later without rewriting each page.
 

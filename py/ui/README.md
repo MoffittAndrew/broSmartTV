@@ -2,6 +2,10 @@
 
 ## Goal
 The GUI is designed to be built from reusable custom sections and tools, so new screens can be assembled by declaring what appears and where it goes with minimal bespoke layout code.
+- Treat the GUI as a hierarchy of custom sections and tools, not direct Qt primitives at screen level.
+- Build screen layouts using `VSection`, `HSection`, and `GridSection` from `py/ui/tools/section.py`.
+- Keep screen modules (`py/ui/*.py`) focused on composition of reusable tools and sections.
+- Keep `CustomQWidget` and `CustomQLabel` in `py/ui/gui.py` as the only base widget types for new UI components.
 
 ## Layered Structure
 1. Base widgets in `ui/gui.py`:
@@ -27,6 +31,8 @@ All spacing and margins should come from `globals.py`:
 - `GUI.MARGINS.OVERLAY`
 
 Do not hardcode new spacing constants in screens/components.
+Use these tokens instead of hardcoded layout spacing/margin values in new or refactored UI code.
+When adding a new spacing tier, add it to globals first, then consume it from sections/screens.
 
 ## Section Primitives
 `ui/tools/section.py` provides generic containers that accept any widget.
@@ -38,9 +44,10 @@ Do not hardcode new spacing constants in screens/components.
 `GridSection` edge behavior defaults to `edgePolicy="last"`, preserving tile-grid behavior for ragged rows.
 
 ## Navigation Rules
-- Navigation relies on directional links set on interactive widgets.
+- Directional navigation must be wired through the button nav links (`setNavUp/Right/Down/Left`).
 - Section primitives auto-wire links where possible.
 - Screen code should only add explicit overrides for special transitions (for example, navbar <-> body, overlay back/close).
+- Preserve tile-grid edge behavior where downward navigation in short rows falls back to the last item of the next row.
 
 ## Button Callbacks
 `ui/tools/button.py` supports three independent, optional callbacks per `Button`:
@@ -50,7 +57,6 @@ Do not hardcode new spacing constants in screens/components.
 
 A button can freely mix and match these; a menu/list option button, for example, may only need `clickCallback` and `returnCallback`.
 
-## ToggleButton
 `ToggleButton` is a `Button` front end for a boolean owned by its parent screen, overlay, or model. It does not store the boolean itself: keep the source of truth in the owning component and let the button fetch it whenever it draws.
 
 Every `ToggleButton` must define:
@@ -116,12 +122,7 @@ spec = {
 
 A screen can progressively move from handwritten composition to spec-driven factories while keeping callback logic in Python functions.
 
-## Current First-Wave Migrations
-- Home/navbar/tile-grid now rely on section primitives.
-- On-screen keyboard uses `GridSection` for key matrix and `HSection` for control row.
-- Settings and wifi overlay are aligned to global spacing tokens and section composition.
-
-## Future Work
-- Add a shared screen-factory helper for dict specs.
-- Migrate search/edit/filter screens fully onto section primitives.
-- Add unit tests for section sizing and navigation mesh generation.
+## GUI Extension Workflow
+- For a new screen, compose sections first (header/content/actions), then attach callbacks.
+- For a new grid-like UI (keyboards, lists, tiles), prefer `GridSection` and only add bespoke wiring for special edge cases.
+- Keep overlay widgets self-contained and compute absolute placement using the `mapTo(window, QPoint(0, 0))` pattern via custom base widgets.

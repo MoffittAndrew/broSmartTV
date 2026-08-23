@@ -4,6 +4,7 @@ print("Importing globals...")
 
 import os
 import platform
+import secrets
 import socket
 from PyQt5.QtCore import Qt
 
@@ -309,4 +310,19 @@ class SCREEN_CAST:
         "stun:stun1.l.google.com:19302",
     ]
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
+
+
+class WEBDEBUG:
+    # Chrome DevTools Protocol port for the embedded QWebEngineView. Qt/Chromium binds this to
+    # 127.0.0.1 only when given a bare port number (no host prefix) - never reachable directly
+    # off-device, only reverse-proxied by webserver/webdebug_routes.py.
+    CDP_PORT = int(os.getenv("BRO_WEBDEBUG_CDP_PORT", "9222"))
+
+    # Shared-secret gate for the public /webdebug page/proxy. CDP grants full remote code
+    # execution in the embedded browser (read cookies/session tokens, watch keystrokes), so this
+    # is regenerated fresh every process start unless pinned via env var, and must never be
+    # logged through the structured app logger - that's what the unauthenticated /logs page
+    # exposes, which would defeat the point of gating this at all. See launch.py/main.py for
+    # where this gets printed straight to stdout instead.
+    TOKEN = os.getenv("BRO_WEBDEBUG_TOKEN") or secrets.token_urlsafe(24)
 

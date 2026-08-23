@@ -93,8 +93,10 @@ see Qt's "HTML5 DRM" docs), gated on two things:
    packages disable this for patent-licensing reasons, same issue as distro ffmpeg
    builds).
 2. **A Widevine CDM binary** (`libwidevinecdm.so`) matching the Pi's CPU architecture.
-   Google doesn't publish official Chrome builds for Linux ARM, so this has to be
-   sourced separately per-device - see "Sourcing the CDM binary" below.
+  Google doesn't publish official Chrome builds for Linux ARM. The installer now
+  provisions this per-device by installing `libwidevinecdm0` and copying
+  `/opt/WidevineCdm/gmp-widevinecdm/latest/libwidevinecdm.so` to
+  `/bro/widevine/libwidevinecdm.so`.
 
 Once a CDM binary exists at `/bro/widevine/libwidevinecdm.so`, `launcher/launch`
 automatically exports `QTWEBENGINE_CHROMIUM_FLAGS=--widevine-path=...` pointing at it -
@@ -122,7 +124,7 @@ no script changes needed when a device gets its CDM sourced.
 
 ### Sourcing the CDM binary
 
-Not automated by any script here. Google doesn't offer an official route for Linux ARM;
-common approaches (extracting from ChromeOS images, unofficial community packages)
-involve redistribution Google hasn't authorized, so this is intentionally left as a
-manual, per-device decision rather than something this repo automates or links to.
+`install-bro` now attempts to provision the CDM by installing
+`libwidevinecdm0` and copying the resulting binary into `/bro/widevine/`.
+If that package is unavailable on a given image/repo configuration, provisioning
+still remains a per-device concern.

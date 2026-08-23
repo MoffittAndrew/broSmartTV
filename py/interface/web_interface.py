@@ -1,10 +1,15 @@
-print("Importing web interface...")
+from app_logging import get_adapter
+
+logger = get_adapter("web", "web")
+consoleLogger = get_adapter("console", "web")
+logger.info("Importing web interface...")
 
 import json
 
 from globals import DISPLAY, INPUT
 from ui.gui import CustomQWidget
 
+from PyQt5 import sip
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
@@ -97,6 +102,32 @@ class FocusedElement:
         self.rect = rect
 
 
+_JS_CONSOLE_LOG_METHODS = {
+    QWebEnginePage.InfoMessageLevel: consoleLogger.info,
+    QWebEnginePage.WarningMessageLevel: consoleLogger.warning,
+    QWebEnginePage.ErrorMessageLevel: consoleLogger.error,
+}
+
+
+# Some streaming identity flows reject Qt/Raspberry-Pi user-agent metadata even when the page loads.
+_DESKTOP_CHROME_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36"
+)
+
+
+def _configureWebProfile(profile):
+    profile.setHttpUserAgent(_DESKTOP_CHROME_USER_AGENT)
+
+
+class _LoggingWebEnginePage(QWebEnginePage):
+    """Forwards the page's JS console output (errors, warnings, console.log) into the app logger
+    instead of letting Qt print it straight to the process console."""
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        logMethod = _JS_CONSOLE_LOG_METHODS.get(level, consoleLogger.info)
+        logMethod(message, js_source=sourceID, js_line=lineNumber)
+
+
 class WebInterface(CustomQWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,6 +140,11 @@ class WebInterface(CustomQWidget):
 
         self.__view = QWebEngineView(self)
         self.__view.setFixedSize(DISPLAY.WIDTH, DISPLAY.HEIGHT)
+        # Replace the view's lazily-created default page up front so console logging is
+        # active even before the first openURL()/incognito switch installs one explicitly.
+        defaultProfile = QWebEngineProfile.defaultProfile()
+        _configureWebProfile(defaultProfile)
+        self.__view.setPage(_LoggingWebEnginePage(defaultProfile, self.__view))
         self.__view.loadFinished.connect(self._onLoadFinished)
 
         layout = QVBoxLayout(self)
@@ -136,8 +172,13 @@ class WebInterface(CustomQWidget):
     def _replacePage(self, page):
         oldPage = self.__view.page()
         self.__view.setPage(page)
-        if oldPage is not None:
-            oldPage.deleteLater()
+        # The very first swap replaces the page QWebEngineView lazily created for itself, which the
+        # view owns and destroys inside setPage(). Touching that stale wrapper (deleteLater/destroyed)
+        # raises "wrapped C/C++ object ... has been deleted", which used to abort the first openURL().
+        # Pages we construct here stay Python-owned and must still be deleted explicitly.
+        if oldPage is None or sip.isdeleted(oldPage):
+            return None
+        oldPage.deleteLater()
         return oldPage
 
     def _retireProfileAfterPageDelete(self, profile, page):
@@ -161,15 +202,19 @@ class WebInterface(CustomQWidget):
             oldProfile = self.__incognitoProfile
             # A profile constructed without a storage name is off-the-record (mirrors old --incognito flag).
             self.__incognitoProfile = QWebEngineProfile()
-            oldPage = self._replacePage(QWebEnginePage(self.__incognitoProfile, self.__view))
+            _configureWebProfile(self.__incognitoProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(self.__incognitoProfile, self.__view))
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         elif self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
         self.__lastFocusRect = None
+        logger.info(f'Loading webpage "{url}"', url=url, incognito=incognito)
         self.__view.load(QUrl(url))
         self.show()
 
@@ -179,8 +224,13 @@ class WebInterface(CustomQWidget):
         self._setWindowTab(self)
 
     def _onLoadFinished(self, ok):
+        url = self.__view.url().toString()
         if not ok:
+            # QWebEnginePage doesn't hand us an error message/code here, so we can only
+            # log that navigation failed, not why (Qt logs the underlying network error itself).
+            logger.error(f'Webpage failed to load "{url}"', url=url)
             return
+        logger.info(f'Webpage loaded "{url}"', url=url)
         self.__view.page().runJavaScript(_NAV_HELPERS_JS)
         self._runJs("window.__broNav.focusFirst();")
 
@@ -242,10 +292,14 @@ class WebInterface(CustomQWidget):
         )
 
     async def closeAndReturnHome(self):
+        url = self.__view.url().toString()
+        logger.info(f'Shutting down webpage "{url}"', url=url)
         self.__view.stop()
         if self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            defaultProfile = QWebEngineProfile.defaultProfile()
+            _configureWebProfile(defaultProfile)
+            oldPage = self._replacePage(_LoggingWebEnginePage(defaultProfile, self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         self.__view.setUrl(QUrl("about:blank"))

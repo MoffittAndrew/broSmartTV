@@ -9,9 +9,16 @@ SERVICE_NAME="bro-smart-tv"
 logprefix="[stop]"
 
 echo "$logprefix Stopping ${SERVICE_NAME}.service..."
-sudo systemctl stop "${SERVICE_NAME}" || {
-    echo "$logprefix Failed to stop ${SERVICE_NAME}.service."
-    exit 1
-}
 
-echo "$logprefix Stopped ${SERVICE_NAME}.service."
+# Check if service is already stopped
+if systemctl is-active --quiet "${SERVICE_NAME}"; then
+    # Service is running, stop it
+    sudo systemctl stop "${SERVICE_NAME}" || {
+        echo "$logprefix Failed to stop ${SERVICE_NAME}.service."
+        exit 1
+    }
+    echo "$logprefix Stopped ${SERVICE_NAME}.service."
+else
+    # Service is already stopped
+    echo "$logprefix ${SERVICE_NAME}.service was already stopped."
+fi
