@@ -96,6 +96,43 @@ _NAV_DIRECTION_JS = {
 }
 
 
+_SITE_VISIBILITY_FIXES_JS = """
+(function() {
+    if (!/(^|\.)disneyplus\.com$/.test(window.location.hostname)) { return; }
+    if (window.location.pathname.indexOf('/identity/login') !== 0) { return; }
+
+    var style = document.getElementById('bro-disney-identity-visibility-fix');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'bro-disney-identity-visibility-fix';
+        document.head.appendChild(style);
+    }
+    style.textContent = '\n\
+        body, main, section, form, div, p, h1, h2, h3, label, span {\n\
+            color: #f7f8fb !important;\n\
+        }\n\
+        input, textarea, select {\n\
+            background: #ffffff !important;\n\
+            color: #17171c !important;\n\
+            border-color: rgba(255, 255, 255, 0.5) !important;\n\
+        }\n\
+        input::placeholder, textarea::placeholder {\n\
+            color: #62666f !important;\n\
+            opacity: 1 !important;\n\
+        }\n\
+        button[type="submit"] {\n\
+            background: #0063e5 !important;\n\
+            border-color: #0063e5 !important;\n\
+            color: #ffffff !important;\n\
+        }\n\
+        a, button.TextLink {\n\
+            color: #8fb8ff !important;\n\
+        }\n\
+    ';
+})()
+"""
+
+
 class FocusedElement:
     """Mirrors the `.rect` dict contract InputInterface already expects from non-Button selections."""
     def __init__(self, rect):
@@ -290,6 +327,7 @@ class WebInterface(CustomQWidget):
             return
         logger.info(f'Webpage loaded "{url}"', url=url)
         self.__view.page().runJavaScript(_NAV_HELPERS_JS)
+        self.__view.page().runJavaScript(_SITE_VISIBILITY_FIXES_JS)
         self._runJs("window.__broNav.focusFirst();")
 
     def _runJs(self, script):
@@ -332,6 +370,7 @@ class WebInterface(CustomQWidget):
         if self.__isEditableFocus:
             self._openKeyboardForFocusedField()
         else:
+            self.__view.page().runJavaScript(_SITE_VISIBILITY_FIXES_JS)
             self._runJs("window.__broNav.activate();")
 
     def _openKeyboardForFocusedField(self):
