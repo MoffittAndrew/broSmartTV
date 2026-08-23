@@ -28,7 +28,7 @@ from globals import WEBDEBUG
 # token gate passes. Never print WEBDEBUG.TOKEN via `logger` - that feeds the unauthenticated
 # /logs page, which would leak the very secret that gates remote code execution in the browser.
 os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", str(WEBDEBUG.CDP_PORT))
-print(f"[webdebug] token (append as /webdebug?token=...): {WEBDEBUG.TOKEN}")
+print(f"[webdebug] Available at: 'https://bro/webdebug?token={WEBDEBUG.TOKEN}'")
 
 # QtWebEngine (used by interface.web_interface) requires this attribute set before any
 # QApplication/QCoreApplication instance is constructed, or its import raises ImportError.
