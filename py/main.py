@@ -11,7 +11,6 @@ There are two startup paths:
 
 from app_logging import get_adapter
 
-
 logger = get_adapter("main", "startup")
 logger.info("Starting...")
 

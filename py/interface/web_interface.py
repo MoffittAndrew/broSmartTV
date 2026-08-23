@@ -5,6 +5,7 @@ import json
 from globals import DISPLAY, INPUT
 from ui.gui import CustomQWidget
 
+from PyQt5 import sip
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
@@ -136,8 +137,13 @@ class WebInterface(CustomQWidget):
     def _replacePage(self, page):
         oldPage = self.__view.page()
         self.__view.setPage(page)
-        if oldPage is not None:
-            oldPage.deleteLater()
+        # The very first swap replaces the page QWebEngineView lazily created for itself, which the
+        # view owns and destroys inside setPage(). Touching that stale wrapper (deleteLater/destroyed)
+        # raises "wrapped C/C++ object ... has been deleted", which used to abort the first openURL().
+        # Pages we construct here stay Python-owned and must still be deleted explicitly.
+        if oldPage is None or sip.isdeleted(oldPage):
+            return None
+        oldPage.deleteLater()
         return oldPage
 
     def _retireProfileAfterPageDelete(self, profile, page):
