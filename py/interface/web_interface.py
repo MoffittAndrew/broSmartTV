@@ -101,6 +101,21 @@ class FocusedElement:
         self.rect = rect
 
 
+_JS_CONSOLE_LOG_METHODS = {
+    QWebEnginePage.InfoMessageLevel: logger.info,
+    QWebEnginePage.WarningMessageLevel: logger.warning,
+    QWebEnginePage.ErrorMessageLevel: logger.error,
+}
+
+
+class _LoggingWebEnginePage(QWebEnginePage):
+    """Forwards the page's JS console output (errors, warnings, console.log) into the app logger
+    instead of letting Qt print it straight to the process console."""
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        logMethod = _JS_CONSOLE_LOG_METHODS.get(level, logger.info)
+        logMethod(f"Webpage console message: {message}", js_source=sourceID, js_line=lineNumber)
+
+
 class WebInterface(CustomQWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,6 +128,9 @@ class WebInterface(CustomQWidget):
 
         self.__view = QWebEngineView(self)
         self.__view.setFixedSize(DISPLAY.WIDTH, DISPLAY.HEIGHT)
+        # Replace the view's lazily-created default page up front so console logging is
+        # active even before the first openURL()/incognito switch installs one explicitly.
+        self.__view.setPage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
         self.__view.loadFinished.connect(self._onLoadFinished)
 
         layout = QVBoxLayout(self)
@@ -170,16 +188,16 @@ class WebInterface(CustomQWidget):
             oldProfile = self.__incognitoProfile
             # A profile constructed without a storage name is off-the-record (mirrors old --incognito flag).
             self.__incognitoProfile = QWebEngineProfile()
-            oldPage = self._replacePage(QWebEnginePage(self.__incognitoProfile, self.__view))
+            oldPage = self._replacePage(_LoggingWebEnginePage(self.__incognitoProfile, self.__view))
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         elif self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
 
         self.__lastFocusRect = None
-        logger.info("Loading webpage", url=url, incognito=incognito)
+        logger.info(f'Loading webpage "{url}"', url=url, incognito=incognito)
         self.__view.load(QUrl(url))
         self.show()
 
@@ -189,12 +207,13 @@ class WebInterface(CustomQWidget):
         self._setWindowTab(self)
 
     def _onLoadFinished(self, ok):
+        url = self.__view.url().toString()
         if not ok:
             # QWebEnginePage doesn't hand us an error message/code here, so we can only
             # log that navigation failed, not why (Qt logs the underlying network error itself).
-            logger.error("Webpage failed to load", url=self.__view.url().toString())
+            logger.error(f'Webpage failed to load "{url}"', url=url)
             return
-        logger.info("Webpage loaded", url=self.__view.url().toString())
+        logger.info(f'Webpage loaded "{url}"', url=url)
         self.__view.page().runJavaScript(_NAV_HELPERS_JS)
         self._runJs("window.__broNav.focusFirst();")
 
@@ -256,11 +275,12 @@ class WebInterface(CustomQWidget):
         )
 
     async def closeAndReturnHome(self):
-        logger.info("Shutting down webpage", url=self.__view.url().toString())
+        url = self.__view.url().toString()
+        logger.info(f'Shutting down webpage "{url}"', url=url)
         self.__view.stop()
         if self.__incognitoProfile is not None:
             oldProfile = self.__incognitoProfile
-            oldPage = self._replacePage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
+            oldPage = self._replacePage(_LoggingWebEnginePage(QWebEngineProfile.defaultProfile(), self.__view))
             self.__incognitoProfile = None
             self._retireProfileAfterPageDelete(oldProfile, oldPage)
         self.__view.setUrl(QUrl("about:blank"))
