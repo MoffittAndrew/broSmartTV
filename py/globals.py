@@ -275,7 +275,12 @@ class SCREEN_CAST:
 
     # Sender policy is centralized here so browser-side WebRTC tuning remains
     # reproducible across sessions and Pi deployments.
-    DEGRADATION_PREFERENCE = "maintain-framerate"
+    # "maintain-resolution" because the browser's own quality scaler otherwise
+    # drops encoded resolution (e.g. 1080p -> 1416x762) after brief CPU spikes and
+    # is slow to climb back; on a TV, a short FPS dip is less objectionable than a
+    # soft picture that persists. Our own adaptive policy still handles sustained
+    # low FPS by stepping down to the 720p floor.
+    DEGRADATION_PREFERENCE = "maintain-resolution"
     BITRATE_MAX_BPS_1080P = 5_000_000
     BITRATE_MIN_BPS_1080P = 0
     BITRATE_MAX_BPS_720P = 2_800_000

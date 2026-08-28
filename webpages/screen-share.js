@@ -203,6 +203,7 @@ function startFpsMonitor(sender) {
   let lastFramesEncoded = null;
   let lastBytesSent = null;
   let lastSenderLogAt = 0;
+  let wasEncoderDownscaling = false;
 
   state.fpsMonitor = setInterval(async () => {
     try {
@@ -299,6 +300,26 @@ function startFpsMonitor(sender) {
 
       state.currentWidth = videoStat.frameWidth || trackSettings.width || state.currentWidth;
       state.currentHeight = videoStat.frameHeight || trackSettings.height || state.currentHeight;
+
+      // The encoder can scale the sent frame below the capture profile on its own;
+      // that is invisible to our adaptive logic, so log the transitions explicitly.
+      const isEncoderDownscaling = !!state.activeProfile
+        && Number.isFinite(videoStat.frameWidth)
+        && videoStat.frameWidth < state.activeProfile.width;
+      if (isEncoderDownscaling !== wasEncoderDownscaling) {
+        wasEncoderDownscaling = isEncoderDownscaling;
+        if (isEncoderDownscaling) {
+          console.warn('Encoder-side downscale (browser quality scaler, not adaptive policy):', {
+            encodedWidth: videoStat.frameWidth,
+            encodedHeight: videoStat.frameHeight,
+            profileWidth: state.activeProfile.width,
+            profileHeight: state.activeProfile.height,
+            limitationReason,
+          });
+        } else {
+          console.log('Encoder returned to full profile resolution.');
+        }
+      }
 
       if (geometryDidChange) {
         await syncProfileToSourceGeometry('capture source resized');
@@ -656,6 +677,11 @@ async function startStreaming(options = {}) {
   }
 
   const videoTrack = state.stream.getVideoTracks()[0];
+  // Tells libwebrtc's quality scaler this is screen content, so it protects
+  // resolution/legibility instead of treating downscaling as free.
+  if (videoTrack) {
+    videoTrack.contentHint = 'detail';
+  }
   const initialSettings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
   updateCaptureSourceGeometry(initialSettings, { allowDecrease: true }, state);
   const resolvedProfile = profileForMode(state.currentQualityMode, state);

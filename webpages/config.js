@@ -31,7 +31,7 @@ export const DEFAULT_ADAPTIVE_POLICY = {
 };
 
 export const DEFAULT_SENDER_POLICY = {
-  degradationPreference: "maintain-framerate",
+  degradationPreference: "maintain-resolution",
   bitrateMaxBps1080p: 5_000_000,
   bitrateMinBps1080p: 0,
   bitrateMaxBps720p: 2_800_000,
