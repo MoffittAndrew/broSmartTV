@@ -59,7 +59,7 @@ def make_interface(async_command_runner=None, is_raspberry_pi=True, projector_in
         request_reboot_pending=lambda: reboot_pending_calls.append(True),
         is_raspberry_pi=is_raspberry_pi,
         projector_interface=projector_interface,
-        show_shutdown_screen=lambda: shutdown_screen_calls.append(True),
+        show_shutdown_screen=lambda msg=None: shutdown_screen_calls.append(msg),
     )
     return interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls, shutdown_screen_calls
 
@@ -74,7 +74,7 @@ async def test_restart_app_quits_without_touching_projector():
     assert quit_calls == []
     assert skip_standby_calls == [True]
     assert reboot_pending_calls == []
-    assert shutdown_screen_calls == []
+    assert shutdown_screen_calls == ["bro is restarting..."]
 
 
 @pytest.mark.asyncio
@@ -86,7 +86,7 @@ async def test_shutdown_app_shows_screen_tears_down_projector_and_skips_standby_
 
     await interface.shutdown_app()
 
-    assert shutdown_screen_calls == [True]
+    assert shutdown_screen_calls == ["bro is shutting down..."]
     assert teardown.calls == [{"projector_interface": projector, "quit_app": True}]
     assert skip_standby_calls == []
     assert reboot_pending_calls == []
@@ -106,6 +106,7 @@ async def test_reboot_device_runs_shutdown_command_without_projector_then_quits(
     assert quit_calls == [True]
     assert skip_standby_calls == [True]
     assert reboot_pending_calls == [True]
+    assert shutdown_screen_calls == ["bro is rebooting..."]
 
 
 @pytest.mark.asyncio

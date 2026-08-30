@@ -17,6 +17,7 @@ class ShutdownScreen(CustomQWidget):
         self.spinner = QtWaitingSpinner()
         self.spinner.setParent(self)
 
+        self.__statusLabel = QLabel()
         self.setMessage()
         self.__statusLabel.setAlignment(Qt.AlignCenter)
         self.__statusLabel.setStyleSheet("font-size: 30px; color: white;")
