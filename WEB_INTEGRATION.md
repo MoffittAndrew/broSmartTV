@@ -74,13 +74,21 @@ All `runJavaScript` calls therefore pass `QWebEngineScript.ApplicationWorld`.
   ready `<video>`; drives player-mode detection.
 - `state()` - `{focus, player}` snapshot; every command returns it so Python always has
   a fresh view of the page after each remote press.
-- `handleNav(direction)` / `handleSelect()` - mode-aware wrappers: in player mode they
-  return state untouched so Python forwards a real key event instead (see below).
 - `activate()` - emulates a full pointer press (pointerdown/mousedown/pointerup/
   mouseup/click at the element's centre), since many custom tiles/players ignore a bare
   `.click()` (used for SELECT).
+- `revealControlsAndMove(direction)` - dispatches a synthetic `mousemove` (what player
+  overlays listen for to un-hide their chrome after being idle), waits two
+  `requestAnimationFrame`s via a returned Promise (`runJavaScript` awaits a returned
+  Promise before resolving) so the reveal's CSS transition has actually started, then
+  calls `move(direction)`. Used only for the first NAV_UP/DOWN press that enters player
+  **controls mode** (see below) so it can't race the controls fading in.
 - `setValue(text)` - writes text into the focused field and dispatches `input`/`change`
   events (used after the on-screen keyboard submits).
+
+All mode branching (player seek vs. controls vs. normal DOM nav) lives in
+`WebInterface.navigate()`/`select()`/`back()` on the Python side - the JS layer only
+exposes these dumb primitives - so the mode state machine has a single source of truth.
 
 Python awaits each command's returned state via `_queryState()` (an asyncio future
 resolved by the `runJavaScript` callback, with a `WEB.JS_QUERY_TIMEOUT_SECONDS` guard so
@@ -94,28 +102,50 @@ a hung/navigating page can never wedge `InputInterface`'s backlog queue).
 ### Player mode (watching video)
 
 Streaming players (Netflix `/watch`, fullscreen YouTube, etc.) don't use focusable DOM
-navigation - they bind document-level keyboard shortcuts, and they ignore untrusted
-synthetic JS `KeyboardEvent`s. So when a page is "player-like" - HTML5 fullscreen is
-active, or a ready `<video>` covers at least `WEB.PLAYER_MIN_VIDEO_COVERAGE` of the
-viewport (0.85: above Netflix's browse-page billboard, below its full-viewport player) -
-input switches to forwarding **real Qt key events** into Chromium's input widget (the
-view's `focusProxy()`):
+navigation for playback controls - they bind document-level keyboard shortcuts, and they
+ignore untrusted synthetic JS `KeyboardEvent`s. So when a page is "player-like" - HTML5
+fullscreen is active, or a ready `<video>` covers at least `WEB.PLAYER_MIN_VIDEO_COVERAGE`
+of the viewport (0.85: above Netflix's browse-page billboard, below its full-viewport
+player) - `WebInterface` tracks `__playerActive` and splits input into two sub-modes:
 
-- NAV arrows -> real arrow keys (seek/volume, per the site's own shortcuts).
-- SELECT -> Space (play/pause everywhere).
-- RETURN -> Escape while fullscreen (Chromium exits HTML5 fullscreen natively).
+- **Seek mode** (the default on entering player mode): NAV_LEFT/RIGHT forward **real Qt
+  key events** into Chromium's input widget (the view's `focusProxy()`, via
+  `_forwardKey()`) for seek, and SELECT forwards Space for play/pause. These are trusted
+  native key events, so they work on players that ignore everything scriptable. NAV_UP/
+  DOWN are deliberately *not* forwarded as a volume shortcut here (the remote has no
+  separate volume control to sacrifice for it); instead the first NAV_UP/DOWN press
+  switches into **controls mode** and, in the same call, reveals and moves DOM focus
+  into the player's own overlay controls (`revealControlsAndMove()`).
+- **Controls mode**: NAV_UP/RIGHT/DOWN/LEFT all become normal DOM spatial navigation
+  (`move(direction)`) over the now-visible overlay buttons (play/pause, next episode,
+  captions, etc.), and SELECT clicks the focused control instead of forwarding Space.
+  The selection outline reappears over whichever control is focused.
 
-The selection outline is hidden while player mode is active. Because these are trusted
-native key events, they work on players that ignore everything scriptable.
+RETURN backs out of controls mode into seek mode first (see below) rather than
+immediately exiting fullscreen, so a stray press while browsing the controls doesn't
+kick you out of the player. Controls mode also resets back to seek mode automatically
+once the player is no longer active (state transitions are re-checked on every JS
+callback in `_applyState()`).
 
 ### RETURN behaves like a browser back button
 
-`WebInterface.back()` (RETURN in WEB mode) tries, in order: exit HTML5 fullscreen ->
-`history.back()` (never back into the idle `about:blank`; `openURL()` clears history per
-tile so back never crosses into a previously-opened site) -> close the page and return
-home. It returns whether it was handled in-page so `InputInterface` only leaves WEB mode
-on a real close. HOME still always closes the page outright, and MENU logs a
-`debugPage()` diagnostic snapshot (nav-helper presence, player state, focus, history).
+`WebInterface.back()` (RETURN in WEB mode) tries, in order:
+
+1. **Leave controls mode** back into seek mode, if currently browsing player controls.
+2. **Exit fullscreen**, if `__pageFullscreen` is set. This flag is tracked directly from
+   the `fullScreenRequested` signal (`request.toggleOn()`) rather than re-derived from JS
+   on every RETURN press - Chromium's native Escape-exits-fullscreen shortcut isn't
+   reachable by posting a synthetic `QKeyEvent`, so exiting goes through the dedicated
+   `QWebEnginePage.ExitFullScreen` web action instead (Escape is still forwarded
+   afterwards too, in case the site also layers its own non-Fullscreen-API overlay that
+   only listens for a real keydown).
+3. **`history.back()`** - never back into the idle `about:blank` (`openURL()` clears
+   history per tile so back never crosses into a previously-opened site).
+4. **Close the page and return home.**
+
+It returns whether it was handled in-page so `InputInterface` only leaves WEB mode on a
+real close. HOME still always closes the page outright, and MENU logs a `debugPage()`
+diagnostic snapshot (nav-helper presence, player/controls-mode state, focus, history).
 
 ### Browser parity (profile/page configuration)
 

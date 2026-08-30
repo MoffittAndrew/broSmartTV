@@ -197,19 +197,23 @@ _NAV_HELPERS_JS = """
             return { focus: nav.focusInfo(), player: nav.player() };
         },
 
-        handleNav: function(direction) {
-            // In player mode Python forwards a real (trusted) arrow key instead; moving
-            // DOM focus around underneath a video player is useless and confusing.
-            if (nav.player().active) { return nav.state(); }
-            return nav.move(direction);
-        },
-
-        handleSelect: function() {
-            if (nav.player().active) { return nav.state(); }
-            var info = nav.focusInfo();
-            // Editable fields are handled Python-side (on-screen keyboard), not clicked.
-            if (info && info.editable) { return nav.state(); }
-            return nav.activate();
+        revealControlsAndMove: function(direction) {
+            // Players hide their overlay chrome after a few idle seconds; a synthetic
+            // mousemove is what every mainstream player listens for to bring it back.
+            var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+            var target = document.elementFromPoint(cx, cy) || document.body;
+            var evt = new MouseEvent('mousemove', { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy });
+            target.dispatchEvent(evt);
+            document.dispatchEvent(evt);
+            // Controls typically fade in via a CSS transition kicked off by that event; a
+            // synchronous move() right away can still see opacity:0 mid-transition, so wait
+            // a couple of frames (Chromium waits out returned Promises before resolving
+            // runJavaScript) before actually moving focus into the now-visible controls.
+            return new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() { resolve(nav.move(direction)); });
+                });
+            });
         },
 
         activate: function() {
@@ -254,11 +258,11 @@ _NAV_DIRECTION_JS = {
     INPUT.NAV_LEFT: "left",
 }
 
-# Player-mode key forwarding: every mainstream web player binds these (seek/volume/etc.).
+# Seek-mode key forwarding: left/right map to every mainstream web player's seek shortcut.
+# Up/down are deliberately not forwarded - they instead toggle into player-controls
+# navigation (see navigate()), since this remote has no separate volume control to give up.
 _PLAYER_NAV_KEYS = {
-    INPUT.NAV_UP: Qt.Key_Up,
     INPUT.NAV_RIGHT: Qt.Key_Right,
-    INPUT.NAV_DOWN: Qt.Key_Down,
     INPUT.NAV_LEFT: Qt.Key_Left,
 }
 
@@ -361,6 +365,12 @@ class WebInterface(CustomQWidget):
         self.__isEditableFocus = False
         self.__lastFocusValue = ""
         self.__playerActive = False
+        # True while the remote is browsing the player's own overlay buttons (see navigate());
+        # false is the default "seeking" sub-mode where left/right forward as real arrow keys.
+        self.__playerControlsMode = False
+        # Tracked directly from fullScreenRequested rather than re-derived from JS each RETURN -
+        # synthetic key events can't reliably reach Chromium's native fullscreen-escape handling.
+        self.__pageFullscreen = False
 
         self.__view = QWebEngineView(self)
         self.__view.setFixedSize(DISPLAY.WIDTH, DISPLAY.HEIGHT)
@@ -436,7 +446,8 @@ class WebInterface(CustomQWidget):
         # The view is already fullscreen-sized, so accepting is all the HTML5 fullscreen API
         # needs to report success; rejecting (the default) makes player fullscreen buttons no-op.
         request.accept()
-        logger.info("Page fullscreen toggled", fullscreen=request.toggleOn())
+        self.__pageFullscreen = request.toggleOn()
+        logger.info("Page fullscreen toggled", fullscreen=self.__pageFullscreen)
 
     def _onFeaturePermissionRequested(self, page, origin, feature):
         # The TV has no camera/mic/location; deny immediately so sites don't wait forever on
@@ -481,6 +492,8 @@ class WebInterface(CustomQWidget):
         self.__lastFocusRect = None
         self.__isEditableFocus = False
         self.__playerActive = False
+        self.__playerControlsMode = False
+        self.__pageFullscreen = False
         # Fresh history per tile so RETURN's history-back never walks into a previously
         # opened site (clear() keeps only the current entry).
         self.__view.history().clear()
@@ -537,10 +550,13 @@ class WebInterface(CustomQWidget):
             return
         player = state.get("player") or {}
         self.__playerActive = bool(player.get("active"))
+        if not self.__playerActive:
+            # Controls navigation only makes sense while a player is actually active.
+            self.__playerControlsMode = False
         inputInterface = self.getInputInterface()
-        if self.__playerActive:
+        if self.__playerActive and not self.__playerControlsMode:
             # A selection outline floating over a full-viewport video is just visual noise;
-            # setSelectedButton() re-shows the overlay once focus tracking resumes.
+            # setSelectedButton() re-shows the overlay once controls-mode focus tracking resumes.
             if inputInterface is not None:
                 inputInterface.hide()
             return
@@ -563,22 +579,28 @@ class WebInterface(CustomQWidget):
         jsDirection = _NAV_DIRECTION_JS.get(direction)
         if jsDirection is None:
             return
-        # handleNav() moves DOM focus itself unless the page is in player mode, in which
-        # case the fresh state tells us to forward a real arrow key (seek/volume) instead.
-        state = await self._queryState(f"window.__broNav && window.__broNav.handleNav('{jsDirection}');")
-        if state is not None and self.__playerActive:
-            self._forwardKey(_PLAYER_NAV_KEYS[direction])
+
+        if self.__playerActive and not self.__playerControlsMode:
+            if direction in _PLAYER_NAV_KEYS:
+                self._forwardKey(_PLAYER_NAV_KEYS[direction])
+                return
+            # First up/down press while seeking switches into player-controls navigation.
+            # Revealing the overlay and moving focus happen in one JS round trip so the
+            # move can't race the controls' fade-in transition.
+            self.__playerControlsMode = True
+            await self._queryState(f"window.__broNav && window.__broNav.revealControlsAndMove('{jsDirection}');")
+            return
+
+        await self._queryState(f"window.__broNav && window.__broNav.move('{jsDirection}');")
 
     async def select(self):
-        state = await self._queryState("window.__broNav && window.__broNav.handleSelect();")
-        if state is None:
-            return
-        if self.__playerActive:
+        if self.__playerActive and not self.__playerControlsMode:
             # Space toggles play/pause in every mainstream web player.
             self._forwardKey(Qt.Key_Space, " ")
         elif self.__isEditableFocus:
             self._openKeyboardForFocusedField()
-        # Otherwise handleSelect() already activated the focused element in-page.
+        else:
+            await self._queryState("window.__broNav && window.__broNav.activate();")
 
     def _openKeyboardForFocusedField(self):
         window = self.window()
@@ -608,14 +630,27 @@ class WebInterface(CustomQWidget):
         )
 
     async def back(self):
-        """Browser-like RETURN: exit fullscreen first, then history-back, then close the page.
-        Returns True while handled in-page so InputInterface keeps WEB mode active."""
-        state = await self._queryState("window.__broNav && window.__broNav.state();")
-        player = (state or {}).get("player") or {}
-        if player.get("fullscreen"):
-            # Chromium natively exits HTML5 fullscreen on a real Escape key press.
+        """Browser-like RETURN: leave player-controls navigation, then exit fullscreen, then
+        history-back, then close the page. Returns True while handled in-page so
+        InputInterface keeps WEB mode active."""
+        if self.__playerControlsMode:
+            # Back out of controls navigation into seek mode first, mirroring a real player's
+            # controls fading back out; only a second RETURN goes further than this.
+            self.__playerControlsMode = False
+            inputInterface = self.getInputInterface()
+            if inputInterface is not None:
+                inputInterface.hide()
+            return True
+
+        if self.__pageFullscreen:
+            # The dedicated web action - not a synthetic Escape key event - is what actually
+            # reaches Chromium's fullscreen-exit handling; escape alone was a silent no-op.
+            self.__view.page().triggerAction(QWebEnginePage.ExitFullScreen)
+            # Also forward Escape in case the site layers its own non-Fullscreen-API overlay
+            # (theatre mode, a settings menu) on top that only listens for a real keydown.
             self._forwardKey(Qt.Key_Escape)
             return True
+
         history = self.__view.history()
         # Never history-back into the about:blank the view idles on between tiles.
         if history.canGoBack() and history.backItem().url().toString() not in ("", "about:blank"):
@@ -637,7 +672,8 @@ class WebInterface(CustomQWidget):
                 reason=reason,
                 nav_helpers_present=state is not None,
                 player_active=bool(player.get("active")),
-                player_fullscreen=bool(player.get("fullscreen")),
+                player_controls_mode=self.__playerControlsMode,
+                page_fullscreen=self.__pageFullscreen,
                 video_coverage=round(player.get("coverage", 0) or 0, 3),
                 focus_editable=bool(focus.get("editable")),
                 history_can_go_back=self.__view.history().canGoBack(),
@@ -659,6 +695,8 @@ class WebInterface(CustomQWidget):
         self.__lastFocusRect = None
         self.__isEditableFocus = False
         self.__playerActive = False
+        self.__playerControlsMode = False
+        self.__pageFullscreen = False
         self.__view.setUrl(QUrl("about:blank"))
         self.hide()
         self._setWindowTab()
