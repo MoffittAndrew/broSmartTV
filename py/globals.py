@@ -316,8 +316,7 @@ class SCREEN_CAST:
     ]
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
-
-class WEBDEBUG:
+class _WEBDEBUG:
     # Chrome DevTools Protocol port for the embedded QWebEngineView. Qt/Chromium binds this to
     # 127.0.0.1 only when given a bare port number (no host prefix) - never reachable directly
     # off-device, only reverse-proxied by webserver/webdebug_routes.py.
@@ -331,3 +330,8 @@ class WEBDEBUG:
     # where this gets printed straight to stdout instead.
     TOKEN = os.getenv("BRO_WEBDEBUG_TOKEN") or secrets.token_urlsafe(24)
 
+class WEB:
+    DEBUG = _WEBDEBUG
+    # User agent string to use for the embedded QWebEngineView. Some streaming services
+    # may reject the default Qt/Raspberry-Pi user agent.
+    USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 OPR/124.0.0.0 (Edition developer)"

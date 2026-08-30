@@ -6,7 +6,7 @@ logger.info("Importing web interface...")
 
 import json
 
-from globals import DISPLAY, INPUT
+from globals import DISPLAY, INPUT, WEB
 from ui.gui import CustomQWidget
 
 from PyQt5 import sip
@@ -109,15 +109,8 @@ _JS_CONSOLE_LOG_METHODS = {
 }
 
 
-# Some streaming identity flows reject Qt/Raspberry-Pi user-agent metadata even when the page loads.
-_DESKTOP_CHROME_USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36"
-)
-
-
 def _configureWebProfile(profile):
-    profile.setHttpUserAgent(_DESKTOP_CHROME_USER_AGENT)
+    profile.setHttpUserAgent(WEB.USER_AGENT)
 
 
 class _LoggingWebEnginePage(QWebEnginePage):

@@ -18,17 +18,17 @@ import aiohttp
 from aiohttp import web
 
 from app_logging import get_adapter
-from globals import PATH, WEBDEBUG
+from globals import PATH, WEB
 
 logger = get_adapter("webdebug", "webhosting")
 
 _COOKIE_NAME = "bro_webdebug_token"
 _CLIENT_KEY = "webdebug_http_client"
-_CDP_ORIGIN = f"http://127.0.0.1:{WEBDEBUG.CDP_PORT}"
+_CDP_ORIGIN = f"http://127.0.0.1:{WEB.DEBUG.CDP_PORT}"
 
 
 def _token_matches(candidate):
-    return bool(candidate) and secrets.compare_digest(candidate, WEBDEBUG.TOKEN)
+    return bool(candidate) and secrets.compare_digest(candidate, WEB.DEBUG.TOKEN)
 
 
 @web.middleware
@@ -47,7 +47,7 @@ async def _auth_middleware(request, handler):
         # follow-up asset/websocket requests (which can't carry a query token themselves) pass.
         response.set_cookie(
             _COOKIE_NAME,
-            WEBDEBUG.TOKEN,
+            WEB.DEBUG.TOKEN,
             httponly=True,
             secure=request.scheme == "https",
             samesite="Strict",
@@ -59,8 +59,8 @@ def _rewrite_cdp_body(body_text, request):
     """Point CDP's self-reported URLs back through this proxy instead of the internal port."""
     proxy_host = f"{request.host}/webdebug"
     ws_scheme = "wss" if request.scheme == "https" else "ws"
-    rewritten = body_text.replace(f"ws://127.0.0.1:{WEBDEBUG.CDP_PORT}", f"{ws_scheme}://{proxy_host}")
-    rewritten = rewritten.replace(f"127.0.0.1:{WEBDEBUG.CDP_PORT}", proxy_host)
+    rewritten = body_text.replace(f"ws://127.0.0.1:{WEB.DEBUG.CDP_PORT}", f"{ws_scheme}://{proxy_host}")
+    rewritten = rewritten.replace(f"127.0.0.1:{WEB.DEBUG.CDP_PORT}", proxy_host)
     rewritten = rewritten.replace('"/devtools/', '"/webdebug/devtools/')
     if ws_scheme == "wss":
         # inspector.html only opens a secure websocket if told via `wss=`; fed `ws=` while the
@@ -120,7 +120,7 @@ async def _proxy_devtools_ws(request, tail):
     await ws_server.prepare(request)
 
     try:
-        async with client.ws_connect(f"ws://127.0.0.1:{WEBDEBUG.CDP_PORT}/devtools/{tail}") as ws_client:
+        async with client.ws_connect(f"ws://127.0.0.1:{WEB.DEBUG.CDP_PORT}/devtools/{tail}") as ws_client:
 
             async def pump(source, sink):
                 async for msg in source:
