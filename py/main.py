@@ -47,6 +47,7 @@ from interface.web_interface import webInterface
 from interface.remote_interface import remoteInterface
 from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
+from interface.system_interface import systemInterface
 from webserver.screen_cast import (
     startScreenCastServer,
     setFrameHandler,
@@ -111,6 +112,8 @@ MAIN_WINDOW.addWidget(webInterface)
 webInterface.hide()
 
 inputInterface.setProjectorInterface(projectorInterface)
+inputInterface.setSystemInterface(systemInterface)
+systemInterface.setProjectorInterface(projectorInterface)
 inputInterface.setWebInterface(webInterface)
 webInterface.setInputInterface(inputInterface)
 keyboardInterface.setInputInterface(inputInterface)

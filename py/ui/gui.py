@@ -203,6 +203,10 @@ class CustomQWindow(CustomQWidget):
         self.__textInputOnCancel = None
         self.addWidget(self.__onScreenKeyboard)
         self.__onScreenKeyboard.hide()
+        from ui.shutdown_screen import ShutdownScreen
+        self.__shutdownScreen = ShutdownScreen(parent=self)
+        self.addWidget(self.__shutdownScreen)
+        self.__shutdownScreen.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -218,6 +222,9 @@ class CustomQWindow(CustomQWidget):
 
     def getOnScreenKeyboard(self):
         return self.__onScreenKeyboard
+
+    def getShutdownScreen(self):
+        return self.__shutdownScreen
 
     def getAbsolutePos(self):
         return QPoint(0, 0)
@@ -372,6 +379,15 @@ class CustomQWindow(CustomQWidget):
         if self.__screenCastPreviousWidget is not None:
             self.__layout.setCurrentWidget(self.__screenCastPreviousWidget)
             self.__screenCastPreviousWidget = None
+
+    def showShutdownScreen(self, msg=None):
+        # One-way transition: no corresponding hide, the process exits shortly after.
+        self.__shutdownScreen.setGeometry(0, 0, self.width(), self.height())
+        self.__shutdownScreen.setMessage(msg)
+        self.__shutdownScreen.show()
+        self.__shutdownScreen.raise_()
+        self.__layout.setCurrentWidget(self.__shutdownScreen)
+        self.__shutdownScreen.start()
 
     def keyPressEvent(self, event, *args, **kwargs):
         if self.getKeyboard() is not None:

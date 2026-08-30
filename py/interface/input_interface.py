@@ -9,7 +9,6 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QScrollArea
 
 import asyncio
-from teardown import teardown_app
 
 class InputInterface(CustomQLabel):
     def __init__(self, selectedButton = None, projectorInterface = None, *args, **kwargs):
@@ -20,6 +19,7 @@ class InputInterface(CustomQLabel):
         self.setRoundness(GUI.BUTTON.ROUNDNESS)
         self.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
         self.setProjectorInterface(projectorInterface)
+        self.__systemInterface = None
         self.__webInterface = None
         self.__backlog = []
         self.__isProcessingBacklog = False
@@ -62,6 +62,9 @@ class InputInterface(CustomQLabel):
 
     def getProjectorInterface(self):
         return self.__projectorInterface
+
+    def getSystemInterface(self):
+        return self.__systemInterface
     
     def setMode(self, mode = INPUT.MODES.GUI):
         if mode == INPUT.MODES.PROJECTOR and self.getProjectorInterface() is None:
@@ -128,6 +131,9 @@ class InputInterface(CustomQLabel):
     
     def setProjectorInterface(self, projectorInterface):
         self.__projectorInterface = projectorInterface
+
+    def setSystemInterface(self, systemInterface):
+        self.__systemInterface = systemInterface
     
     def receive(self, data):
         self.addToBacklog(data)
@@ -173,7 +179,7 @@ class InputInterface(CustomQLabel):
             self.__isProcessingBacklog = False
     
     async def powerOff(self):
-        await teardown_app(projector_interface=self.getProjectorInterface(), quit_app=True)
+        await self.getSystemInterface().shutdown_app()
     
     async def select(self):
         if self.inProjectorMode():
