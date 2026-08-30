@@ -237,9 +237,13 @@ class InputInterface(CustomQLabel):
             await self.getProjectorInterface().back()
         elif self.inWebMode():
             webInterface = self.getWebInterface()
+            handledInPage = False
             if webInterface is not None:
-                await webInterface.closeAndReturnHome()
-            self.setMode(self.getOldMode())
+                # True while the page consumed RETURN (exited fullscreen or went back in
+                # history); only an actual page close should drop out of WEB mode.
+                handledInPage = await webInterface.back()
+            if not handledInPage:
+                self.setMode(self.getOldMode())
     
     async def menu(self):
         if self.inGUIMode():

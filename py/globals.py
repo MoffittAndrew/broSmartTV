@@ -335,3 +335,17 @@ class WEB:
     # User agent string to use for the embedded QWebEngineView. Some streaming services
     # may reject the default Qt/Raspberry-Pi user agent.
     USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 OPR/124.0.0.0 (Edition developer)"
+    # Sent alongside the UA; a missing Accept-Language is another bot/embedded-browser tell
+    # some streaming CDNs use, and it drives which subtitle/audio defaults sites pick.
+    ACCEPT_LANGUAGE = "en-GB,en;q=0.9"
+    # Bound Chromium's disk cache so streaming media caching can't chew through the Pi's SD card.
+    HTTP_CACHE_MAX_BYTES = 256 * 1024 * 1024
+
+    # A <video> covering at least this fraction of the viewport (or HTML5 fullscreen) flips
+    # web input into "player mode": remote keys are forwarded to the page as real key events
+    # instead of moving spatial focus. 0.85 keeps Netflix's large-but-not-full browse
+    # billboards below the threshold while /watch-style full-viewport players are above it.
+    PLAYER_MIN_VIDEO_COVERAGE = 0.85
+    # runJavaScript callbacks can be dropped if the page navigates/crashes mid-flight; a
+    # timeout stops a lost callback from wedging the input backlog queue forever.
+    JS_QUERY_TIMEOUT_SECONDS = 2.0

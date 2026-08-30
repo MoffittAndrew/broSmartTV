@@ -49,29 +49,97 @@ This also fixed two latent bugs in the old design:
 
 Arbitrary websites don't expose a "next button in this direction" API, and the old
 Selenium relative-locator approach (`getElementAbove`/`Right`/`Below`/`Left`) was
-fragile and Selenium-specific. Instead, `web_interface.py` injects a small custom JS
-helper object (`window.__broNav`, defined by the `_NAV_HELPERS_JS` string constant) on
-every page load:
+fragile and Selenium-specific. Instead, `web_interface.py` installs a small custom JS
+helper object (`window.__broNav`, defined by the `_NAV_HELPERS_JS` string constant) as
+a profile-level `QWebEngineScript` (injection point `DocumentReady`, world
+`ApplicationWorld`, main frame only). Script-collection injection - rather than a
+`loadFinished`-time `runJavaScript()` - survives redirects and SPA soft-navigations,
+and the isolated world keeps `__broNav` invisible to (and untouchable by) page scripts.
+All `runJavaScript` calls therefore pass `QWebEngineScript.ApplicationWorld`.
 
-- `_focusable()` - finds visible focusable elements (links, buttons, inputs, etc.).
-- `move(direction)` - scores focusable elements by distance/overlap relative to
-  `document.activeElement` and focuses the best match in that direction.
-- `focusFirst()` - focuses the first focusable element (used right after page load).
+- `_focusable()` - finds visible focusable elements: links, buttons, inputs,
+  `tabindex`, plus ARIA roles (`role="button"` etc., which streaming SPAs use on plain
+  divs), traversing open shadow roots (YouTube/Polymer). Candidates are restricted to
+  roughly one screen above/below the viewport so a NAV press moves one row instead of
+  teleporting to a distant footer.
+- `move(direction)` - scores candidates by centre-to-centre distance with a
+  perpendicular penalty, prefers row/column-aligned candidates over diagonal jumps,
+  tolerates the few-px edge misalignment of virtualized carousels, then focuses the
+  best match and `scrollIntoView`s it.
+- `focusFirst()` - focuses the first fully-visible focusable element after page load
+  (skipped on player-style pages, see player mode below).
 - `focusInfo()` - returns the focused element's bounding rect, whether it's editable,
   and its current value.
-- `activate()` - clicks the focused element (used for SELECT).
+- `player()` - reports HTML5-fullscreen state and the viewport coverage of the largest
+  ready `<video>`; drives player-mode detection.
+- `state()` - `{focus, player}` snapshot; every command returns it so Python always has
+  a fresh view of the page after each remote press.
+- `handleNav(direction)` / `handleSelect()` - mode-aware wrappers: in player mode they
+  return state untouched so Python forwards a real key event instead (see below).
+- `activate()` - emulates a full pointer press (pointerdown/mousedown/pointerup/
+  mouseup/click at the element's centre), since many custom tiles/players ignore a bare
+  `.click()` (used for SELECT).
 - `setValue(text)` - writes text into the focused field and dispatches `input`/`change`
   events (used after the on-screen keyboard submits).
 
-This is a small **custom heuristic written for this app**, not the WICG
-spatial-navigation polyfill - that avoids a runtime network fetch on every page load
-and any third-party licensing to vendor. It hasn't been validated against real
-streaming-site DOM structures yet (Netflix/Disney+/Prime) and may need per-site tuning.
+Python awaits each command's returned state via `_queryState()` (an asyncio future
+resolved by the `runJavaScript` callback, with a `WEB.JS_QUERY_TIMEOUT_SECONDS` guard so
+a hung/navigating page can never wedge `InputInterface`'s backlog queue).
 
 `InputInterface.setSelectedButton()` already accepted a non-`Button` selection with a
 `.rect` dict (previously fed by Selenium's `WebElement.rect`). `web_interface.py`'s
 `FocusedElement` class just wraps the JS-returned rect in that same shape, so
 `setSelectedButton()` needed no changes.
+
+### Player mode (watching video)
+
+Streaming players (Netflix `/watch`, fullscreen YouTube, etc.) don't use focusable DOM
+navigation - they bind document-level keyboard shortcuts, and they ignore untrusted
+synthetic JS `KeyboardEvent`s. So when a page is "player-like" - HTML5 fullscreen is
+active, or a ready `<video>` covers at least `WEB.PLAYER_MIN_VIDEO_COVERAGE` of the
+viewport (0.85: above Netflix's browse-page billboard, below its full-viewport player) -
+input switches to forwarding **real Qt key events** into Chromium's input widget (the
+view's `focusProxy()`):
+
+- NAV arrows -> real arrow keys (seek/volume, per the site's own shortcuts).
+- SELECT -> Space (play/pause everywhere).
+- RETURN -> Escape while fullscreen (Chromium exits HTML5 fullscreen natively).
+
+The selection outline is hidden while player mode is active. Because these are trusted
+native key events, they work on players that ignore everything scriptable.
+
+### RETURN behaves like a browser back button
+
+`WebInterface.back()` (RETURN in WEB mode) tries, in order: exit HTML5 fullscreen ->
+`history.back()` (never back into the idle `about:blank`; `openURL()` clears history per
+tile so back never crosses into a previously-opened site) -> close the page and return
+home. It returns whether it was handled in-page so `InputInterface` only leaves WEB mode
+on a real close. HOME still always closes the page outright, and MENU logs a
+`debugPage()` diagnostic snapshot (nav-helper presence, player state, focus, history).
+
+### Browser parity (profile/page configuration)
+
+`_configureWebProfile()` makes the embedded view behave like a normal desktop Chromium
+toward the sites (applied to both the default and incognito profiles):
+
+- `WEB.USER_AGENT` plus `WEB.ACCEPT_LANGUAGE` (a missing Accept-Language is another
+  embedded-browser tell some CDNs check).
+- **`PluginsEnabled`** - required for Chromium to load the Widevine CDM at all; DRM
+  playback fails without it even with a valid `--widevine-path`.
+- `FullScreenSupportEnabled` + accepting `fullScreenRequested` on every page - player
+  fullscreen buttons silently no-op without both halves.
+- `PlaybackRequiresUserGesture=False` - there is no mouse/touch to provide the "user
+  gesture" autoplay normally requires.
+- `JavascriptCanOpenWindows` + a `createWindow()` override that adopts a popup's first
+  navigation back into the main view (standard kiosk pattern) - OAuth login windows and
+  `target=_blank` links would otherwise silently fail under eglfs (no window manager).
+- `featurePermissionRequested` is denied immediately (no camera/mic/location on a TV) so
+  sites don't hang waiting on an unanswerable prompt.
+- Persistent cookies are forced on the default profile so streaming logins survive
+  restarts; the HTTP cache is bounded (`WEB.HTTP_CACHE_MAX_BYTES`) for SD-card wear.
+- `renderProcessTerminated` triggers a delayed auto-reload - renderer OOM-kills are a
+  real possibility on the Pi and used to leave a dead white page.
+- TLS certificate errors are logged (never overridden) and scrollbars are hidden.
 
 ### Keyboard integration (typing into search boxes etc.)
 
