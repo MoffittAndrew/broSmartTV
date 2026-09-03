@@ -16,9 +16,9 @@ class IRInterface:
         log(f"Initializing IR interface (raspberry_pi={DEVICE.IS_RASPBERRY_PI}).")
         self._can_send_ir = DEVICE.IS_RASPBERRY_PI
     
-    def send(self, data):
+    def send(self, device, data):
         if self._can_send_ir:
-            command = ["irsend", "SEND_ONCE", "Projector", data]
+            command = ["irsend", "SEND_ONCE", device, data]
             log(f"Sending IR command: {command!r}")
             try:
                 result = subprocess.run(command, capture_output=True, text=True, check=False)

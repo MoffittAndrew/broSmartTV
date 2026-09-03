@@ -18,7 +18,7 @@ class ProjectorInterface:
     
     async def send(self, data):
         if self.getIrInterface() is not None:
-            self.getIrInterface().send(data)
+            self.getIrInterface().send(PROJECTOR.DEVICE_NAME, data)
             await sleep(PROJECTOR.INPUT_DELAY)
         else:
             print("Cannot send IR data, no IR interface has been set!")
