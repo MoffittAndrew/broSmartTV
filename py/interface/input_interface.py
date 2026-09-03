@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QScrollArea
 import asyncio
 
 class InputInterface(CustomQLabel):
-    def __init__(self, selectedButton = None, projectorInterface = None, *args, **kwargs):
+    def __init__(self, selectedButton = None, projectorInterface = None, soundbarInterface = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__mode = INPUT.MODES.GUI
         self.setOldMode(INPUT.MODES.GUI)
@@ -19,6 +19,7 @@ class InputInterface(CustomQLabel):
         self.setRoundness(GUI.BUTTON.ROUNDNESS)
         self.setBorderThickness(GUI.BUTTON.BORDER_THICKNESS)
         self.setProjectorInterface(projectorInterface)
+        self.setSoundbarInterface(soundbarInterface)
         self.__systemInterface = None
         self.__webInterface = None
         self.__backlog = []
@@ -62,6 +63,9 @@ class InputInterface(CustomQLabel):
 
     def getProjectorInterface(self):
         return self.__projectorInterface
+
+    def getSoundbarInterface(self):
+        return self.__soundbarInterface
 
     def getSystemInterface(self):
         return self.__systemInterface
@@ -131,6 +135,9 @@ class InputInterface(CustomQLabel):
     
     def setProjectorInterface(self, projectorInterface):
         self.__projectorInterface = projectorInterface
+    
+    def setSoundbarInterface(self, soundbarInterface):
+        self.__soundbarInterface = soundbarInterface
 
     def setSystemInterface(self, systemInterface):
         self.__systemInterface = systemInterface
@@ -179,7 +186,12 @@ class InputInterface(CustomQLabel):
             self.__isProcessingBacklog = False
     
     async def powerOff(self):
-        await self.getSystemInterface().shutdown_app()
+        systemInterface = self.getSystemInterface()
+        if systemInterface is not None:
+            await systemInterface.shutdown_app()
+        else:
+            # TODO: LOG ERROR
+            ...
     
     async def select(self):
         if self.inProjectorMode():
@@ -254,14 +266,16 @@ class InputInterface(CustomQLabel):
                 webInterface.debugPage(reason="menu")
     
     async def volUp(self):
-        await self.getProjectorInterface().volUp()
-        if self.inProjectorMode():
-            self.setMode(self.getOldMode())
+        await self.getSoundbarInterface().volUp()
+        #await self.getProjectorInterface().volUp()
+        #if self.inProjectorMode():
+        #    self.setMode(self.getOldMode())
     
     async def volDown(self):
-        await self.getProjectorInterface().volDown()
-        if self.inProjectorMode():
-            self.setMode(self.getOldMode())
+        await self.getSoundbarInterface().volDown()
+        #await self.getProjectorInterface().volDown()
+        #if self.inProjectorMode():
+        #    self.setMode(self.getOldMode())
     
     async def home(self):
         if self.inOtherMode():
