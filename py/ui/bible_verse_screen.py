@@ -19,11 +19,16 @@ class BibleVerseScreen(CustomQWidget):
         self.__verseLabel = QLabel()
         self.__verseLabel.setAlignment(Qt.AlignCenter)
         self.__verseLabel.setWordWrap(True)
+        # Verse text comes straight from the Bible API; QLabel's default AutoText format will
+        # sniff stray "<"/"&" in some translations' text as HTML and silently mangle/truncate
+        # the render (including our appended closing quote), so force plain text.
+        self.__verseLabel.setTextFormat(Qt.PlainText)
         self.__verseLabel.setStyleSheet("font-size: 44px; font-style: italic; color: white;")
         self.__verseLabel.setFixedWidth(DISPLAY.WIDTH - 240)
 
         self.__referenceLabel = QLabel()
         self.__referenceLabel.setAlignment(Qt.AlignCenter)
+        self.__referenceLabel.setTextFormat(Qt.PlainText)
         self.__referenceLabel.setStyleSheet("font-size: 28px; color: white;")
 
         self.__okButton = Button(clickCallback=self._onOk, width=int(DISPLAY.WIDTH/2))
