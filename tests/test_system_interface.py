@@ -70,7 +70,7 @@ async def test_restart_app_quits_without_touching_projector():
 
     await interface.restart_app()
 
-    assert teardown.calls == [{"quit_app": True}]
+    assert teardown.calls == [{"soundbar_interface": None, "quit_app": True}]
     assert quit_calls == []
     assert skip_standby_calls == [True]
     assert reboot_pending_calls == []
@@ -87,7 +87,7 @@ async def test_shutdown_app_shows_screen_tears_down_projector_and_skips_standby_
     await interface.shutdown_app()
 
     assert shutdown_screen_calls == ["bro is shutting down..."]
-    assert teardown.calls == [{"projector_interface": projector, "quit_app": True}]
+    assert teardown.calls == [{"projector_interface": projector, "soundbar_interface": None, "quit_app": True}]
     assert skip_standby_calls == []
     assert reboot_pending_calls == []
 
@@ -101,7 +101,7 @@ async def test_reboot_device_runs_shutdown_command_without_projector_then_quits(
 
     await interface.reboot_device()
 
-    assert teardown.calls == [{"quit_app": False}]
+    assert teardown.calls == [{"soundbar_interface": None, "quit_app": False}]
     assert async_runner.commands == [["sudo", "shutdown", "-r", "now"]]
     assert quit_calls == [True]
     assert skip_standby_calls == [True]
@@ -118,7 +118,7 @@ async def test_reboot_device_still_quits_when_command_fails():
 
     await interface.reboot_device()
 
-    assert teardown.calls == [{"quit_app": False}]
+    assert teardown.calls == [{"soundbar_interface": None, "quit_app": False}]
     assert quit_calls == [True]
 
 
@@ -132,5 +132,5 @@ async def test_reboot_device_skips_shutdown_command_on_non_raspberry_pi():
     await interface.reboot_device()
 
     assert async_runner.commands == []
-    assert teardown.calls == [{"quit_app": False}]
+    assert teardown.calls == [{"soundbar_interface": None, "quit_app": False}]
     assert quit_calls == [True]
