@@ -26,11 +26,11 @@ class SoundbarInterface:
     async def on(self):
         await self.send(SOUNDBAR.CODES.POWER)
         await self.send(SOUNDBAR.CODES.POWER)
-        await self.volDown()
-        await self.volDown()
-        await self.volDown()
         await self.switchInputChannel(SOUNDBAR.CHANNELS.AUX)
         await self.switchMode(SOUNDBAR.MODES.MOVIE)
+        await self.volDown()
+        await self.volDown()
+        await self.volDown()
     
     async def off(self):
         await self.send(SOUNDBAR.CODES.POWER)
@@ -40,21 +40,27 @@ class SoundbarInterface:
     
     async def volUp(self):
         await self.send(SOUNDBAR.CODES.VOL_UP)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
     
     async def volDown(self):
         await self.send(SOUNDBAR.CODES.VOL_DOWN)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
     
     async def trebleUp(self):
-            await self.send(SOUNDBAR.CODES.TREBLE_UP)
-        
+        await self.send(SOUNDBAR.CODES.TREBLE_UP)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
+
     async def trebleDown(self):
         await self.send(SOUNDBAR.CODES.TREBLE_DOWN)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
     
     async def bassUp(self):
         await self.send(SOUNDBAR.CODES.BASS_UP)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
     
     async def bassDown(self):
         await self.send(SOUNDBAR.CODES.BASS_DOWN)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
     
     async def switchInputChannel(self, inputChannel):
         await self.send(SOUNDBAR.CODES.SRC_ + inputChannel)
@@ -62,5 +68,6 @@ class SoundbarInterface:
     
     async def switchMode(self, mode):
         await self.send(SOUNDBAR.CODES.MODE_ + mode)
+        await sleep(SOUNDBAR.VOLUME_DELAY)
 
 soundbarInterface = SoundbarInterface(irInterface=irInterface)
