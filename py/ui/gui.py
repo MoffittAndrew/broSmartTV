@@ -252,8 +252,19 @@ class CustomQWindow(CustomQWidget):
 
         inputInterface = self.getInputInterface()
         if inputInterface is not None:
-            inputInterface.setSelectedButton(self.__layout.currentWidget().getPrimaryButton())
-            self.__layout.setCurrentWidget(inputInterface)
+            currentWidget = self.__layout.currentWidget()
+
+            # Deferred to the next event loop turn: switching tabs (or hiding/showing a widget
+            # managed by the StackAll layout) can trigger an async Qt layout pass afterward that
+            # resizes every widget in the stacked layout - including this selection outline -
+            # back to fill the whole window. Applying the selection after that settles is what
+            # keeps the outline sized to the actual button instead of the full screen.
+            def _applySelection(currentWidget=currentWidget):
+                primaryButton = currentWidget.getPrimaryButton() if currentWidget is not None else None
+                inputInterface.setSelectedButton(primaryButton)
+                self.__layout.setCurrentWidget(inputInterface)
+
+            QTimer.singleShot(0, _applySelection)
 
     def setInputInterface(self, inputInterface):
         self.__inputInterface = inputInterface
@@ -414,8 +425,11 @@ class CustomQWindow(CustomQWidget):
 
     def show(self, initialTab=None):
         # setTab() before super().show() so the correct tab is already raised to the front of
-        # the StackAll z-order by the time the window first paints - otherwise whatever widget
-        # was current by default (e.g. homeScreen) flashes on screen for a frame first.
+        # the StackAll z-order by the time the window first paints, avoiding a one-frame flash
+        # of whatever tab was previously current (e.g. homeScreen). This is safe now that
+        # setTab() itself defers the selection-outline geometry to the next event loop turn
+        # (see the QTimer.singleShot() call above), so it no longer matters whether the tab's
+        # layout has actually been computed yet at the point setTab() runs.
         self.setTab(initialTab)
         super().show()
 
