@@ -32,14 +32,11 @@ class ProjectorInterface:
         await self.send(PROJECTOR.CODES.OFF)
         ...
     
-    async def setVolume(self, volume):
+    async def autoVolInit(self):
         for _ in range(10):
             await self.volDown()
-        for _ in range(volume):
+        for _ in range(PROJECTOR.AUTO_VOL_SET):
             await self.volUp()
-    
-    async def autoVolSet(self):
-        await self.setVolume(PROJECTOR.AUTO_VOL_SET)
     
     async def select(self):
         await self.send(PROJECTOR.CODES.SELECT)

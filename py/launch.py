@@ -105,6 +105,14 @@ async def projector_soundbar_on():
     logger.info("Switching soundbar on...", category="soundbar")
     await soundbarInterface.on()
 
+async def projector_volume_init():
+    from interface.projector_interface import projectorInterface
+    await projectorInterface.autoVolInit()
+
+async def soundbar_volume_init():
+    from interface.soundbar_interface import soundbarInterface
+    await soundbarInterface.autoVolInit()
+
 
 def launch():
     """Import main.py and transition from launch screen to the full UI."""
@@ -118,7 +126,12 @@ def launch():
     
     logger.info("Starting screen cast server...", category="screencast")
     asyncio.create_task(start_screen_cast_server(startScreenCastServer))
-
+    
+    logger.info("Initializing projector volume...", category="projector")
+    asyncio.create_task(projector_volume_init())
+    
+    logger.info("Initializing soundbar volume...", category="soundbar")
+    asyncio.create_task(soundbar_volume_init())
 
 async def start_screen_cast_server(start_server):
     """Escalate Pi server startup failures to the restart-owning launcher."""
