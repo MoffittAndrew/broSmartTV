@@ -7,6 +7,7 @@ from ui.gui import CustomQWidget, MAIN_WINDOW
 from ui.tools.button import Button
 
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 
@@ -54,7 +55,18 @@ class BibleVerseScreen(CustomQWidget):
         self.hide()
 
     def setVerse(self, verse):
-        self.__verseLabel.setText(f"\u201c{verse.text}\u201d")
+        text = f"\u201c{verse.text}\u201d"
+        self.__verseLabel.setText(text)
+        # QVBoxLayout doesn't reliably recompute a word-wrapped QLabel's height after a later
+        # setText() call, which was silently clipping the last line (see LOGGING.md-adjacent
+        # bug report: verses cut off mid-sentence with no closing quote). Measuring and setting
+        # the height explicitly from font metrics avoids depending on that layout timing.
+        boundingRect = QFontMetrics(self.__verseLabel.font()).boundingRect(
+            0, 0, self.__verseLabel.width(), 0,
+            Qt.TextWordWrap | Qt.AlignCenter,
+            text,
+        )
+        self.__verseLabel.setFixedHeight(boundingRect.height() + 20)
         self.__referenceLabel.setText(verse.reference)
         # Re-rolled on every show so repeated launches don't always land on the same button text.
         self.__okButton.setText(random.choice(BIBLE_VERSE.OK_BUTTON_NAMES))
