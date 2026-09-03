@@ -29,15 +29,16 @@ class SoundbarInterface:
         await self.switchInputChannel(SOUNDBAR.CHANNELS.AUX)
         await self.switchMode(SOUNDBAR.MODES.MOVIE)
         await self.mute()
-        await sleep(2)
-        for _ in range(SOUNDBAR.AUTO_VOL_DOWN_ADJUST):
-            await self.volDown()
     
     async def off(self):
         await self.send(SOUNDBAR.CODES.POWER)
         await self.send(SOUNDBAR.CODES.POWER)
         await sleep(SOUNDBAR.POWER_DELAY)
         await self.send(SOUNDBAR.CODES.POWER)
+    
+    async def autoVolAdjust(self):
+        for _ in range(SOUNDBAR.AUTO_VOL_DOWN_ADJUST):
+            await self.volDown()
     
     async def mute(self):
         await self.send(SOUNDBAR.CODES.MUTE)

@@ -26,7 +26,6 @@ class ProjectorInterface:
     async def on(self):
         await self.send(PROJECTOR.CODES.ON)
         await self.send(PROJECTOR.CODES.RETURN)
-        await sleep(PROJECTOR.POWER_DELAY)
     
     async def off(self):
         # for now
