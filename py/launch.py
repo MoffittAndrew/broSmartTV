@@ -38,7 +38,6 @@ reload_modules = [
     "webserver.webserver_utils",
     "webserver.standby_server",
     "interface.projector_interface",
-    "interface.soundbar_interface",
     "interface.ir_interface",
     "interface.remote_interface",
 ]
@@ -95,25 +94,20 @@ def init_qt():
 
     LAUNCH_SCREEN = LaunchScreen(display=DISPLAY, log_font_size=30, log_max_lines=15)
 
-async def projector_soundbar_on():
-    """Power on the projector and soundbar while launch/update work continues."""
+async def projector_on():
+    """Power on the projector while launch/update work continues."""
     from interface.projector_interface import projectorInterface
     logger.info("Switching projector on...", category="projector")
     await projectorInterface.on()
 
+async def soundbar_on():
+    """Power on the soundbar and initialize the projector volume."""
     from interface.soundbar_interface import soundbarInterface
+    from interface.projector_interface import projectorInterface
+    await projectorInterface.volumeInit()
     logger.info("Switching soundbar on...", category="soundbar")
     await soundbarInterface.on()
-
-async def projector_volume_init():
-    from interface.projector_interface import projectorInterface
-    await asyncio.sleep(3)
-    await projectorInterface.autoVolInit()
-
-async def soundbar_volume_init():
-    from interface.soundbar_interface import soundbarInterface
-    await asyncio.sleep(3)
-    await soundbarInterface.autoVolInit()
+    await soundbarInterface.volumeInit()
 
 
 def launch():
@@ -129,11 +123,7 @@ def launch():
     logger.info("Starting screen cast server...", category="screencast")
     asyncio.create_task(start_screen_cast_server(startScreenCastServer))
     
-    logger.info("Initializing projector volume...", category="projector")
-    asyncio.create_task(projector_volume_init())
-    
-    logger.info("Initializing soundbar volume...", category="soundbar")
-    asyncio.create_task(soundbar_volume_init())
+    asyncio.create_task(soundbar_on())
 
 async def start_screen_cast_server(start_server):
     """Escalate Pi server startup failures to the restart-owning launcher."""
@@ -291,8 +281,8 @@ def main():
         else:
             startup_trigger = asyncio.run(off_phase())
         with qtinter.using_asyncio_from_qt():
-            # Switch projector/soundbar on
-            projector_soundbar_task = asyncio.create_task(projector_soundbar_on())
+            # Switch projector on
+            projector_task = asyncio.create_task(projector_on())
             remote_task_holder = []
 
             init_qt()
@@ -313,13 +303,13 @@ def main():
             if loop.is_running():
                 loop.create_task(
                     shutdown_background_tasks(
-                        [projector_soundbar_task, *remote_task_holder, update_task]
+                        [projector_task, *remote_task_holder, update_task]
                     )
                 )
             else:
                 loop.run_until_complete(
                     shutdown_background_tasks(
-                        [projector_soundbar_task, *remote_task_holder, update_task]
+                        [projector_task, *remote_task_holder, update_task]
                     )
                 )
 

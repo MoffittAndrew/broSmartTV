@@ -36,7 +36,7 @@ class SoundbarInterface:
         await sleep(SOUNDBAR.POWER_DELAY)
         await self.send(SOUNDBAR.CODES.POWER)
     
-    async def autoVolInit(self):
+    async def volumeInit(self):
         for _ in range(SOUNDBAR.AUTO_VOL_DOWN_ADJUST):
             await self.volDown()
     
