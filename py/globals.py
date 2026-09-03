@@ -384,3 +384,26 @@ class WEB:
     # runJavaScript callbacks can be dropped if the page navigates/crashes mid-flight; a
     # timeout stops a lost callback from wedging the input backlog queue forever.
     JS_QUERY_TIMEOUT_SECONDS = 2.0
+
+
+class BIBLE_VERSE:
+    OK_BUTTON_NAMES = [
+        "ok",
+        "huh?",
+        "what",
+        "Amen!",
+        "so true",
+        "facts",
+        "hmmmmm",
+        "indeed",
+        "when yur right yur right",
+        "preach",
+        "yippee!",
+    ]
+    API_BASE_URL = "https://bible.helloao.org/api"
+    # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
+    REQUEST_TIMEOUT_SECONDS = 3
+    # Overall budget for fetching a verse (including retries) before startup gives up and skips to the home screen.
+    TOTAL_TIMEOUT_SECONDS = 8
+    # Random translation/book/chapter/verse picks to retry before giving up (guards against bad combos, e.g. 404s).
+    MAX_ATTEMPTS = 3

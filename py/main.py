@@ -20,7 +20,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 from typing import cast
 
-from globals import WEB
+from globals import WEB, BIBLE_VERSE
 
 # Must be set before interface.web_interface (imported below) pulls in QtWebEngineWidgets, or
 # Chromium never opens the CDP port. A bare port number makes Qt/Chromium bind 127.0.0.1 only;
@@ -49,6 +49,7 @@ from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
 from interface.soundbar_interface import soundbarInterface
 from interface.system_interface import systemInterface
+from interface.bible_interface import bibleInterface
 from webserver.screen_cast import (
     startScreenCastServer,
     setFrameHandler,
@@ -57,6 +58,7 @@ from webserver.screen_cast import (
 )
 from teardown import reset_shutdown_state, teardown_app
 from ui.home import homeScreen
+from ui.bible_verse_screen import bibleVerseScreen
 
 import asyncio
 import qtinter
@@ -88,6 +90,31 @@ async def start_screen_cast_server():
         )
         await teardown_app(projector_interface=projectorInterface, quit_app=True)
 
+
+async def show_main_window(on_shown=None):
+    """Show a random verse screen first if the Bible API is reachable, else go straight home.
+
+    Shared by both startup paths (launch.py's Pi runtime and this module's direct-run main()),
+    so the same skip-on-no-internet behavior applies everywhere MAIN_WINDOW is first shown.
+    """
+    verse = None
+    try:
+        verse = await asyncio.wait_for(
+            bibleInterface.fetch_random_verse(), timeout=BIBLE_VERSE.TOTAL_TIMEOUT_SECONDS
+        )
+    except Exception as exc:
+        logger.warning(f"Timed out waiting for a random verse: {exc}", category="startup")
+        verse = None
+
+    if verse is not None:
+        bibleVerseScreen.setVerse(verse)
+        MAIN_WINDOW.show(initialTab=bibleVerseScreen)
+    else:
+        MAIN_WINDOW.show()
+
+    if on_shown is not None:
+        on_shown()
+
 # NOTE - this only runs when launching the script directly (i.e. from a PC)
 # When running on the pi, we just import MAIN_WINDOW from launch.py
 def main():
@@ -96,9 +123,12 @@ def main():
         reset_shutdown_state()
         asyncio.create_task(remoteInterface.connect())
         logger.info("Starting GUI...", category="gui")
-        MAIN_WINDOW.show()
-        logger.info("Starting screen cast server...", category="screencast")
-        asyncio.create_task(start_screen_cast_server())
+
+        def _on_shown():
+            logger.info("Starting screen cast server...", category="screencast")
+            asyncio.create_task(start_screen_cast_server())
+
+        asyncio.create_task(show_main_window(on_shown=_on_shown))
         APP.aboutToQuit.connect(request_shutdown)
         APP.exec_()
         logger.info("App closed.", category="teardown")
@@ -111,6 +141,8 @@ MAIN_WINDOW.setInputInterface(inputInterface)
 MAIN_WINDOW.addWidget(homeScreen)
 MAIN_WINDOW.addWidget(webInterface)
 webInterface.hide()
+MAIN_WINDOW.addWidget(bibleVerseScreen)
+bibleVerseScreen.hide()
 
 inputInterface.setProjectorInterface(projectorInterface)
 inputInterface.setSoundbarInterface(soundbarInterface)

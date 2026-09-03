@@ -113,17 +113,22 @@ async def soundbar_on():
 def launch():
     """Import main.py and transition from launch screen to the full UI."""
     logger.info("Launching main program...")
-    from main import MAIN_WINDOW
+    from main import show_main_window
     from webserver.screen_cast import startScreenCastServer
-    MAIN_WINDOW.show()
-    
-    LAUNCH_SCREEN.stop()
-    LAUNCH_SCREEN.hide()
-    
-    logger.info("Starting screen cast server...", category="screencast")
-    asyncio.create_task(start_screen_cast_server(startScreenCastServer))
-    
-    asyncio.create_task(soundbar_on())
+
+    def _on_shown():
+        # Only torn down once MAIN_WINDOW actually shows, so LAUNCH_SCREEN stays visible
+        # (spinner + update log) while show_main_window() awaits the verse fetch above.
+        LAUNCH_SCREEN.stop()
+        LAUNCH_SCREEN.hide()
+
+        logger.info("Starting screen cast server...", category="screencast")
+        asyncio.create_task(start_screen_cast_server(startScreenCastServer))
+
+        asyncio.create_task(soundbar_on())
+
+    asyncio.create_task(show_main_window(on_shown=_on_shown))
+
 
 async def start_screen_cast_server(start_server):
     """Escalate Pi server startup failures to the restart-owning launcher."""

@@ -412,9 +412,9 @@ class CustomQWindow(CustomQWidget):
         if self.__onScreenKeyboard is not None:
             self.__onScreenKeyboard.setGeometry(0, 0, self.width(), self.height())
 
-    def show(self):
+    def show(self, initialTab=None):
         super().show()
-        self.setTab()
+        self.setTab(initialTab)
 
 
 MAIN_WINDOW = CustomQWindow()
