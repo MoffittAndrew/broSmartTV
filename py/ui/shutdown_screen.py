@@ -25,7 +25,7 @@ class ShutdownScreen(CustomQWidget):
         rootLayout = QVBoxLayout()
         rootLayout.addStretch(1)
         rootLayout.addWidget(self.spinner, alignment=Qt.AlignCenter)
-        rootLayout.addSpacing(GUI.SPACING.WIDE)
+        rootLayout.addSpacing(GUI.SPACING.WIDE * 3)
         rootLayout.addWidget(self.__statusLabel, alignment=Qt.AlignCenter)
         rootLayout.addStretch(1)
 
