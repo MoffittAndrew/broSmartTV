@@ -26,7 +26,7 @@ class BibleVerseScreen(CustomQWidget):
         self.__referenceLabel.setAlignment(Qt.AlignCenter)
         self.__referenceLabel.setStyleSheet("font-size: 28px; color: white;")
 
-        self.__okButton = Button(clickCallback=self._onOk)
+        self.__okButton = Button(clickCallback=self._onOk, width=int(DISPLAY.WIDTH/2))
 
         rootLayout = QVBoxLayout()
         rootLayout.addStretch(1)
