@@ -11,6 +11,10 @@ from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 
+# Straight and curly single/double quote variants some translations already wrap verse text in.
+_QUOTE_CHARS = '"\'\u2018\u2019\u201c\u201d'
+
+
 class BibleVerseScreen(CustomQWidget):
     """Shown once at startup with a random verse; OK button hands off to the home screen."""
 
@@ -55,7 +59,9 @@ class BibleVerseScreen(CustomQWidget):
         self.hide()
 
     def setVerse(self, verse):
-        text = f"\u201c{verse.text}\u201d"
+        # Avoid doubled-up quotation marks when the source text already opens/closes with one.
+        strippedVerseText = verse.text.strip().strip(_QUOTE_CHARS)
+        text = f"\u201c{strippedVerseText}\u201d"
         self.__verseLabel.setText(text)
         # QVBoxLayout doesn't reliably recompute a word-wrapped QLabel's height after a later
         # setText() call, which was silently clipping the last line (see LOGGING.md-adjacent

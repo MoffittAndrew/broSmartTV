@@ -419,6 +419,8 @@ class BIBLE_VERSE:
         "And all God's people said: 'what?'",
         "sounds good to me",
         "I suppose so",
+        "'Lovely verse' - Cole, probably",
+        "couldn't have put it better myself",
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
