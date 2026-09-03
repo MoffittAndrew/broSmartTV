@@ -203,6 +203,10 @@ class CustomQWindow(CustomQWidget):
         self.__textInputOnCancel = None
         self.addWidget(self.__onScreenKeyboard)
         self.__onScreenKeyboard.hide()
+        from ui.shutdown_screen import ShutdownScreen
+        self.__shutdownScreen = ShutdownScreen(parent=self)
+        self.addWidget(self.__shutdownScreen)
+        self.__shutdownScreen.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -218,6 +222,9 @@ class CustomQWindow(CustomQWidget):
 
     def getOnScreenKeyboard(self):
         return self.__onScreenKeyboard
+
+    def getShutdownScreen(self):
+        return self.__shutdownScreen
 
     def getAbsolutePos(self):
         return QPoint(0, 0)
@@ -245,8 +252,19 @@ class CustomQWindow(CustomQWidget):
 
         inputInterface = self.getInputInterface()
         if inputInterface is not None:
-            inputInterface.setSelectedButton(self.__layout.currentWidget().getPrimaryButton())
-            self.__layout.setCurrentWidget(inputInterface)
+            currentWidget = self.__layout.currentWidget()
+
+            # Deferred to the next event loop turn: switching tabs (or hiding/showing a widget
+            # managed by the StackAll layout) can trigger an async Qt layout pass afterward that
+            # resizes every widget in the stacked layout - including this selection outline -
+            # back to fill the whole window. Applying the selection after that settles is what
+            # keeps the outline sized to the actual button instead of the full screen.
+            def _applySelection(currentWidget=currentWidget):
+                primaryButton = currentWidget.getPrimaryButton() if currentWidget is not None else None
+                inputInterface.setSelectedButton(primaryButton)
+                self.__layout.setCurrentWidget(inputInterface)
+
+            QTimer.singleShot(0, _applySelection)
 
     def setInputInterface(self, inputInterface):
         self.__inputInterface = inputInterface
@@ -373,6 +391,15 @@ class CustomQWindow(CustomQWidget):
             self.__layout.setCurrentWidget(self.__screenCastPreviousWidget)
             self.__screenCastPreviousWidget = None
 
+    def showShutdownScreen(self, msg=None):
+        # One-way transition: no corresponding hide, the process exits shortly after.
+        self.__shutdownScreen.setGeometry(0, 0, self.width(), self.height())
+        self.__shutdownScreen.setMessage(msg)
+        self.__shutdownScreen.show()
+        self.__shutdownScreen.raise_()
+        self.__layout.setCurrentWidget(self.__shutdownScreen)
+        self.__shutdownScreen.start()
+
     def keyPressEvent(self, event, *args, **kwargs):
         if self.getKeyboard() is not None:
             if isinstance(event, QKeyEvent):
@@ -396,9 +423,15 @@ class CustomQWindow(CustomQWidget):
         if self.__onScreenKeyboard is not None:
             self.__onScreenKeyboard.setGeometry(0, 0, self.width(), self.height())
 
-    def show(self):
+    def show(self, initialTab=None):
+        # setTab() before super().show() so the correct tab is already raised to the front of
+        # the StackAll z-order by the time the window first paints, avoiding a one-frame flash
+        # of whatever tab was previously current (e.g. homeScreen). This is safe now that
+        # setTab() itself defers the selection-outline geometry to the next event loop turn
+        # (see the QTimer.singleShot() call above), so it no longer matters whether the tab's
+        # layout has actually been computed yet at the point setTab() runs.
+        self.setTab(initialTab)
         super().show()
-        self.setTab()
 
 
 MAIN_WINDOW = CustomQWindow()

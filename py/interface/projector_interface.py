@@ -18,7 +18,7 @@ class ProjectorInterface:
     
     async def send(self, data):
         if self.getIrInterface() is not None:
-            self.getIrInterface().send(data)
+            self.getIrInterface().send(PROJECTOR.DEVICE_NAME, data)
             await sleep(PROJECTOR.INPUT_DELAY)
         else:
             print("Cannot send IR data, no IR interface has been set!")
@@ -31,6 +31,12 @@ class ProjectorInterface:
         # for now
         #await self.send(PROJECTOR.CODES.OFF)
         ...
+    
+    async def volumeInit(self):
+        for _ in range(10):
+            await self.volDown()
+        for _ in range(PROJECTOR.AUTO_VOL_SET):
+            await self.volUp()
     
     async def select(self):
         await self.send(PROJECTOR.CODES.SELECT)

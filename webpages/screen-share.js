@@ -27,6 +27,15 @@ import {
   isDisplayMediaConstraintCompatibilityError,
 } from './audio.js';
 
+// UI elements are module-scoped rather than threaded through call arguments: the
+// stats monitor and adaptive-quality paths run long after their originating call,
+// and passing them down every hop silently dropped them on the async callbacks.
+const uiRefs = {
+  startBtn: null,
+  qualitySelect: null,
+  statusDiv: null,
+};
+
 export const state = {
   pc: null,
   stream: null,
@@ -82,10 +91,16 @@ function startConnectionTimeout() {
   }, APP_CONSTANTS.CONNECTION_TIMEOUT_MS);
 }
 
-function updateStreamingStatus(statusDiv) {
+function setStatusText(text) {
+  if (uiRefs.statusDiv) {
+    uiRefs.statusDiv.textContent = text;
+  }
+}
+
+function updateStreamingStatus() {
   const audioStatus = state.isAudioActive ? 'audio:on' : 'audio:off';
   const warningSuffix = state.audioWarning ? ` (${state.audioWarning})` : '';
-  statusDiv.textContent = `✅ streaming active (${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps, ${audioStatus})${warningSuffix}`;
+  setStatusText(`✅ streaming active (${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps, ${audioStatus})${warningSuffix}`);
 }
 
 async function evaluateAdaptiveQuality() {
@@ -140,9 +155,11 @@ async function evaluateAdaptiveQuality() {
   }
 }
 
-async function applyQualityControlMode(mode, qualitySelect) {
+async function applyQualityControlMode(mode) {
   state.qualityControlMode = mode;
-  qualitySelect.value = mode;
+  if (uiRefs.qualitySelect) {
+    uiRefs.qualitySelect.value = mode;
+  }
 
   if (!state.isStreaming) {
     return;
@@ -176,7 +193,7 @@ function stopFpsMonitor(resetStatus = true) {
   state.videoSender = null;
 }
 
-function startFpsMonitor(sender, statusDiv) {
+function startFpsMonitor(sender) {
   stopFpsMonitor(false);
   if (!sender || typeof sender.getStats !== 'function') {
     return;
@@ -186,6 +203,7 @@ function startFpsMonitor(sender, statusDiv) {
   let lastFramesEncoded = null;
   let lastBytesSent = null;
   let lastSenderLogAt = 0;
+  let wasEncoderDownscaling = false;
 
   state.fpsMonitor = setInterval(async () => {
     try {
@@ -199,11 +217,15 @@ function startFpsMonitor(sender, statusDiv) {
 
       if (!videoStat) {
         state.currentFps = 'unknown';
-        updateStreamingStatus(statusDiv);
+        updateStreamingStatus();
         return;
       }
 
       const timestamp = videoStat.timestamp;
+      const limitationReason = videoStat.qualityLimitationReason || 'none';
+      // Only CPU/bandwidth pressure means the encoder could not keep up; anything
+      // else (typically 'none') means the capture source simply had nothing new.
+      const isEncoderLimited = limitationReason === 'cpu' || limitationReason === 'bandwidth';
       const framesEncoded = typeof videoStat.framesEncoded === 'number'
         ? videoStat.framesEncoded
         : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
@@ -256,7 +278,12 @@ function startFpsMonitor(sender, statusDiv) {
         }
       } else {
         state.isLowMotionContent = false;
-        if (sampledFps !== null) {
+        // Screen capture only emits frames when pixels change, so a low FPS reading
+        // with no encoder limitation is a near-static scene, not an overloaded link.
+        // Feeding those samples to the downgrade window is what caused 60fps streams
+        // to randomly drop to the floor profile after a quiet stretch.
+        const isOverloadEvidence = isEncoderLimited || sampledFps >= state.adaptivePolicy.lowFpsThreshold;
+        if (sampledFps !== null && isOverloadEvidence) {
           pushFpsSample(sampledFps, state);
         }
       }
@@ -274,13 +301,33 @@ function startFpsMonitor(sender, statusDiv) {
       state.currentWidth = videoStat.frameWidth || trackSettings.width || state.currentWidth;
       state.currentHeight = videoStat.frameHeight || trackSettings.height || state.currentHeight;
 
+      // The encoder can scale the sent frame below the capture profile on its own;
+      // that is invisible to our adaptive logic, so log the transitions explicitly.
+      const isEncoderDownscaling = !!state.activeProfile
+        && Number.isFinite(videoStat.frameWidth)
+        && videoStat.frameWidth < state.activeProfile.width;
+      if (isEncoderDownscaling !== wasEncoderDownscaling) {
+        wasEncoderDownscaling = isEncoderDownscaling;
+        if (isEncoderDownscaling) {
+          console.warn('Encoder-side downscale (browser quality scaler, not adaptive policy):', {
+            encodedWidth: videoStat.frameWidth,
+            encodedHeight: videoStat.frameHeight,
+            profileWidth: state.activeProfile.width,
+            profileHeight: state.activeProfile.height,
+            limitationReason,
+          });
+        } else {
+          console.log('Encoder returned to full profile resolution.');
+        }
+      }
+
       if (geometryDidChange) {
         await syncProfileToSourceGeometry('capture source resized');
       }
 
       if (timestamp - lastSenderLogAt >= 5000) {
         lastSenderLogAt = timestamp;
-        const qualityLimitationReason = videoStat.qualityLimitationReason || 'unknown';
+        const qualityLimitationReason = limitationReason;
         const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
         const captureFps = typeof videoStat.framesPerSecond === 'number' ? Math.round(videoStat.framesPerSecond) : null;
         const frameWidth = videoStat.frameWidth || state.currentWidth;
@@ -304,19 +351,19 @@ function startFpsMonitor(sender, statusDiv) {
         });
       }
 
-      updateStreamingStatus(statusDiv);
+      updateStreamingStatus();
       if (!state.isLowMotionContent) {
         await evaluateAdaptiveQuality();
       }
     } catch (err) {
       console.warn('Failed to read outbound video stats:', err);
       state.currentFps = 'unknown';
-      updateStreamingStatus(statusDiv);
+      updateStreamingStatus();
     }
   }, 1000);
 }
 
-async function requestDisplayMedia(profile, statusDiv) {
+async function requestDisplayMedia(profile) {
   const strictConstraints = buildDisplayMediaOptions(profile, state, { strictVideoHints: true });
   const fallbackConstraints = buildDisplayMediaOptions(profile, state, { strictVideoHints: false });
   const videoOnlyFallbackConstraints = {
@@ -390,7 +437,7 @@ async function checkAvailability() {
   return false;
 }
 
-async function stopStream(reason = 'stopped', startBtn, statusDiv) {
+async function stopStream(reason = 'stopped') {
   clearConnectionTimeout();
   state.isAdaptiveRestartInProgress = false;
   stopFpsMonitor();
@@ -413,13 +460,15 @@ async function stopStream(reason = 'stopped', startBtn, statusDiv) {
     state.pc = null;
   }
 
-  startBtn.textContent = 'start screen share';
-  startBtn.disabled = false;
-  statusDiv.textContent = `🛑 stream ${reason}`;
+  if (uiRefs.startBtn) {
+    uiRefs.startBtn.textContent = 'start screen share';
+    uiRefs.startBtn.disabled = false;
+  }
+  setStatusText(`🛑 stream ${reason}`);
   console.log('Stream stopped:', reason);
 }
 
-async function requestAdaptiveQualitySwitch(targetProfile, targetMode, reason, startBtn, statusDiv) {
+async function requestAdaptiveQualitySwitch(targetProfile, targetMode, reason) {
   if (!state.isStreaming || state.isStarting || state.isAdaptiveRestartInProgress || !state.stream) {
     return;
   }
@@ -456,7 +505,7 @@ async function requestAdaptiveQualitySwitch(targetProfile, targetMode, reason, s
     state.fpsSamples = [];
     state.currentQualityMode = targetMode;
     state.activeProfile = resolvedProfile;
-    updateStreamingStatus(statusDiv);
+    updateStreamingStatus();
   } catch (err) {
     console.warn(`Adaptive quality switch failed (${targetMode}):`, err);
   } finally {
@@ -464,7 +513,7 @@ async function requestAdaptiveQualitySwitch(targetProfile, targetMode, reason, s
   }
 }
 
-async function syncProfileToSourceGeometry(reason, statusDiv) {
+async function syncProfileToSourceGeometry(reason) {
   if (!state.isStreaming || state.isStarting || state.isAdaptiveRestartInProgress) {
     return;
   }
@@ -474,7 +523,7 @@ async function syncProfileToSourceGeometry(reason, statusDiv) {
     return;
   }
 
-  await requestAdaptiveQualitySwitch(targetProfile, state.currentQualityMode, reason, statusDiv);
+  await requestAdaptiveQualitySwitch(targetProfile, state.currentQualityMode, reason);
 }
 
 async function loadCaptureSettings() {
@@ -557,8 +606,8 @@ async function waitForIceGatheringComplete(peerConnection, timeoutMs = APP_CONST
   });
 }
 
-async function startStreaming(options = {}, ui) {
-  const { startBtn, qualitySelect, statusDiv } = ui;
+async function startStreaming(options = {}) {
+  const { startBtn } = uiRefs;
   let selectedProfile = options.profile || null;
   const isAdaptiveRestart = options.isAdaptiveRestart === true;
 
@@ -586,23 +635,23 @@ async function startStreaming(options = {}, ui) {
     state.isStarting = false;
     startBtn.disabled = false;
     alert('Stream is currently busy. Try again later.');
-    statusDiv.textContent = '❌ stream is busy rn bro';
+    setStatusText('❌ stream is busy rn bro');
     state.isAdaptiveRestartInProgress = false;
     return;
   }
 
   try {
-    state.stream = await requestDisplayMedia(profile, statusDiv);
+    state.stream = await requestDisplayMedia(profile);
   } catch (err) {
     state.isStarting = false;
     startBtn.disabled = false;
     state.isAdaptiveRestartInProgress = false;
     console.error('User cancelled or error:', err);
     if (!window.isSecureContext) {
-      statusDiv.textContent = '❌ screen share blocked: gotta open this page via HTTPS';
+      setStatusText('❌ screen share blocked: gotta open this page via HTTPS');
     } else {
       const reason = err && typeof err.message === 'string' && err.message.trim().length > 0 ? err.message.trim() : 'unable to start screen share';
-      statusDiv.textContent = `❌ ${reason}`;
+      setStatusText(`❌ ${reason}`);
     }
     return;
   }
@@ -628,6 +677,11 @@ async function startStreaming(options = {}, ui) {
   }
 
   const videoTrack = state.stream.getVideoTracks()[0];
+  // Tells libwebrtc's quality scaler this is screen content, so it protects
+  // resolution/legibility instead of treating downscaling as free.
+  if (videoTrack) {
+    videoTrack.contentHint = 'detail';
+  }
   const initialSettings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
   updateCaptureSourceGeometry(initialSettings, { allowDecrease: true }, state);
   const resolvedProfile = profileForMode(state.currentQualityMode, state);
@@ -654,7 +708,7 @@ async function startStreaming(options = {}, ui) {
       clearConnectionTimeout();
     }
     if (['disconnected', 'failed', 'closed'].includes(currentPc.connectionState)) {
-      stopStream('disconnected', startBtn, statusDiv);
+      stopStream('disconnected');
     }
   };
 
@@ -703,7 +757,7 @@ async function startStreaming(options = {}, ui) {
     if (!response.ok) {
       const message = await response.text();
       alert(message);
-      await stopStream('rejected', startBtn, statusDiv);
+      await stopStream('rejected');
       state.isAdaptiveRestartInProgress = false;
       return;
     }
@@ -713,7 +767,7 @@ async function startStreaming(options = {}, ui) {
     console.log('Answer candidate count:', countSdpCandidates(answer.sdp));
   } catch (err) {
     console.error('Offer/answer exchange failed:', err);
-    await stopStream('connection failed', startBtn, statusDiv);
+    await stopStream('connection failed');
     state.isAdaptiveRestartInProgress = false;
     return;
   }
@@ -726,7 +780,7 @@ async function startStreaming(options = {}, ui) {
   state.currentFps = 'starting';
 
   videoTrack.onended = () => {
-    stopStream('ended by user', startBtn, statusDiv);
+    stopStream('ended by user');
   };
 
   const settings = videoTrack && typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
@@ -738,9 +792,9 @@ async function startStreaming(options = {}, ui) {
   state.currentQualityMode = modeFromProfile(resolvedProfile, state);
   state.activeProfile = resolvedProfile;
   console.log(`Capture settings: ${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps`);
-  updateStreamingStatus(statusDiv);
+  updateStreamingStatus();
 
-  startFpsMonitor(state.videoSender, statusDiv);
+  startFpsMonitor(state.videoSender);
 }
 
 export function initScreenShareApp(ui = {}) {
@@ -752,9 +806,13 @@ export function initScreenShareApp(ui = {}) {
     return null;
   }
 
+  uiRefs.startBtn = startBtn;
+  uiRefs.qualitySelect = qualitySelect;
+  uiRefs.statusDiv = statusDiv;
+
   startBtn.onclick = async () => {
     if (state.isStreaming) {
-      await stopStream('stopped by user', startBtn, statusDiv);
+      await stopStream('stopped by user');
       return;
     }
 
@@ -766,7 +824,7 @@ export function initScreenShareApp(ui = {}) {
     state.qualityControlMode = qualitySelect.value;
     state.currentQualityMode = state.qualityControlMode === 'floor' ? 'floor' : 'high';
     state.activeProfile = null;
-    await startStreaming({ isAdaptiveRestart: false }, { startBtn, qualitySelect, statusDiv });
+    await startStreaming({ isAdaptiveRestart: false });
   };
 
   qualitySelect.onchange = async () => {
@@ -786,7 +844,7 @@ export function initScreenShareApp(ui = {}) {
       return;
     }
 
-    await applyQualityControlMode(selectedMode, qualitySelect);
+    await applyQualityControlMode(selectedMode);
   };
 
   qualitySelect.value = state.qualityControlMode;

@@ -9,7 +9,7 @@ set -u
 # 3) Create /bro/.venv (without installing requirements).
 # 4) Add /bro/app/launcher to PATH.
 # 5) Provision one-time screen cast HTTPS state.
-# 6) Install and configure LIRC for projector IR control.
+# 6) Install and configure LIRC for projector/soundbar IR control.
 # 7) Provision Widevine CDM at /bro/widevine/libwidevinecdm.so.
 # 8) Ensure launch/update scripts are executable.
 # 9) Run update via the update command.
@@ -42,8 +42,8 @@ SUDOERS_DIR="/etc/sudoers.d"
 REBOOT_SUDOERS_PATH="${SUDOERS_DIR}/bro-smart-tv-reboot"
 APP_RUNTIME_USER="bro"
 LIRC_CONF_PATH="/etc/lirc/lircd.conf"
-LIRC_PROJECTOR_INCLUDE='include "/bro/app/projector/*.conf"'
-LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/projector/*.conf"'
+LIRC_PROJECTOR_INCLUDE='include "/bro/app/lircd/*.conf"'
+LIRC_LEGACY_PROJECTOR_INCLUDE='include "/bro/git/lircd/*.conf"'
 SYSTEMD_SERVICE_NAME="bro-smart-tv"
 SYSTEMD_UNIT_SOURCE_PATH="${LAUNCHER_DIR}/${SYSTEMD_SERVICE_NAME}.service"
 SYSTEMD_UNIT_INSTALL_PATH="/etc/systemd/system/${SYSTEMD_SERVICE_NAME}.service"
@@ -124,7 +124,7 @@ ensure_lirc_installed() {
         return
     fi
 
-    log "Installing LIRC for infrared projector control..."
+    log "Installing LIRC for infrared projector/soundbar control..."
     sudo apt-get update || error_exit "Failed to refresh package lists before installing LIRC."
     sudo apt-get install -y lirc || error_exit "Failed to install LIRC."
 }
@@ -134,15 +134,15 @@ ensure_lirc_projector_include() {
         error_exit "Missing LIRC configuration file ${LIRC_CONF_PATH}."
     fi
 
-    log "Ensuring projector include is present in ${LIRC_CONF_PATH}."
+    log "Ensuring projector/soundbar include is present in ${LIRC_CONF_PATH}."
     sudo python3 - "${LIRC_CONF_PATH}" <<'PY' || \
         error_exit "Failed to update ${LIRC_CONF_PATH}."
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-target = 'include "/bro/app/projector/*.conf"'
-legacy = 'include "/bro/git/projector/*.conf"'
+target = 'include "/bro/app/lircd/*.conf"'
+legacy = 'include "/bro/git/lircd/*.conf"'
 
 text = path.read_text()
 if target in text:

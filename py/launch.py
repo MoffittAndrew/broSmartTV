@@ -100,19 +100,34 @@ async def projector_on():
     logger.info("Switching projector on...", category="projector")
     await projectorInterface.on()
 
+async def soundbar_on():
+    """Power on the soundbar and initialize the projector volume."""
+    from interface.soundbar_interface import soundbarInterface
+    from interface.projector_interface import projectorInterface
+    await projectorInterface.volumeInit()
+    logger.info("Switching soundbar on...", category="soundbar")
+    await soundbarInterface.on()
+    await soundbarInterface.volumeInit()
+
 
 def launch():
     """Import main.py and transition from launch screen to the full UI."""
     logger.info("Launching main program...")
-    from main import MAIN_WINDOW
+    from main import show_main_window
     from webserver.screen_cast import startScreenCastServer
-    MAIN_WINDOW.show()
-    
-    LAUNCH_SCREEN.stop()
-    LAUNCH_SCREEN.hide()
-    
-    logger.info("Starting screen cast server...", category="screencast")
-    asyncio.create_task(start_screen_cast_server(startScreenCastServer))
+
+    def _on_shown():
+        # Only torn down once MAIN_WINDOW actually shows, so LAUNCH_SCREEN stays visible
+        # (spinner + update log) while show_main_window() awaits the verse fetch above.
+        LAUNCH_SCREEN.stop()
+        LAUNCH_SCREEN.hide()
+
+        logger.info("Starting screen cast server...", category="screencast")
+        asyncio.create_task(start_screen_cast_server(startScreenCastServer))
+
+        asyncio.create_task(soundbar_on())
+
+    asyncio.create_task(show_main_window(on_shown=_on_shown))
 
 
 async def start_screen_cast_server(start_server):

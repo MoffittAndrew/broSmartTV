@@ -172,7 +172,7 @@ class GUI:
     SPACING = _LAYOUT_SPACING
     MARGINS = _LAYOUT_MARGINS
 
-class _IR_CODES:
+class _PROJECTOR_IR_CODES:
     ON = "KEY_POWER"
     OFF = "KEY_POWER_OFF"
     SELECT = "KEY_ENTER"
@@ -186,17 +186,52 @@ class _IR_CODES:
     VOL_DOWN = "KEY_VOLUMEDOWN"
     SRC_ = "KEY_SRC_"
 
-class _INPUT_CHANNELS:
+class _PROJECTOR_SRC_CHANNELS:
     SEARCH = "SEARCH"
     HDMI = "HDMI"
     VGA = "VGA"
     COMPONENT = "COMPONENT"
 
 class PROJECTOR:
-    CODES = _IR_CODES
-    CHANNELS = _INPUT_CHANNELS
-    CHANNEL_SWITCH_DELAY = 5
+    DEVICE_NAME = "projector"
+    CODES = _PROJECTOR_IR_CODES
+    CHANNELS = _PROJECTOR_SRC_CHANNELS
     INPUT_DELAY = 0.2
+    CHANNEL_SWITCH_DELAY = 5
+    AUTO_VOL_SET = 4
+
+class _SOUNDBAR_IR_CODES:
+    POWER = "POWER"
+    VOL_UP = "VOL_UP"
+    VOL_DOWN = "VOL_DOWN"
+    MUTE = "MUTE"
+    TREBLE_UP = "TREBLE_UP"
+    TREBLE_DOWN = "TREBLE_DOWN"
+    BASS_UP = "BASS_UP"
+    BASS_DOWN = "BASS_DOWN"
+    MODE_ = "MODE_"
+    SRC_ = "SRC_"
+
+class _SOUNDBAR_SRC_CHANNELS:
+    BLUETOOTH = "BLUETOOTH"
+    LINE = "LINE"
+    AUX = "AUX"
+
+class _SOUNDBAR_MODES:
+    MOVIE = "MOVIE"
+    MUSIC = "MUSIC"
+    VOICE = "VOICE"
+
+class SOUNDBAR:
+    DEVICE_NAME = "soundbar"
+    CODES = _SOUNDBAR_IR_CODES
+    CHANNELS = _SOUNDBAR_SRC_CHANNELS
+    MODES = _SOUNDBAR_MODES
+    INPUT_DELAY = 0.4
+    POWER_DELAY = 1
+    CHANNEL_SWITCH_DELAY = 1
+    VOLUME_DELAY = 0.8
+    AUTO_VOL_DOWN_ADJUST = 6
 
 class REMOTE:
     NAME = "bro-ito"
@@ -275,7 +310,12 @@ class SCREEN_CAST:
 
     # Sender policy is centralized here so browser-side WebRTC tuning remains
     # reproducible across sessions and Pi deployments.
-    DEGRADATION_PREFERENCE = "maintain-framerate"
+    # "maintain-resolution" because the browser's own quality scaler otherwise
+    # drops encoded resolution (e.g. 1080p -> 1416x762) after brief CPU spikes and
+    # is slow to climb back; on a TV, a short FPS dip is less objectionable than a
+    # soft picture that persists. Our own adaptive policy still handles sustained
+    # low FPS by stepping down to the 720p floor.
+    DEGRADATION_PREFERENCE = "maintain-resolution"
     BITRATE_MAX_BPS_1080P = 5_000_000
     BITRATE_MIN_BPS_1080P = 0
     BITRATE_MAX_BPS_720P = 2_800_000
@@ -311,8 +351,7 @@ class SCREEN_CAST:
     ]
     SSL_CERT, SSL_KEY = _screen_cast_tls_paths()
 
-
-class WEBDEBUG:
+class _WEBDEBUG:
     # Chrome DevTools Protocol port for the embedded QWebEngineView. Qt/Chromium binds this to
     # 127.0.0.1 only when given a bare port number (no host prefix) - never reachable directly
     # off-device, only reverse-proxied by webserver/webdebug_routes.py.
@@ -326,3 +365,71 @@ class WEBDEBUG:
     # where this gets printed straight to stdout instead.
     TOKEN = os.getenv("BRO_WEBDEBUG_TOKEN") or secrets.token_urlsafe(24)
 
+class WEB:
+    DEBUG = _WEBDEBUG
+    # User agent string to use for the embedded QWebEngineView. Some streaming services
+    # may reject the default Qt/Raspberry-Pi user agent.
+    USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 OPR/124.0.0.0 (Edition developer)"
+    # Sent alongside the UA; a missing Accept-Language is another bot/embedded-browser tell
+    # some streaming CDNs use, and it drives which subtitle/audio defaults sites pick.
+    ACCEPT_LANGUAGE = "en-GB,en;q=0.9"
+    # Bound Chromium's disk cache so streaming media caching can't chew through the Pi's SD card.
+    HTTP_CACHE_MAX_BYTES = 256 * 1024 * 1024
+
+    # A <video> covering at least this fraction of the viewport (or HTML5 fullscreen) flips
+    # web input into "player mode": remote keys are forwarded to the page as real key events
+    # instead of moving spatial focus. 0.85 keeps Netflix's large-but-not-full browse
+    # billboards below the threshold while /watch-style full-viewport players are above it.
+    PLAYER_MIN_VIDEO_COVERAGE = 0.85
+    # runJavaScript callbacks can be dropped if the page navigates/crashes mid-flight; a
+    # timeout stops a lost callback from wedging the input backlog queue forever.
+    JS_QUERY_TIMEOUT_SECONDS = 2.0
+
+
+class BIBLE_VERSE:
+    OK_BUTTON_NAMES = [
+        "ok",
+        "huh?",
+        "what",
+        "Amen!",
+        "so true",
+        "Facts",
+        "hmmmmm",
+        "indeed",
+        "when yur right yur right",
+        "preach",
+        "yippee!",
+        "i guess so",
+        "yeah",
+        "that sounds right",
+        "yessir",
+        "sure thing",
+        "whatever you say chief",
+        "interesante",
+        "vewy intewesting",
+        "of course",
+        "naturally",
+        "is that so?",
+        "really?",
+        "Fascinating",
+        "bro is pondering...",
+        "colour me intrigued",
+        "cool",
+        "awesome sauce",
+        "And all God's people said: 'what?'",
+        "sounds good to me",
+        "I suppose so",
+        "'Lovely verse' - Cole, probably",
+        "couldn't have put it better myself",
+        "This is the word of God, for the people of God.",
+        "well i never thought about it like that before",
+        "let that sink in",
+        "God really cooked there",
+    ]
+    API_BASE_URL = "https://bible.helloao.org/api"
+    # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
+    REQUEST_TIMEOUT_SECONDS = 3
+    # Overall budget for fetching a verse (including retries) before startup gives up and skips to the home screen.
+    TOTAL_TIMEOUT_SECONDS = 8
+    # Random translation/book/chapter/verse picks to retry before giving up (guards against bad combos, e.g. 404s).
+    MAX_ATTEMPTS = 3
