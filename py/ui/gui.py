@@ -413,8 +413,11 @@ class CustomQWindow(CustomQWidget):
             self.__onScreenKeyboard.setGeometry(0, 0, self.width(), self.height())
 
     def show(self, initialTab=None):
-        super().show()
+        # setTab() before super().show() so the correct tab is already raised to the front of
+        # the StackAll z-order by the time the window first paints - otherwise whatever widget
+        # was current by default (e.g. homeScreen) flashes on screen for a frame first.
         self.setTab(initialTab)
+        super().show()
 
 
 MAIN_WINDOW = CustomQWindow()

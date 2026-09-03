@@ -409,6 +409,14 @@ class BIBLE_VERSE:
         "vewy intewesting",
         "of course",
         "naturally",
+        "is that so?",
+        "really?",
+        "fascinating",
+        "bro is pondering...",
+        "colour me intrigued",
+        "cool",
+        "awesome sauce",
+        "And all God's people said: 'what?'"
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
