@@ -107,10 +107,12 @@ async def projector_soundbar_on():
 
 async def projector_volume_init():
     from interface.projector_interface import projectorInterface
+    await asyncio.sleep(3)
     await projectorInterface.autoVolInit()
 
 async def soundbar_volume_init():
     from interface.soundbar_interface import soundbarInterface
+    await asyncio.sleep(3)
     await soundbarInterface.autoVolInit()
 
 
