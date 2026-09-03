@@ -30,7 +30,7 @@ class ProjectorInterface:
     
     async def off(self):
         # for now
-        #await self.send(PROJECTOR.CODES.OFF)
+        await self.send(PROJECTOR.CODES.OFF)
         ...
     
     async def setVolume(self, volume):
