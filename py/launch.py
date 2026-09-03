@@ -104,6 +104,7 @@ async def projector_soundbar_on():
     from interface.soundbar_interface import soundbarInterface
     logger.info("Switching soundbar on...", category="soundbar")
     await soundbarInterface.on()
+    await projectorInterface.autoVolSet()
 
 
 def launch():
