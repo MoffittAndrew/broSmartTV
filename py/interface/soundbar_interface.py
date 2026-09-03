@@ -23,13 +23,13 @@ class SoundbarInterface:
         else:
             print("Cannot send IR data, no IR interface has been set!")
     
-    async def power(self):
+    async def on(self):
+        await self.send(SOUNDBAR.CODES.POWER)
+        await sleep(SOUNDBAR.INPUT_DELAY)
         await self.send(SOUNDBAR.CODES.POWER)
     
     async def off(self):
-        # for now
-        #await self.send(SOUNDBAR.CODES.OFF)
-        ...
+        await self.send(SOUNDBAR.CODES.POWER)
     
     async def mute(self):
         await self.send(SOUNDBAR.CODES.MUTE)

@@ -14,7 +14,7 @@ def reset_shutdown_state():
     _shutdown_started = False
 
 
-async def teardown_app(projector_interface=None, quit_app=False):
+async def teardown_app(projector_interface=None, soundbar_interface=None, quit_app=False):
     global _shutdown_started
 
     if _shutdown_started:
@@ -28,6 +28,12 @@ async def teardown_app(projector_interface=None, quit_app=False):
                 await projector_interface.off()
             except Exception as exc:
                 logger.exception("Projector shutdown failed", exc, component="projector")
+
+        if soundbar_interface is not None:
+            try:
+                await soundbar_interface.off()
+            except Exception as exc:
+                logger.exception("Soundbar shutdown failed", exc, component="soundbar")
 
         try:
             await stopAudioPlayback()

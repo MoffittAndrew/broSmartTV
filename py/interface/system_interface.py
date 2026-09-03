@@ -28,6 +28,7 @@ class SystemInterface:
         request_reboot_pending=None,
         is_raspberry_pi=None,
         projector_interface=None,
+        soundbar_interface=None,
         show_shutdown_screen=None,
         *args,
         **kwargs,
@@ -40,10 +41,14 @@ class SystemInterface:
         self.__is_raspberry_pi = DEVICE.IS_RASPBERRY_PI if is_raspberry_pi is None else is_raspberry_pi
         # Not available at module-import time; set later via setProjectorInterface() (see main.py wiring).
         self.__projector_interface = projector_interface
+        self.__soundbar_interface = soundbar_interface
         self.__show_shutdown_screen = show_shutdown_screen or self._default_show_shutdown_screen
 
     def setProjectorInterface(self, projector_interface):
         self.__projector_interface = projector_interface
+    
+    def setSoundbarInterface(self, soundbar_interface):
+        self.__soundbar_interface = soundbar_interface
 
     def _default_show_shutdown_screen(self, msg=None):
         # Lazy import keeps this module's import graph Qt/UI-free for non-GUI callers and tests.
@@ -71,13 +76,13 @@ class SystemInterface:
         self.__request_skip_standby()
         # No projector_interface passed: projector stays on. Quitting relies on the
         # Pi launcher's bash loop (or local dev's aboutToQuit hook) to bring the app back.
-        await self.__teardown(quit_app=True)
+        await self.__teardown(soundbar_interface=self.__soundbar_interface, quit_app=True)
 
     async def shutdown_app(self):
         logger.info("Shutting down app...", category="system")
         self.__show_shutdown_screen("bro is shutting down...")
         # Deliberately no request_skip_standby(): next launch.py run should enter standby.
-        await self.__teardown(projector_interface=self.__projector_interface, quit_app=True)
+        await self.__teardown(projector_interface=self.__projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True)
 
     async def reboot_device(self):
         logger.info("Rebooting device...", category="system")
@@ -86,7 +91,7 @@ class SystemInterface:
         # The shell must see this even if SIGINT interrupts Python before the app exits normally.
         self.__request_reboot_pending()
         # Stop services but don't quit yet - we still need this process alive to await the command below.
-        await self.__teardown(quit_app=False)
+        await self.__teardown(soundbar_interface=self.__soundbar_interface, quit_app=False)
 
         if not self.__is_raspberry_pi:
             logger.warning("Skipping reboot command on non-Raspberry-Pi device.", category="system")

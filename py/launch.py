@@ -38,6 +38,7 @@ reload_modules = [
     "webserver.webserver_utils",
     "webserver.standby_server",
     "interface.projector_interface",
+    "interface.soundbar_interface",
     "interface.ir_interface",
     "interface.remote_interface",
 ]
@@ -94,11 +95,15 @@ def init_qt():
 
     LAUNCH_SCREEN = LaunchScreen(display=DISPLAY, log_font_size=30, log_max_lines=15)
 
-async def projector_on():
-    """Power on the projector while launch/update work continues."""
+async def projector_soundbar_on():
+    """Power on the projector and soundbar while launch/update work continues."""
     from interface.projector_interface import projectorInterface
     logger.info("Switching projector on...", category="projector")
     await projectorInterface.on()
+
+    from interface.soundbar_interface import soundbarInterface
+    logger.info("Switching soundbar on...", category="soundbar")
+    await soundbarInterface.on()
 
 
 def launch():
@@ -271,8 +276,8 @@ def main():
         else:
             startup_trigger = asyncio.run(off_phase())
         with qtinter.using_asyncio_from_qt():
-            # Switch projector on
-            projector_task = asyncio.create_task(projector_on())
+            # Switch projector/soundbar on
+            projector_soundbar_task = asyncio.create_task(projector_soundbar_on())
             remote_task_holder = []
 
             init_qt()
@@ -293,13 +298,13 @@ def main():
             if loop.is_running():
                 loop.create_task(
                     shutdown_background_tasks(
-                        [projector_task, *remote_task_holder, update_task]
+                        [projector_soundbar_task, *remote_task_holder, update_task]
                     )
                 )
             else:
                 loop.run_until_complete(
                     shutdown_background_tasks(
-                        [projector_task, *remote_task_holder, update_task]
+                        [projector_soundbar_task, *remote_task_holder, update_task]
                     )
                 )
 
