@@ -404,6 +404,7 @@ class BIBLE_VERSE:
         "that sounds right",
         "yessir",
         "sure thing",
+        "whatever you say chief",
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.

@@ -86,6 +86,17 @@ self.__capsButton = ToggleButton(
 
 Do not mirror state in a `ToggleButton` or use the button as the authority for the value. When the owner changes a value outside a button interaction, redraw the affected button so it fetches and displays the updated value.
 
+## MAIN_WINDOW Tab Stacking (StackAll Gotcha)
+`CustomQWindow` (`MAIN_WINDOW` in `ui/gui.py`) holds its top-level screens (`homeScreen`, `webInterface`, `bibleVerseScreen`, the on-screen keyboard, the shutdown screen, ...) in a `QStackedLayout` constructed with `setStackingMode(QStackedLayout.StackAll)`.
+
+**This is not the default `QStackedLayout` behavior.** The default mode (`StackOne`) automatically hides every widget except the current one. `StackAll` does not - every widget added via `MAIN_WINDOW.addWidget(...)` stays visible (and keeps receiving paint/layout updates) unless something explicitly hides it. `setTab()`/`setCurrentWidget()` only change *z-order* (which widget is on top) and which widget's `getPrimaryButton()` feeds the input-focus outline - they do **not** hide the widgets being switched away from.
+
+Consequences for any new top-level screen added to `MAIN_WINDOW`:
+- **You own your own visibility.** Call `self.show()` when your screen becomes the active tab and `self.hide()` when leaving it. Do this from the screen itself (see `web_interface.py`'s `openURL()` calling `self.show()` and `closeAndReturnHome()` calling `self.hide()`, or `bible_verse_screen.py`'s `showVerse()`/`_onOk()`), not from the caller - keep the show/hide pairing next to the state change that causes it.
+- **`homeScreen` is the one exception** - it is never explicitly hidden, since it is the always-present background tab. Every other full-screen tab must be opaque (see below) and explicitly hidden when done, so it stops covering `homeScreen` (or whatever was behind it).
+- **Give full-screen tabs an opaque background you can rely on.** A bare `setStyleSheet("background-color: ...")` on a plain `CustomQWidget` subclass does not reliably paint (Qt requires `Qt.WA_StyledBackground` or a custom `paintEvent` for stylesheet backgrounds to actually render on non-standard widget classes). Use `setAutoFillBackground(True)` plus a palette color instead (see `LaunchScreen`, `MAIN_WINDOW` itself, and `bible_verse_screen.py`). Otherwise the "hidden" screen underneath can visibly bleed through even while your screen is topmost.
+- **Symptom to recognize:** if two full-screen tabs appear simultaneously overlaid (or a screen you thought you left is still faintly visible), first check that the screen you're leaving/entering actually calls `.hide()`/`.show()` on itself, then check that it has a real opaque background via `setAutoFillBackground` + palette.
+
 ## Overlay Recipes
 - Full-bleed panel (`WifiOverlay`, `OnScreenKeyboard`): covers the whole screen and replaces its content in place. Use for content-heavy overlays (scrollable lists, keyboards).
 - Centered dimmed popup (`MenuOverlay`): dims the whole screen and shows a smaller centered box of options. Use for lightweight choice menus. `MenuOverlay` is intentionally generic - it takes a list of `{"text", "clickCallback"}` option dicts and auto-wires each option's `returnCallback` to close the menu, so it can be reused for any picker, not just git branches.
