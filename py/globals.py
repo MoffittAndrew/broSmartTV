@@ -229,6 +229,7 @@ class SOUNDBAR:
     INPUT_DELAY = 0.4
     CHANNEL_SWITCH_DELAY = 1
     VOLUME_DELAY = 1
+    AUTO_VOL_DOWN_ADJUST = 7
 
 class REMOTE:
     NAME = "bro-ito"
