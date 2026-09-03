@@ -393,7 +393,7 @@ class BIBLE_VERSE:
         "what",
         "Amen!",
         "so true",
-        "facts",
+        "Facts",
         "hmmmmm",
         "indeed",
         "when yur right yur right",
@@ -411,7 +411,7 @@ class BIBLE_VERSE:
         "naturally",
         "is that so?",
         "really?",
-        "fascinating",
+        "Fascinating",
         "bro is pondering...",
         "colour me intrigued",
         "cool",
@@ -421,6 +421,10 @@ class BIBLE_VERSE:
         "I suppose so",
         "'Lovely verse' - Cole, probably",
         "couldn't have put it better myself",
+        "This is the word of God, for the people of God.",
+        "well i never thought about it like that before",
+        "let that sink in",
+        "God really cooked there",
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
