@@ -107,7 +107,7 @@ async def show_main_window(on_shown=None):
         verse = None
 
     if verse is not None:
-        bibleVerseScreen.setVerse(verse)
+        bibleVerseScreen.showVerse(verse)
         MAIN_WINDOW.show(initialTab=bibleVerseScreen)
     else:
         MAIN_WINDOW.show()

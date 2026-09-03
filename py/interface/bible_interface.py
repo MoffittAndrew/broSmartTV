@@ -55,6 +55,12 @@ class BibleInterface:
                     session, f"{BIBLE_VERSE.API_BASE_URL}/available_translations.json"
                 )
                 translations = translations_payload["translations"]
+                # Restrict to English translations: the API also serves scripts (Devanagari,
+                # Ethiopic, etc.) that the device's installed fonts can't render, which shows
+                # as tofu boxes instead of text.
+                english_translations = [t for t in translations if t.get("language") == "eng"]
+                if english_translations:
+                    translations = english_translations
             except Exception as exc:
                 logger.warning(f"Could not reach Bible API, skipping verse screen: {exc}", category="startup")
                 return None

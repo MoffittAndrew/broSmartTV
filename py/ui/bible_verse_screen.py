@@ -39,7 +39,13 @@ class BibleVerseScreen(CustomQWidget):
         self.setFixedWidth(DISPLAY.WIDTH)
         self.setFixedHeight(DISPLAY.HEIGHT)
         self.setLayout(rootLayout)
-        self.setStyleSheet("background-color: black;")
+        # A plain stylesheet background doesn't reliably paint on this custom-widget base, which
+        # let the home screen show through underneath; autoFillBackground+palette (like
+        # LaunchScreen/MAIN_WINDOW) guarantees an opaque background instead.
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), Qt.black)
+        self.setPalette(palette)
         self.hide()
 
     def setVerse(self, verse):
@@ -47,11 +53,22 @@ class BibleVerseScreen(CustomQWidget):
         self.__referenceLabel.setText(verse.reference)
         # Re-rolled on every show so repeated launches don't always land on the same button text.
         self.__okButton.setText(random.choice(BIBLE_VERSE.OK_BUTTON_NAMES))
+        # setText() only flags the button dirty; it must be redrawn explicitly to actually repaint.
+        self.__okButton.draw()
+        self.__okButton.update()
+
+    def showVerse(self, verse):
+        """Set the verse and make this screen visible - MAIN_WINDOW's stacked layout runs in
+        StackAll mode, so widgets must be shown/hidden explicitly (see web_interface.py's
+        openURL()/closeAndReturnHome() for the same pattern) rather than relying on tab switches."""
+        self.setVerse(verse)
+        self.show()
 
     def getPrimaryButton(self):
         return self.__okButton
 
     async def _onOk(self):
+        self.hide()
         MAIN_WINDOW.setTab()
 
 
