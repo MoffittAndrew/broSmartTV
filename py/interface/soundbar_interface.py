@@ -33,6 +33,9 @@ class SoundbarInterface:
     
     async def off(self):
         await self.send(SOUNDBAR.CODES.POWER)
+        await self.send(SOUNDBAR.CODES.POWER)
+        await sleep(SOUNDBAR.POWER_DELAY)
+        await self.send(SOUNDBAR.CODES.POWER)
     
     async def mute(self):
         await self.send(SOUNDBAR.CODES.MUTE)
