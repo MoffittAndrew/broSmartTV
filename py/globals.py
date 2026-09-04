@@ -99,6 +99,13 @@ class GIT:
     BRANCH_FILE = os.path.join(PATH, "launcher", "branch")
     DEFAULT_BRANCH = "live"
 
+class CONFIG:
+    # Persisted app settings (not in git, see .gitignore); extension point for future settings.
+    STORAGE_FILE = os.path.join(PATH, "config.json")
+    DEFAULTS = {
+        "projector_off_on_shutdown": True,
+    }
+
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100

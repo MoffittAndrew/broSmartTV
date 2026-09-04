@@ -28,9 +28,7 @@ class ProjectorInterface:
         await self.send(PROJECTOR.CODES.RETURN)
     
     async def off(self):
-        # for now
-        #await self.send(PROJECTOR.CODES.OFF)
-        ...
+        await self.send(PROJECTOR.CODES.OFF)
     
     async def volumeInit(self):
         for _ in range(10):

@@ -30,6 +30,7 @@ class SystemInterface:
         projector_interface=None,
         soundbar_interface=None,
         show_shutdown_screen=None,
+        config_interface=None,
         *args,
         **kwargs,
     ):
@@ -39,6 +40,8 @@ class SystemInterface:
         self.__request_skip_standby = request_skip_standby or _request_skip_standby_default
         self.__request_reboot_pending = request_reboot_pending or _request_reboot_pending_default
         self.__is_raspberry_pi = DEVICE.IS_RASPBERRY_PI if is_raspberry_pi is None else is_raspberry_pi
+        # Not available at module-import time; set later via setConfigInterface() (see main.py wiring).
+        self.__config_interface = config_interface
         # Not available at module-import time; set later via setProjectorInterface() (see main.py wiring).
         self.__projector_interface = projector_interface
         self.__soundbar_interface = soundbar_interface
@@ -49,6 +52,9 @@ class SystemInterface:
     
     def setSoundbarInterface(self, soundbar_interface):
         self.__soundbar_interface = soundbar_interface
+
+    def setConfigInterface(self, config_interface):
+        self.__config_interface = config_interface
 
     def _default_show_shutdown_screen(self, msg=None):
         # Lazy import keeps this module's import graph Qt/UI-free for non-GUI callers and tests.
@@ -82,7 +88,11 @@ class SystemInterface:
         logger.info("Shutting down app...", category="system")
         self.__show_shutdown_screen("bro is shutting down...")
         # Deliberately no request_skip_standby(): next launch.py run should enter standby.
-        await self.__teardown(projector_interface=self.__projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True)
+        # Skippable via settings for dev convenience, so the projector doesn't flicker off/on every restart.
+        # No config_interface wired (e.g. in tests) defaults to the original always-off behavior.
+        should_turn_off_projector = self.__config_interface is None or self.__config_interface.getProjectorOffOnShutdown()
+        projector_interface = self.__projector_interface if should_turn_off_projector else None
+        await self.__teardown(projector_interface=projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True)
 
     async def reboot_device(self):
         logger.info("Rebooting device...", category="system")

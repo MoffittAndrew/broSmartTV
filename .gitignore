@@ -65,5 +65,8 @@ certs/*.pem
 # Known wifi networks
 known_networks.json
 
+# Persisted app config/settings
+config.json
+
 # Local logs
 logs/

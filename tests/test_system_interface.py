@@ -45,7 +45,15 @@ class FakeProjector:
         self.off_calls += 1
 
 
-def make_interface(async_command_runner=None, is_raspberry_pi=True, projector_interface=None):
+class FakeConfigInterface:
+    def __init__(self, projector_off_on_shutdown=True):
+        self.__projector_off_on_shutdown = projector_off_on_shutdown
+
+    def getProjectorOffOnShutdown(self):
+        return self.__projector_off_on_shutdown
+
+
+def make_interface(async_command_runner=None, is_raspberry_pi=True, projector_interface=None, config_interface=None):
     teardown = FakeTeardown()
     quit_calls = []
     skip_standby_calls = []
@@ -60,6 +68,7 @@ def make_interface(async_command_runner=None, is_raspberry_pi=True, projector_in
         is_raspberry_pi=is_raspberry_pi,
         projector_interface=projector_interface,
         show_shutdown_screen=lambda msg=None: shutdown_screen_calls.append(msg),
+        config_interface=config_interface if config_interface is not None else FakeConfigInterface(),
     )
     return interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls, shutdown_screen_calls
 
@@ -90,6 +99,31 @@ async def test_shutdown_app_shows_screen_tears_down_projector_and_skips_standby_
     assert teardown.calls == [{"projector_interface": projector, "soundbar_interface": None, "quit_app": True}]
     assert skip_standby_calls == []
     assert reboot_pending_calls == []
+
+
+@pytest.mark.asyncio
+async def test_shutdown_app_skips_projector_when_setting_disabled():
+    projector = FakeProjector()
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls, shutdown_screen_calls = make_interface(
+        projector_interface=projector, config_interface=FakeConfigInterface(projector_off_on_shutdown=False)
+    )
+
+    await interface.shutdown_app()
+
+    assert teardown.calls == [{"projector_interface": None, "soundbar_interface": None, "quit_app": True}]
+
+
+@pytest.mark.asyncio
+async def test_shutdown_app_defaults_to_turning_off_projector_when_config_interface_not_wired():
+    projector = FakeProjector()
+    interface, teardown, quit_calls, skip_standby_calls, reboot_pending_calls, shutdown_screen_calls = make_interface(
+        projector_interface=projector, config_interface=None
+    )
+    interface.setConfigInterface(None)
+
+    await interface.shutdown_app()
+
+    assert teardown.calls == [{"projector_interface": projector, "soundbar_interface": None, "quit_app": True}]
 
 
 @pytest.mark.asyncio

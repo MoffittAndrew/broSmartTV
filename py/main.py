@@ -49,6 +49,7 @@ from interface.keyboard_interface import keyboardInterface
 from interface.projector_interface import projectorInterface
 from interface.soundbar_interface import soundbarInterface
 from interface.system_interface import systemInterface
+from interface.config_interface import configInterface
 from interface.bible_interface import bibleInterface
 from webserver.screen_cast import (
     startScreenCastServer,
@@ -149,6 +150,7 @@ inputInterface.setSoundbarInterface(soundbarInterface)
 inputInterface.setSystemInterface(systemInterface)
 systemInterface.setProjectorInterface(projectorInterface)
 systemInterface.setSoundbarInterface(soundbarInterface)
+systemInterface.setConfigInterface(configInterface)
 inputInterface.setWebInterface(webInterface)
 webInterface.setInputInterface(inputInterface)
 keyboardInterface.setInputInterface(inputInterface)

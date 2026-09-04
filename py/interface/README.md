@@ -76,9 +76,10 @@ Key behaviors to preserve:
 | `ir_interface.py` | `irInterface` | Lowest-level output: shells out to `irsend` (LIRC, config in `projector/projector.lircd.conf`) to emit Epson remote codes. No-ops on non-Pi devices. Synchronous — delay pacing is the projector interface's job. |
 | `projector_interface.py` | `projectorInterface` | Semantic projector commands (`on`, `select`, `navUp`, `volUp`, `switchInputChannel`, ...) built on `irInterface.send()` with `PROJECTOR.INPUT_DELAY` pacing between codes. `off()` is intentionally stubbed out for now. HDMI switching is done via VGA→SEARCH because there is no direct HDMI code. |
 | `web_interface.py` | `webInterface` | Full-screen `QWebEngineView` for smart-TV web browsing (see `WEB_INTEGRATION.md`). Installs custom spatial-nav JS (`window.__broNav`) as a profile-level script for D-pad focus movement, reports the focused element back as a `FocusedElement` (duck-typed `.rect` contract that `inputInterface.setSelectedButton()` accepts). Detects "player mode" (fullscreen/full-viewport video) and forwards real key events for playback control. Configures profiles for browser parity (DRM plugins, autoplay, fullscreen, popups, persistent logins), handles incognito profiles, browser-like RETURN (fullscreen exit → history back → close), renderer-crash auto-reload, and hands off text entry to the GUI keyboard overlay (dropping to GUI mode while it is open). |
-| `system_interface.py` | `systemInterface` | App restart and device reboot. Both call `launch_signals.request_skip_standby()` and go through `teardown_app` **without** a projector interface (projector deliberately stays on). Reboot writes the reboot-pending flag *before* running `sudo shutdown -r now` (see launcher docs in `.github/copilot-instructions.md`). |
+| `system_interface.py` | `systemInterface` | App restart, shutdown, and device reboot. Restart/reboot call `launch_signals.request_skip_standby()` and go through `teardown_app` **without** a projector interface (projector deliberately stays on). Shutdown consults `configInterface.getProjectorOffOnShutdown()` (wired via `setConfigInterface()`) to decide whether to pass the projector interface to `teardown_app` at all. Reboot writes the reboot-pending flag *before* running `sudo shutdown -r now` (see launcher docs in `.github/copilot-instructions.md`). |
 | `git_interface.py` | `gitInterface` | Branch selection for the updater. Read-only branch discovery from `refs/remotes/origin`; `switchBranch()` only writes the branch file — `launcher/update` performs the actual checkout/pull on next restart. |
 | `wifi_interface.py` | `wifiInterface` | Wi-Fi scanning/connecting via `nmcli` (with `iwgetid` fallback for current-SSID only). Persists known networks + passwords to a JSON file (`WIFI.KNOWN_NETWORKS_FILE`). `Network` dataclass is the data contract used by the Wi-Fi UI overlay. |
+| `config_interface.py` | `configInterface` | Generic persisted key/value settings store (JSON file at `CONFIG.STORAGE_FILE`, gitignored). Seeded from `CONFIG.DEFAULTS`; extension point for future persisted settings. Currently backs `projector_off_on_shutdown`, consumed by `system_interface.py`. |
 
 ## Consumers
 
@@ -86,7 +87,7 @@ Key behaviors to preserve:
 - `py/launch.py` — Pi path; also lists interface modules in its hot-reload list (note
   `interface.remote_interface` is excluded from reload to keep the live BLE connection).
 - `py/ui/settings_screen.py`, `py/ui/wifi_overlay.py`, `py/ui/tools/tile.py` — UI consumers of
-  `gitInterface`/`systemInterface`/`wifiInterface`/`webInterface`.
+  `gitInterface`/`systemInterface`/`wifiInterface`/`webInterface`/`configInterface`.
 - `py/webserver/remote_control.py` — phone web remote, injects inputs via `inputInterface.receive()`.
 
 ## Adding a new interface
