@@ -9,6 +9,7 @@ from asyncio import sleep
 class ProjectorInterface:
     def __init__(self, irInterface = None, *args, **kwargs):
         self.setIrInterface(irInterface)
+        self.__volume = 0
     
     def setIrInterface(self, irInterface):
         self.__irInterface = irInterface
@@ -30,11 +31,16 @@ class ProjectorInterface:
     async def off(self):
         await self.send(PROJECTOR.CODES.OFF)
     
-    async def volumeInit(self):
-        for _ in range(10):
-            await self.volDown()
-        for _ in range(PROJECTOR.AUTO_VOL_SET):
+    async def setVolume(self, volume):
+        while self.__volume < volume:
             await self.volUp()
+        while self.__volume > volume:
+            await self.volDown()
+    
+    async def volumeInit(self):
+        # calibrate volume
+        await self.setVolume(0)
+        await self.setVolume(PROJECTOR.AUTO_VOL_SET)
     
     async def select(self):
         await self.send(PROJECTOR.CODES.SELECT)
@@ -59,19 +65,23 @@ class ProjectorInterface:
     
     async def volUp(self):
         await self.send(PROJECTOR.CODES.VOL_UP)
+        self.__volume += 1
     
     async def volDown(self):
         await self.send(PROJECTOR.CODES.VOL_DOWN)
+        self.__volume -= 1
     
     async def switchInputChannel(self, inputChannel):
         if inputChannel == PROJECTOR.CHANNELS.VGA:
             await self.send(PROJECTOR.CODES.SRC_ + inputChannel)
+            await self.setVolume(10)
         elif inputChannel == PROJECTOR.CHANNELS.COMPONENT:
             ...
         else: # Default to HDMI
             await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VGA)
             await sleep(PROJECTOR.INPUT_DELAY)
             await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.SEARCH)
+            await self.setVolume(PROJECTOR.AUTO_VOL_SET)
         
         await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
 
