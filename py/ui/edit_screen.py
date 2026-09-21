@@ -2,7 +2,7 @@ print("Importing edit screen...")
 
 from ui.gui import CustomQWidget
 
-from PyQt5.QtWidgets import QLabel
+from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 class EditScreen(CustomQWidget):
     def __init__(self, navBarButton = None, *args, **kwargs):
@@ -12,6 +12,12 @@ class EditScreen(CustomQWidget):
         
         self.__heading = QLabel("this feature isn't working yet dumbass")
         self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.__heading)
+        self.setLayout(layout)
         
     ## Getters
     
