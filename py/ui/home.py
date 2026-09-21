@@ -159,12 +159,12 @@ class HomeScreen(CustomQWidget):
             index = self.getDefaultTab()
         
         if index in self.__notImplementedReturnList:
-            _buttons[index].setText(self.__notImplementedMsgsReturn)
+            _bodyWidgets[index].setText(self.__notImplementedMsgsReturn)
             self.__notImplementedReturnList.remove(index)
             print("not impl (return):", index)
         
         if index in self.__notImplementedList:
-            _buttons[index].setText(self.__notImplementedMsgs[self.__notImplementedCount % len(self.__notImplementedMsgs)])
+            _bodyWidgets[index].setText(self.__notImplementedMsgs[self.__notImplementedCount % len(self.__notImplementedMsgs)])
             self.__notImplementedCount += 1
             self.__notImplementedList.remove(index)
             self.__notImplementedReturnList.append(index)
