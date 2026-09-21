@@ -39,13 +39,6 @@ class EditScreen(CustomQWidget):
     def setText(self, text):
     
         print("(edit screen) Setting text to:", text)
-        self.__heading = QLabel(text)
-        self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
-        
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self.__heading)
-        self.setLayout(layout)
+        self.__heading.setText(text)
 
 editScreen = EditScreen()
