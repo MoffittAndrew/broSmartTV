@@ -113,7 +113,7 @@ class ProjectorInterface:
                 await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
             while self.__activeVideoChannel != PROJECTOR.CHANNELS.HDMI:
                 await self.cycleVideoChannel()
-            await self.setVolume(PROJECTOR.AUTO_VOL_SET)
+            #await self.setVolume(PROJECTOR.AUTO_VOL_SET)
         
         await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
         self.__srcChannel = inputChannel
