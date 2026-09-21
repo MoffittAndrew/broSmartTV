@@ -72,10 +72,14 @@ class ProjectorInterface:
     async def volUp(self):
         await self.send(PROJECTOR.CODES.VOL_UP)
         self.__volume += 1
+        if self.__volume > 10:
+            self.__volume = 10
     
     async def volDown(self):
         await self.send(PROJECTOR.CODES.VOL_DOWN)
         self.__volume -= 1
+        if self.__volume < 0:
+            self.__volume = 0
     
     async def cycleVideoChannel(self):
         # Cycle through video input channels in the order: HDMI -> S-Video -> Component -> HDMI

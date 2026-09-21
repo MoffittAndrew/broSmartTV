@@ -437,6 +437,7 @@ class BIBLE_VERSE:
         "That ones going straight to the instagram bio",
         "fr?",
         "<fire emoji>",
+        "wadawa",
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.
