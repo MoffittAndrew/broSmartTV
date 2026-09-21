@@ -108,6 +108,7 @@ class ProjectorInterface:
         
         if inputChannel == PROJECTOR.CHANNELS.VGA:
             await self.send(PROJECTOR.CODES.SRC_ + inputChannel)
+            await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
             await self.setVolume(10, channel=inputChannel)
         
         else:
@@ -119,6 +120,7 @@ class ProjectorInterface:
                 await self.cycleVideoChannel()
             
             if inputChannel == PROJECTOR.CHANNELS.COMPONENT:
+                await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
                 await self.setVolume(10, channel=inputChannel)
         
         self.__srcChannel = inputChannel
