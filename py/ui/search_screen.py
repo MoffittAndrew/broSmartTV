@@ -38,5 +38,6 @@ class SearchScreen(CustomQWidget):
 
     def setText(self, text):
         self.__heading.setText(text)
+        self.draw()
 
 searchScreen = SearchScreen()

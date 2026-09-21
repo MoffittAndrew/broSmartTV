@@ -38,5 +38,6 @@ class FilterScreen(CustomQWidget):
     
     def setText(self, text):
         self.__heading.setText(text)
+        self.draw()
 
 filterScreen = FilterScreen()

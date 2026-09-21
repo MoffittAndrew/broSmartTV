@@ -38,5 +38,6 @@ class EditScreen(CustomQWidget):
     
     def setText(self, text):
         self.__heading.setText(text)
+        self.draw()
 
 editScreen = EditScreen()
