@@ -37,8 +37,6 @@ class FilterScreen(CustomQWidget):
                 tile.setNavUp(navBarButton)
     
     def setText(self, text):
-        
-        print("(filter screen) Setting text to:", text)
         self.__heading.setText(text)
 
 filterScreen = FilterScreen()

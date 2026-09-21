@@ -37,8 +37,6 @@ class SearchScreen(CustomQWidget):
                 tile.setNavUp(navBarButton)
 
     def setText(self, text):
-        
-        print("(search screen) Setting text to:", text)
         self.__heading.setText(text)
 
 searchScreen = SearchScreen()
