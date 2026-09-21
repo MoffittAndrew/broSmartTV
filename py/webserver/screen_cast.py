@@ -127,7 +127,7 @@ WEBPAGES_DIR = os.path.join(PATH, "webpages")
 
 
 async def index(request):
-    return web.HTTPFound("/cast")
+    return web.HTTPFound("/remote")
 
 
 async def cast(request):

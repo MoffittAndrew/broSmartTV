@@ -99,6 +99,13 @@ class GIT:
     BRANCH_FILE = os.path.join(PATH, "launcher", "branch")
     DEFAULT_BRANCH = "live"
 
+class CONFIG:
+    # Persisted app settings (not in git, see .gitignore); extension point for future settings.
+    STORAGE_FILE = os.path.join(PATH, "config.json")
+    DEFAULTS = {
+        "projector_off_on_shutdown": True,
+    }
+
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
@@ -189,6 +196,8 @@ class _PROJECTOR_IR_CODES:
 class _PROJECTOR_SRC_CHANNELS:
     SEARCH = "SEARCH"
     HDMI = "HDMI"
+    VIDEO = "VIDEO"
+    S_VIDEO = "S_VIDEO"
     VGA = "VGA"
     COMPONENT = "COMPONENT"
 
@@ -197,7 +206,7 @@ class PROJECTOR:
     CODES = _PROJECTOR_IR_CODES
     CHANNELS = _PROJECTOR_SRC_CHANNELS
     INPUT_DELAY = 0.2
-    CHANNEL_SWITCH_DELAY = 5
+    CHANNEL_SWITCH_DELAY = 2.5
     AUTO_VOL_SET = 4
 
 class _SOUNDBAR_IR_CODES:
@@ -425,6 +434,10 @@ class BIBLE_VERSE:
         "well i never thought about it like that before",
         "let that sink in",
         "God really cooked there",
+        "That ones going straight to the instagram bio",
+        "fr?",
+        "<fire emoji>",
+        "wadawa",
     ]
     API_BASE_URL = "https://bible.helloao.org/api"
     # Per-HTTP-request timeout; kept short so one hung request doesn't eat the whole budget below.

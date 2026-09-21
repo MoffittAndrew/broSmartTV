@@ -44,7 +44,7 @@ def redirect_to_standby(next_path):
 
 
 async def index(request):
-    return web.HTTPFound("/cast")
+    return web.HTTPFound("/remote")
 
 
 async def cast(request):

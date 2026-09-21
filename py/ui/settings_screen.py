@@ -2,7 +2,7 @@ print("Importing settings screen...")
 
 from globals import DISPLAY, GUI
 from ui.gui import CustomQWidget, MAIN_WINDOW
-from ui.tools.button import Button
+from ui.tools.button import Button, ToggleButton
 from ui.tools.menu_overlay import MenuOverlay
 from ui.tools.section import VSection
 from ui.wifi_overlay import WifiOverlay
@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QLabel, QVBoxLayout
 
 from interface.git_interface import gitInterface
 from interface.system_interface import systemInterface
+from interface.config_interface import configInterface
 from interface.wifi_interface import wifiInterface
 
 class SettingsScreen(CustomQWidget):
@@ -52,6 +53,13 @@ class SettingsScreen(CustomQWidget):
 
         self.__restartButton = Button(text="restart app", clickCallback=self.confirmRestart)
         self.__rebootButton = Button(text="reboot bro", clickCallback=self.confirmReboot)
+        self.__projectorOffButton = ToggleButton(
+            trueText="turn off projector on shutdown: on",
+            falseText="turn off projector on shutdown: off",
+            fetchValueCallback=configInterface.getProjectorOffOnShutdown,
+            clickCallback=self.toggleProjectorOffOnShutdown,
+            width=GUI.BUTTON.MIN_WIDTH * 3,
+        )
         self.__confirmOverlay = MenuOverlay(parent=self, onClose=self._onConfirmOverlayClosed)
 
         # Cross-section nav link: sections only auto-wire nav within themselves.
@@ -64,6 +72,7 @@ class SettingsScreen(CustomQWidget):
             self.__systemHeading,
             self.__restartButton,
             self.__rebootButton,
+            self.__projectorOffButton,
         ])
 
         layout = QVBoxLayout()
@@ -127,6 +136,9 @@ class SettingsScreen(CustomQWidget):
             self.__currentBranchLabel.setText(f"Current branch: {gitInterface.getCurrentBranch()}")
         except Exception:
             self.__currentBranchLabel.setText("Current branch: unavailable")
+
+    async def toggleProjectorOffOnShutdown(self):
+        configInterface.setProjectorOffOnShutdown(not configInterface.getProjectorOffOnShutdown())
     
     def setNavBarButton(self, navBarButton):
         self.__navBarButton = navBarButton
@@ -214,6 +226,8 @@ class SettingsScreen(CustomQWidget):
         self.__confirmOverlay.hide()
         self.refreshCurrentNetwork()
         self.refreshCurrentBranch()
+        self.__projectorOffButton.draw()
+        self.__projectorOffButton.update()
         return super().showEvent(a0)
 
     def resizeEvent(self, a0):
