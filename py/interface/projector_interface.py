@@ -10,6 +10,8 @@ class ProjectorInterface:
     def __init__(self, irInterface = None, *args, **kwargs):
         self.setIrInterface(irInterface)
         self.__volume = 10
+        self.__srcChannel = PROJECTOR.CHANNELS.HDMI
+        self.__activeVideoChannel = PROJECTOR.CHANNELS.HDMI
     
     def setIrInterface(self, irInterface):
         self.__irInterface = irInterface
@@ -75,18 +77,41 @@ class ProjectorInterface:
         await self.send(PROJECTOR.CODES.VOL_DOWN)
         self.__volume -= 1
     
-    async def switchInputChannel(self, inputChannel):
+    async def cycleVideoChannel(self):
+        # Cycle through video input channels in the order: HDMI -> S-Video -> Component -> HDMI
+        if self.__activeVideoChannel == PROJECTOR.CHANNELS.HDMI:
+            self.__activeVideoChannel = PROJECTOR.CHANNELS.S_VIDEO
+        elif self.__activeVideoChannel == PROJECTOR.CHANNELS.S_VIDEO:
+            self.__activeVideoChannel = PROJECTOR.CHANNELS.COMPONENT
+        elif self.__activeVideoChannel == PROJECTOR.CHANNELS.COMPONENT:
+            self.__activeVideoChannel = PROJECTOR.CHANNELS.HDMI
+        
+        await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VIDEO)
+        await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
+        
+    async def switchInputChannel(self, inputChannel=PROJECTOR.CHANNELS.HDMI):
+        
         if inputChannel == PROJECTOR.CHANNELS.VGA:
             await self.send(PROJECTOR.CODES.SRC_ + inputChannel)
             await self.setVolume(10)
+        
         elif inputChannel == PROJECTOR.CHANNELS.COMPONENT:
-            ...
+            if self.__srcChannel == PROJECTOR.CHANNELS.VGA:
+                await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VIDEO)
+                await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
+            while self.__activeVideoChannel != PROJECTOR.CHANNELS.COMPONENT:
+                await self.cycleVideoChannel()
+        
         else: # Default to HDMI
-            await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VGA)
-            await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
-            await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.SEARCH)
+            inputChannel = PROJECTOR.CHANNELS.HDMI # just in case we were passed a bad arg
+            if self.__srcChannel == PROJECTOR.CHANNELS.VGA:
+                await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VIDEO)
+                await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
+            while self.__activeVideoChannel != PROJECTOR.CHANNELS.HDMI:
+                await self.cycleVideoChannel()
             await self.setVolume(PROJECTOR.AUTO_VOL_SET)
         
         await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
+        self.__srcChannel = inputChannel
 
 projectorInterface = ProjectorInterface(irInterface=irInterface)
