@@ -37,7 +37,14 @@ class FilterScreen(CustomQWidget):
                 tile.setNavUp(navBarButton)
     
     def setText(self, text):
-        self.__heading.setText(text)
-        self.draw()
+        
+        self.__heading = QLabel(text)
+        self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.__heading)
+        self.setLayout(layout)
 
 filterScreen = FilterScreen()
