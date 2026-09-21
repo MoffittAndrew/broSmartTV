@@ -133,6 +133,16 @@ class HomeScreen(CustomQWidget):
             if _buttons[i].equals(homeButton):
                 self.setDefaultTab(i)
         
+        self.__notImplementedList = [1, 3, 4]
+        self.__notImplementedReturnList = []
+        self.__notImplementedCount = 0
+        self.__notImplementedMsgs = [
+                "this feature isn't working yet dumbass",
+                "this one isn't either",
+                "what exactly did you expect to find here?",
+            ]
+        self.__notImplementedMsgsReturn = "did you really think that coming back would suddenly make it work?"
+        
         self.setTab()
     
     def getPrimaryButton(self):
@@ -147,6 +157,16 @@ class HomeScreen(CustomQWidget):
     def setTab(self, index=None):
         if index is None:
             index = self.getDefaultTab()
+        
+        if index in self.__notImplementedList:
+            _buttons[index].setText(self.__notImplementedMsgs[self.__notImplementedCount % len(self.__notImplementedMsgs)])
+            self.__notImplementedCount += 1
+            self.__notImplementedList.remove(index)
+            self.__notImplementedReturnList.append(index)
+        
+        if index in self.__notImplementedReturnList:
+            _buttons[index].setText(self.__notImplementedMsgsReturn)
+            self.__notImplementedReturnList.remove(index)
         
         self.__navBar.setTab(index)
         self.__body.setTab(index)

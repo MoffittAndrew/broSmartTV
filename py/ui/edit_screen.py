@@ -10,7 +10,7 @@ class EditScreen(CustomQWidget):
         
         self.setNavBarButton(navBarButton)
         
-        self.__heading = QLabel("this feature isn't working yet dumbass")
+        self.__heading = QLabel("placeholder")
         self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
         
         layout = QVBoxLayout()
@@ -35,5 +35,8 @@ class EditScreen(CustomQWidget):
             tiles = self.getTiles()
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
+    
+    def setLabel(self, text):
+        self.__heading.setText(text)
 
 editScreen = EditScreen()
