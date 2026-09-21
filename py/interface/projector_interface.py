@@ -83,7 +83,7 @@ class ProjectorInterface:
             ...
         else: # Default to HDMI
             await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.VGA)
-            await sleep(PROJECTOR.INPUT_DELAY)
+            await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
             await self.send(PROJECTOR.CODES.SRC_ + PROJECTOR.CHANNELS.SEARCH)
             await self.setVolume(PROJECTOR.AUTO_VOL_SET)
         
