@@ -82,7 +82,7 @@ class SystemInterface:
         self.__request_skip_standby()
         # No projector_interface passed: projector stays on. Quitting relies on the
         # Pi launcher's bash loop (or local dev's aboutToQuit hook) to bring the app back.
-        await self.__teardown(soundbar_interface=self.__soundbar_interface, quit_app=True)
+        await self.__teardown(projector_interface=self.__projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True, switch_projector_off=False)
 
     async def shutdown_app(self):
         logger.info("Shutting down app...", category="system")
@@ -91,8 +91,7 @@ class SystemInterface:
         # Skippable via settings for dev convenience, so the projector doesn't flicker off/on every restart.
         # No config_interface wired (e.g. in tests) defaults to the original always-off behavior.
         should_turn_off_projector = self.__config_interface is None or self.__config_interface.getProjectorOffOnShutdown()
-        projector_interface = self.__projector_interface if should_turn_off_projector else None
-        await self.__teardown(projector_interface=projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True)
+        await self.__teardown(projector_interface=self.__projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=True, switch_projector_off=should_turn_off_projector)
 
     async def reboot_device(self):
         logger.info("Rebooting device...", category="system")
@@ -101,7 +100,7 @@ class SystemInterface:
         # The shell must see this even if SIGINT interrupts Python before the app exits normally.
         self.__request_reboot_pending()
         # Stop services but don't quit yet - we still need this process alive to await the command below.
-        await self.__teardown(soundbar_interface=self.__soundbar_interface, quit_app=False)
+        await self.__teardown(projector_interface=self.__projector_interface, soundbar_interface=self.__soundbar_interface, quit_app=False, switch_projector_off=False)
 
         if not self.__is_raspberry_pi:
             logger.warning("Skipping reboot command on non-Raspberry-Pi device.", category="system")
