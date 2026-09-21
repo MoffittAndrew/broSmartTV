@@ -109,7 +109,7 @@ class CONFIG:
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
-    TEXT_SIZE = 120
+    TEXT_SIZE = 80
     ROUNDNESS = 30
     COLOR = Qt.white
     COLOR_DISABLED = Qt.gray
