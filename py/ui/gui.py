@@ -195,6 +195,7 @@ class CustomQWindow(CustomQWidget):
         self.__layout.setStackingMode(QStackedLayout.StackAll)
         self.setKeyboard(keyboard)
         self.setInputInterface(inputInterface)
+        self.__activeTab = None
         self.__screenCastWidget = None
         self.__screenCastPreviousWidget = None
         from ui.tools.onscreen_keyboard import OnScreenKeyboard
@@ -240,6 +241,15 @@ class CustomQWindow(CustomQWidget):
 
         if tab is None:
             tab = self.getDefaultTab()
+
+        previousTab = self.__activeTab
+        if (
+            previousTab is not None
+            and previousTab is not tab
+            and previousTab is not self.getDefaultTab()
+        ):
+            previousTab.hide()
+        self.__activeTab = tab
 
         if tab == self.getDefaultTab():
             tab.setTab()
