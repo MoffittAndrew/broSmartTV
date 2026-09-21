@@ -38,6 +38,7 @@ class SearchScreen(CustomQWidget):
 
     def setText(self, text):
         
+        print("(search screen) Setting text to:", text)
         self.__heading = QLabel(text)
         self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
         

@@ -38,6 +38,7 @@ class FilterScreen(CustomQWidget):
     
     def setText(self, text):
         
+        print("(filter screen) Setting text to:", text)
         self.__heading = QLabel(text)
         self.__heading.setStyleSheet("font-size: 44px; font-weight: bold; color: white;")
         
