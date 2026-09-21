@@ -36,7 +36,7 @@ class EditScreen(CustomQWidget):
             for tile in tiles[0]:
                 tile.setNavUp(navBarButton)
     
-    def setLabel(self, text):
+    def setText(self, text):
         self.__heading.setText(text)
 
 editScreen = EditScreen()
