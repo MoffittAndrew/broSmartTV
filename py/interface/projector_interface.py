@@ -9,7 +9,7 @@ from asyncio import sleep
 class ProjectorInterface:
     def __init__(self, irInterface = None, *args, **kwargs):
         self.setIrInterface(irInterface)
-        self.__volume = 0
+        self.__volume = 10
     
     def setIrInterface(self, irInterface):
         self.__irInterface = irInterface
@@ -39,6 +39,7 @@ class ProjectorInterface:
     
     async def volumeInit(self):
         # calibrate volume
+        self.__volume = 10
         await self.setVolume(0)
         await self.setVolume(PROJECTOR.AUTO_VOL_SET)
     
