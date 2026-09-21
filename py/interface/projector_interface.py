@@ -31,9 +31,10 @@ class ProjectorInterface:
     async def off(self):
         await self.send(PROJECTOR.CODES.OFF)
     
-    async def calibrateVolume(self):
+    async def calibrateVolume(self, volume=0):
         self.__volume = 10
         await self.setVolume(0)
+        await self.setVolume(volume)
     
     async def setVolume(self, volume):
         while self.__volume < volume:
@@ -42,6 +43,7 @@ class ProjectorInterface:
             await self.volDown()
     
     async def volumeInit(self):
+        await self.calibrateVolume()
         await self.setVolume(PROJECTOR.AUTO_VOL_SET)
     
     async def select(self):
