@@ -10,10 +10,10 @@ class ProjectorInterface:
     def __init__(self, irInterface = None, *args, **kwargs):
         self.setIrInterface(irInterface)
         self.__volume = {
-            PROJECTOR.CHANNELS.HDMI: 10,
-            PROJECTOR.CHANNELS.S_VIDEO: 10,
-            PROJECTOR.CHANNELS.COMPONENT: 10,
-            PROJECTOR.CHANNELS.VGA: 10,
+            PROJECTOR.CHANNELS.HDMI: 0,
+            PROJECTOR.CHANNELS.S_VIDEO: 0,
+            PROJECTOR.CHANNELS.COMPONENT: 0,
+            PROJECTOR.CHANNELS.VGA: 0,
         }
         self.__srcChannel = PROJECTOR.CHANNELS.HDMI
         self.__activeVideoChannel = PROJECTOR.CHANNELS.HDMI
@@ -108,8 +108,6 @@ class ProjectorInterface:
         
         if inputChannel == PROJECTOR.CHANNELS.VGA:
             await self.send(PROJECTOR.CODES.SRC_ + inputChannel)
-            await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
-            await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
             await self.setVolume(10, channel=inputChannel)
         
         else:
@@ -119,6 +117,9 @@ class ProjectorInterface:
                 await sleep(PROJECTOR.CHANNEL_SWITCH_DELAY)
             while self.__activeVideoChannel != inputChannel:
                 await self.cycleVideoChannel()
+            
+            if inputChannel == PROJECTOR.CHANNELS.COMPONENT:
+                await self.setVolume(10, channel=inputChannel)
         
         self.__srcChannel = inputChannel
 
