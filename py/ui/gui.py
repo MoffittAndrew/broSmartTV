@@ -236,6 +236,10 @@ class CustomQWindow(CustomQWidget):
         self.__shutdownScreen = ShutdownScreen(parent=self)
         self.addWidget(self.__shutdownScreen)
         self.__shutdownScreen.hide()
+        from ui.reconnect_screen import ReconnectScreen
+        self.__reconnectScreen = ReconnectScreen(parent=self)
+        self.addWidget(self.__reconnectScreen)
+        self.__reconnectScreen.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -254,6 +258,9 @@ class CustomQWindow(CustomQWidget):
 
     def getShutdownScreen(self):
         return self.__shutdownScreen
+
+    def getReconnectScreen(self):
+        return self.__reconnectScreen
 
     def getAbsolutePos(self):
         return QPoint(0, 0)
@@ -411,6 +418,8 @@ class CustomQWindow(CustomQWidget):
         if self.__screenCastWidget is None:
             return
 
+        self.hideReconnectScreen()
+
         if self.__screenCastPreviousWidget is None:
             self.__screenCastPreviousWidget = self.__layout.currentWidget()
 
@@ -428,6 +437,18 @@ class CustomQWindow(CustomQWidget):
         if self.__screenCastPreviousWidget is not None:
             self.__layout.setCurrentWidget(self.__screenCastPreviousWidget)
             self.__screenCastPreviousWidget = None
+
+    def showReconnectScreen(self, msg=None):
+        self.__reconnectScreen.setGeometry(0, 0, self.width(), self.height())
+        self.__reconnectScreen.setMessage(msg)
+        self.__reconnectScreen.show()
+        self.__reconnectScreen.raise_()
+        self.__layout.setCurrentWidget(self.__reconnectScreen)
+        self.__reconnectScreen.start()
+
+    def hideReconnectScreen(self):
+        self.__reconnectScreen.stop()
+        self.__reconnectScreen.hide()
 
     def showShutdownScreen(self, msg=None):
         # One-way transition: no corresponding hide, the process exits shortly after.

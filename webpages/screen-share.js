@@ -190,6 +190,12 @@ function scheduleReconnect(reason, failedPeerConnection = state.pc) {
   state.isStreaming = false;
   state.isStarting = false;
   state.reconnectInProgress = true;
+  if (state.qualityControlMode === 'auto') {
+    // Give the fresh peer a high-quality attempt; persistent low FPS can then
+    // pass through the normal high-to-floor adaptive path again.
+    state.currentQualityMode = 'high';
+    state.activeProfile = profileForMode('high', state);
+  }
   // The old sender must stop contributing samples while its peer is being replaced.
   stopFpsMonitor(false);
   closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
