@@ -33,6 +33,8 @@ _keyframe_tasks = {}
 _frame_handler = None
 _connection_handler = None
 _disconnect_handler = None
+_reconnect_handler = None
+_stream_stopped_handler = None
 
 
 def log(message, level="INFO", **fields):
@@ -87,6 +89,16 @@ def setDisconnectHandler(callback):
     _disconnect_handler = callback
 
 
+def setReconnectHandler(callback):
+    global _reconnect_handler
+    _reconnect_handler = callback
+
+
+def setStreamStoppedHandler(callback):
+    global _stream_stopped_handler
+    _stream_stopped_handler = callback
+
+
 def _notifyFrame(frame, arrival_time=None):
     if _frame_handler is not None:
         _frame_handler(frame, arrival_time)
@@ -100,6 +112,16 @@ def _notifyConnected():
 def _notifyDisconnected():
     if _disconnect_handler is not None:
         _disconnect_handler()
+
+
+def _notifyReconnectRequested():
+    if _reconnect_handler is not None:
+        _reconnect_handler()
+
+
+def _notifyStreamStopped():
+    if _stream_stopped_handler is not None:
+        _stream_stopped_handler()
 
 
 def _receiver_for_track(pc, track):
@@ -530,6 +552,16 @@ async def power_status(request):
     return web.json_response({"on": True})
 
 
+async def reconnecting(request):
+    _notifyReconnectRequested()
+    return web.json_response({"ok": True})
+
+
+async def stream_stopped(request):
+    _notifyStreamStopped()
+    return web.json_response({"ok": True})
+
+
 async def capture_settings(request):
     # The web sender consumes adaptive policy from this endpoint so quality
     # behavior remains centralized and consistent across clients.
@@ -573,6 +605,8 @@ screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|j
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
 screenCastServer.router.add_get("/power-status", power_status)
+screenCastServer.router.add_post("/reconnecting", reconnecting)
+screenCastServer.router.add_post("/stream-stopped", stream_stopped)
 screenCastServer.router.add_get("/capture-settings", capture_settings)
 remote_control.add_routes(screenCastServer)
 

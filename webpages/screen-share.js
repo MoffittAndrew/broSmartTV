@@ -102,6 +102,11 @@ function setStatusText(text) {
     uiRefs.statusDiv.textContent = text;
   }
 }
+function notifyReceiver(path) {
+  fetch(path, { method: 'POST', keepalive: true }).catch((err) => {
+    console.warn(`Unable to notify receiver about ${path}:`, err);
+  });
+}
 
 function logPeerState(eventName, pc) {
   const current = {
@@ -198,6 +203,7 @@ function scheduleReconnect(reason, failedPeerConnection = state.pc) {
   }
   // The old sender must stop contributing samples while its peer is being replaced.
   stopFpsMonitor(false);
+  notifyReceiver('/reconnecting');
   closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
 
   state.reconnectAttempt += 1;
@@ -579,6 +585,7 @@ async function stopStream(reason = 'stopped') {
     uiRefs.startBtn.disabled = false;
   }
   setStatusText(`🛑 stream ${reason}`);
+  notifyReceiver('/stream-stopped');
   console.log('Stream stopped:', reason);
 }
 
