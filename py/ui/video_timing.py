@@ -1,4 +1,4 @@
-"""Timestamp-aware scheduling for decoded screen-cast video frames."""
+"""Arrival-time scheduling for decoded screen-cast video frames."""
 
 from collections import deque
 from dataclasses import dataclass
@@ -19,8 +19,6 @@ class VideoTimingQueue:
         self._delay_seconds = max(0.0, float(delay_seconds))
         self._max_frames = max(1, int(max_frames))
         self._frames: Deque[ScheduledVideoFrame] = deque()
-        self._first_media_time = None
-        self._first_arrival_time = None
         self._dropped_frames = 0
 
     @staticmethod
@@ -37,23 +35,8 @@ class VideoTimingQueue:
 
     def enqueue(self, frame, arrival_time: float):
         media_time = self._media_time(frame)
-        if media_time is not None and self._first_media_time is None:
-            self._first_media_time = media_time
-            self._first_arrival_time = arrival_time
-
-        if media_time is not None and self._first_media_time is not None:
-            relative_media_time = media_time - self._first_media_time
-            if relative_media_time < 0:
-                media_time = None
-                presentation_time = arrival_time + self._delay_seconds
-            else:
-                presentation_time = (
-                    self._first_arrival_time
-                    + self._delay_seconds
-                    + relative_media_time
-                )
-        else:
-            presentation_time = arrival_time + self._delay_seconds
+        # Receiver arrival time cannot jump ahead when media timestamps do.
+        presentation_time = arrival_time + self._delay_seconds
 
         self._frames.append(
             ScheduledVideoFrame(
@@ -96,6 +79,4 @@ class VideoTimingQueue:
 
     def reset(self):
         self._frames.clear()
-        self._first_media_time = None
-        self._first_arrival_time = None
         self._dropped_frames = 0

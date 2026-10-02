@@ -13,7 +13,7 @@ class FakeFrame:
         self.time_base = Fraction(1, 1000)
 
 
-def test_queue_delays_frames_using_relative_pts():
+def test_queue_delays_frames_using_arrival_time():
     queue = VideoTimingQueue(delay_seconds=0.25, max_frames=10)
     first = FakeFrame(1000)
     second = FakeFrame(1016)
@@ -24,6 +24,17 @@ def test_queue_delays_frames_using_relative_pts():
     assert queue.pop_due(10.249) is None
     assert queue.pop_due(10.250).frame is first
     assert queue.pop_due(10.266).frame is second
+
+
+def test_queue_does_not_schedule_timestamp_jump_in_the_future():
+    queue = VideoTimingQueue(delay_seconds=0.25, max_frames=10)
+    first = FakeFrame(1000)
+    jumped = FakeFrame(100000)
+
+    queue.enqueue(first, arrival_time=10.0)
+    queue.enqueue(jumped, arrival_time=10.016)
+
+    assert queue.pop_due(10.266).frame is jumped
 
 
 def test_queue_keeps_newest_due_frame_and_counts_dropped_frames():
