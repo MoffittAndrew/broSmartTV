@@ -228,14 +228,29 @@ class AudioPlaybackService:
 
     def _playback_loop(self):
         stream = None
+        output_dtype = "float32"
         try:
-            stream = sd.OutputStream(
-                samplerate=self._sample_rate,
-                channels=self._channels,
-                dtype="float32",
-                latency=SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
-                device=SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
-            )
+            stream_options = {
+                "samplerate": self._sample_rate,
+                "channels": self._channels,
+                "latency": SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
+                "device": SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
+            }
+            try:
+                stream = sd.OutputStream(dtype=output_dtype, **stream_options)
+            except Exception as exc:
+                if "Sample format not supported" not in str(exc):
+                    raise
+
+                # Some PortAudio backends cannot open float output streams.
+                # Retry with the widely supported signed 16-bit PCM format.
+                logger.exception(
+                    "Float32 audio output is unsupported; retrying with int16 PCM.",
+                    exc,
+                )
+                output_dtype = "int16"
+                stream = sd.OutputStream(dtype=output_dtype, **stream_options)
+
             stream.start()
 
             prebuffer_frames = max(1, int(SCREEN_CAST.AUDIO_PREBUFFER_FRAMES))
@@ -262,12 +277,12 @@ class AudioPlaybackService:
                         continue
 
                     for pending in buffered:
-                        stream.write(pending)
+                        stream.write(self._format_output_samples(pending, output_dtype))
                     buffered.clear()
                     prebuffering = False
                     continue
 
-                stream.write(chunk)
+                stream.write(self._format_output_samples(chunk, output_dtype))
         except Exception as exc:
             log(f"Audio playback loop failed: {exc}")
         finally:
@@ -280,6 +295,11 @@ class AudioPlaybackService:
                     stream.close()
                 except Exception:
                     pass
+
+    def _format_output_samples(self, samples, output_dtype):
+        if output_dtype == "int16":
+            return np.rint(np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
+        return samples
 
     async def stop(self):
         if sd is None or np is None:
