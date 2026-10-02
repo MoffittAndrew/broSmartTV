@@ -50,8 +50,8 @@ class VideoTimingQueue:
             self._frames.popleft()
             self._dropped_frames += 1
 
-    def pop_due(self, now: float):
-        """Return the newest due frame and discard older due frames."""
+    def pop_latest_due(self, now: float):
+        """Return the newest eligible frame and discard older eligible frames."""
         newest_due = None
         due_count = 0
         while self._frames and self._frames[0].presentation_time <= now:
@@ -63,6 +63,10 @@ class VideoTimingQueue:
 
         self._dropped_frames += max(0, due_count - 1)
         return newest_due
+
+    def pop_due(self, now: float):
+        """Compatibility alias for callers using the previous queue API."""
+        return self.pop_latest_due(now)
 
     def seconds_until_next(self, now: float):
         if not self._frames:

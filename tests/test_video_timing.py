@@ -21,9 +21,9 @@ def test_queue_delays_frames_using_arrival_time():
     queue.enqueue(first, arrival_time=10.0)
     queue.enqueue(second, arrival_time=10.016)
 
-    assert queue.pop_due(10.249) is None
-    assert queue.pop_due(10.250).frame is first
-    assert queue.pop_due(10.266).frame is second
+    assert queue.pop_latest_due(10.249) is None
+    assert queue.pop_latest_due(10.250).frame is first
+    assert queue.pop_latest_due(10.266).frame is second
 
 
 def test_queue_does_not_schedule_timestamp_jump_in_the_future():
@@ -44,7 +44,7 @@ def test_queue_keeps_newest_due_frame_and_counts_dropped_frames():
     for index, frame in enumerate(frames):
         queue.enqueue(frame, arrival_time=index * 0.016)
 
-    assert queue.pop_due(1.0).frame is frames[-1]
+    assert queue.pop_latest_due(1.0).frame is frames[-1]
     assert queue.dropped_frames == 2
 
 
@@ -57,7 +57,7 @@ def test_queue_drops_oldest_frames_at_capacity():
 
     assert queue.queued_frames == 2
     assert queue.dropped_frames == 1
-    assert queue.pop_due(1.0).frame is frames[-1]
+    assert queue.pop_latest_due(1.0).frame is frames[-1]
 
 
 def test_queue_reset_discards_previous_stream_frames():

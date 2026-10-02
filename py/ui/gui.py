@@ -46,6 +46,11 @@ class ScreenCastView(QLabel):
         super().__init__(parent)
         self._pixmap = None
         self._render_scheduled = False
+        self._presentation_interval_seconds = 1.0 / max(
+            1,
+            float(getattr(SCREEN_CAST, "VIDEO_PRESENTATION_FPS", 24)),
+        )
+        self._next_presentation_deadline = None
         self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
@@ -85,20 +90,22 @@ class ScreenCastView(QLabel):
         return max(0, int(remaining * 1000))
 
     def _scheduleRender(self):
-        render_tick_ms = max(1, int(getattr(SCREEN_CAST, "VIDEO_RENDER_TICK_MS", 5)))
-        delay_ms = self._currentScheduleDelayMs()
-        if self._sync_hold_until is None:
-            delay_ms = render_tick_ms
-        queue_delay = self._video_queue.seconds_until_next(time.monotonic())
-        if queue_delay is not None:
-            delay_ms = min(delay_ms, render_tick_ms, max(0, int(queue_delay * 1000)))
-        QTimer.singleShot(delay_ms, self._renderPendingFrame)
+        now = time.monotonic()
+        if self._next_presentation_deadline is None:
+            self._next_presentation_deadline = now + self._presentation_interval_seconds
+
+        delay_seconds = max(0.0, self._next_presentation_deadline - now)
+        holdback_delay_seconds = self._currentScheduleDelayMs() / 1000.0
+        if holdback_delay_seconds > 0:
+            delay_seconds = min(delay_seconds, holdback_delay_seconds)
+        QTimer.singleShot(max(0, int(delay_seconds * 1000)), self._renderPendingFrame)
 
     def resetSyncHoldback(self):
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
         self._video_queue.reset()
         self._render_scheduled = False
+        self._next_presentation_deadline = None
 
     def setFrame(self, frame, arrival_time=None):
         if frame is None:
@@ -120,50 +127,54 @@ class ScreenCastView(QLabel):
     def _renderPendingFrame(self):
         self._render_scheduled = False
 
-        scheduled_frame = self._video_queue.pop_due(time.monotonic())
-        if scheduled_frame is None:
-            if self._video_queue.queued_frames > 0:
-                self._render_scheduled = True
-                self._scheduleRender()
-            return
-        frame = scheduled_frame.frame
+        now = time.monotonic()
+        scheduled_frame = self._video_queue.pop_latest_due(now)
+        if scheduled_frame is not None:
+            frame = scheduled_frame.frame
 
-        # Some senders pass av.VideoFrame objects while others may pass numpy
-        # arrays. Convert only the frame that will actually be rendered.
-        if hasattr(frame, "to_ndarray"):
-            frame = frame.to_ndarray(format="rgb24")
+            # Some senders pass av.VideoFrame objects while others may pass numpy
+            # arrays. Convert only the frame that will actually be rendered.
+            if hasattr(frame, "to_ndarray"):
+                frame = frame.to_ndarray(format="rgb24")
 
-        height, width = frame.shape[:2]
-        target_size = self.size()
-        if frame.ndim == 3:
-            rgb = frame if frame.flags.c_contiguous else frame.copy()
-            image = QImage(
-                sip.voidptr(rgb.ctypes.data),
-                width,
-                height,
-                width * 3,
-                QImage.Format_RGB888,
-            )
+            height, width = frame.shape[:2]
+            target_size = self.size()
+            if frame.ndim == 3:
+                rgb = frame if frame.flags.c_contiguous else frame.copy()
+                image = QImage(
+                    sip.voidptr(rgb.ctypes.data),
+                    width,
+                    height,
+                    width * 3,
+                    QImage.Format_RGB888,
+                )
+            else:
+                grayscale = frame if frame.flags.c_contiguous else frame.copy()
+                image = QImage(
+                    sip.voidptr(grayscale.ctypes.data),
+                    width,
+                    height,
+                    width,
+                    QImage.Format_Grayscale8,
+                )
+
+            self._pixmap = QPixmap.fromImage(image)
+            if not target_size.isEmpty() and self._pixmap.size() != target_size:
+                self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
+            else:
+                self.setPixmap(self._pixmap)
+
+            self._rendered_frames_since_log += 1
+            self.update()
+
+        if self._next_presentation_deadline is None:
+            self._next_presentation_deadline = now + self._presentation_interval_seconds
         else:
-            grayscale = frame if frame.flags.c_contiguous else frame.copy()
-            image = QImage(
-                sip.voidptr(grayscale.ctypes.data),
-                width,
-                height,
-                width,
-                QImage.Format_Grayscale8,
-            )
+            self._next_presentation_deadline += self._presentation_interval_seconds
+            while self._next_presentation_deadline <= now:
+                self._next_presentation_deadline += self._presentation_interval_seconds
 
-        self._pixmap = QPixmap.fromImage(image)
-        if not target_size.isEmpty() and self._pixmap.size() != target_size:
-            self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
-        else:
-            self.setPixmap(self._pixmap)
-
-        self._rendered_frames_since_log += 1
-        self.update()
-
-        if self._video_queue.queued_frames > 0 and not self._render_scheduled:
+        if not self._render_scheduled:
             self._render_scheduled = True
             self._scheduleRender()
 

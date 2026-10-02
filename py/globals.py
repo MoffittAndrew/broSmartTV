@@ -357,8 +357,10 @@ class SCREEN_CAST:
     # Delay video continuously so it can be presented against the delayed audio
     # clock instead of relying on a startup-only holdback.
     VIDEO_PRESENTATION_DELAY_MS = 250
+    # Display cadence is independent of capture and encoding FPS; cinematic
+    # content is presented at a stable 24 FPS while newer due frames replace stale ones.
+    VIDEO_PRESENTATION_FPS = 24
     VIDEO_QUEUE_MAX_FRAMES = 30
-    VIDEO_RENDER_TICK_MS = 5
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
@@ -367,7 +369,7 @@ class SCREEN_CAST:
     # Ask the sender for a fresh keyframe periodically. This repairs a decoder
     # that is displaying corrupted reference frames without renegotiating the
     # peer connection or asking the user to select a capture surface again.
-    KEYFRAME_REQUEST_INTERVAL_SECONDS = 3
+    KEYFRAME_REQUEST_INTERVAL_SECONDS = 5
     KEYFRAME_REQUEST_STARTUP_GRACE_SECONDS = 3
     KEYFRAME_REQUEST_WINDOW_SECONDS = 60
     KEYFRAME_REQUEST_MAX_PER_WINDOW = 20
