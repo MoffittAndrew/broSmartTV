@@ -87,7 +87,7 @@ def test_playback_adapts_to_device_sample_rate_and_channels(monkeypatch):
         "sd",
         SimpleNamespace(
             OutputStream=open_output_stream,
-            query_devices=lambda _device: {
+            query_devices=lambda **_options: {
                 "default_samplerate": 44100,
                 "max_output_channels": 1,
             },

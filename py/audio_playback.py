@@ -209,7 +209,10 @@ class AudioPlaybackService:
         self._output_channels = self._channels
 
         try:
-            device_info = sd.query_devices(SCREEN_CAST.AUDIO_OUTPUT_DEVICE)
+            if SCREEN_CAST.AUDIO_OUTPUT_DEVICE is None:
+                device_info = sd.query_devices(kind="output")
+            else:
+                device_info = sd.query_devices(SCREEN_CAST.AUDIO_OUTPUT_DEVICE)
             default_sample_rate = float(device_info.get("default_samplerate", 0) or 0)
             max_output_channels = int(device_info.get("max_output_channels", 0) or 0)
             if default_sample_rate > 0:
