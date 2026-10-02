@@ -26,6 +26,7 @@ pcs = set()
 active_pc = None  # only one active peer connection at a time
 _track_tasks = set()
 _cleaning_peers = set()
+_keyframe_tasks = {}
 
 _frame_handler = None
 _connection_handler = None
@@ -99,6 +100,76 @@ def _notifyDisconnected():
         _disconnect_handler()
 
 
+def _receiver_for_track(pc, track):
+    for receiver in pc.getReceivers():
+        if receiver.track is track:
+            return receiver
+    return None
+
+
+def _receiver_media_ssrcs(receiver):
+    """Return active media SSRCs for aiortc's receiver-side PLI request."""
+    active_ssrcs = getattr(receiver, "_RTCRtpReceiver__active_ssrc", None)
+    if isinstance(active_ssrcs, dict):
+        return list(active_ssrcs)
+
+    remote_streams = getattr(receiver, "_RTCRtpReceiver__remote_streams", None)
+    if isinstance(remote_streams, dict):
+        return list(remote_streams)
+
+    return []
+
+
+async def _request_keyframe(pc, track, reason, request_times):
+    if pc.connectionState in ("closed", "failed", "disconnected"):
+        return False
+
+    now = time.monotonic()
+    window_seconds = SCREEN_CAST.KEYFRAME_REQUEST_WINDOW_SECONDS
+    request_times[:] = [timestamp for timestamp in request_times if now - timestamp < window_seconds]
+    if len(request_times) >= SCREEN_CAST.KEYFRAME_REQUEST_MAX_PER_WINDOW:
+        return False
+
+    receiver = _receiver_for_track(pc, track)
+    request_pli = getattr(receiver, "_send_rtcp_pli", None)
+    if request_pli is None:
+        log(
+            "Keyframe recovery unavailable: receiver does not support RTCP PLI.",
+            level="WARNING",
+            reason=reason,
+        )
+        return False
+
+    media_ssrcs = _receiver_media_ssrcs(receiver)
+    if not media_ssrcs:
+        return False
+
+    for media_ssrc in media_ssrcs:
+        await request_pli(media_ssrc)
+
+    request_times.append(now)
+    log(
+        "Requested keyframe for screen-cast recovery.",
+        reason=reason,
+        request_count=len(request_times),
+        media_ssrc_count=len(media_ssrcs),
+    )
+    return True
+
+
+async def _run_keyframe_watchdog(pc, track):
+    request_times = []
+    try:
+        await asyncio.sleep(SCREEN_CAST.KEYFRAME_REQUEST_STARTUP_GRACE_SECONDS)
+        while pc.connectionState not in ("closed", "failed", "disconnected"):
+            await _request_keyframe(pc, track, "periodic decoder recovery", request_times)
+            await asyncio.sleep(SCREEN_CAST.KEYFRAME_REQUEST_INTERVAL_SECONDS)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.exception("Keyframe recovery watchdog failed", exc, reason="watchdog")
+
+
 def _count_sdp_candidates(sdp):
     if not sdp:
         return 0
@@ -136,6 +207,10 @@ async def _cleanup_peer(pc):
     _cleaning_peers.add(pc)
 
     try:
+        keyframe_task = _keyframe_tasks.pop(pc, None)
+        if keyframe_task is not None:
+            keyframe_task.cancel()
+
         if pc in pcs:
             pcs.discard(pc)
 
@@ -309,6 +384,10 @@ async def offer(request):
             _track_tasks.add(task)
             task.add_done_callback(_track_tasks.discard)
 
+            keyframe_task = asyncio.create_task(_run_keyframe_watchdog(pc, track))
+            _keyframe_tasks[pc] = keyframe_task
+            keyframe_task.add_done_callback(lambda _: _keyframe_tasks.pop(pc, None))
+
         elif track.kind == "audio":
             log("Audio track received.")
 
@@ -413,8 +492,12 @@ async def on_shutdown(screenCastServer):
     log(f"Server shutting down, closing peer connections... (count={len(pcs)})")
     for task in list(_track_tasks):
         task.cancel()
+    for task in list(_keyframe_tasks.values()):
+        task.cancel()
     if _track_tasks:
         await asyncio.gather(*list(_track_tasks), return_exceptions=True)
+    if _keyframe_tasks:
+        await asyncio.gather(*list(_keyframe_tasks.values()), return_exceptions=True)
     coros = [_cleanup_peer(pc) for pc in list(pcs)]
     await asyncio.gather(*coros)
     pcs.clear()
