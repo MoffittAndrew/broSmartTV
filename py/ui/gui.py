@@ -54,6 +54,7 @@ class ScreenCastView(QLabel):
         self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._render_loop_active = False
         self._video_queue = VideoTimingQueue(
             delay_seconds=max(
                 0.0,
@@ -103,6 +104,7 @@ class ScreenCastView(QLabel):
     def resetSyncHoldback(self):
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._render_loop_active = False
         self._video_queue.reset()
         self._render_scheduled = False
         self._next_presentation_deadline = None
@@ -111,6 +113,7 @@ class ScreenCastView(QLabel):
         if frame is None:
             return
 
+        self._render_loop_active = True
         self._video_queue.enqueue(
             frame,
             time.monotonic() if arrival_time is None else float(arrival_time),
@@ -126,6 +129,8 @@ class ScreenCastView(QLabel):
 
     def _renderPendingFrame(self):
         self._render_scheduled = False
+        if not self._render_loop_active:
+            return
 
         now = time.monotonic()
         scheduled_frame = self._video_queue.pop_latest_due(now)
