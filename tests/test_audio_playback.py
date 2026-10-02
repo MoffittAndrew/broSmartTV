@@ -51,7 +51,10 @@ def test_playback_falls_back_to_int16_when_float32_is_unsupported(monkeypatch):
 
     service._playback_loop()
 
-    assert opened_dtypes == ["float32", "int16"]
+    assert opened_dtypes == ["float32", "int32"]
     assert len(written_chunks) == 1
-    assert written_chunks[0].dtype == np.int16
-    np.testing.assert_array_equal(written_chunks[0], np.array([[16384, -16384]], dtype=np.int16))
+    assert written_chunks[0].dtype == np.int32
+    np.testing.assert_array_equal(
+        written_chunks[0],
+        np.array([[1073741824, -1073741824]], dtype=np.int32),
+    )

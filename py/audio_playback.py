@@ -228,7 +228,7 @@ class AudioPlaybackService:
 
     def _playback_loop(self):
         stream = None
-        output_dtype = "float32"
+        output_dtype = None
         try:
             stream_options = {
                 "samplerate": self._sample_rate,
@@ -236,20 +236,24 @@ class AudioPlaybackService:
                 "latency": SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
                 "device": SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
             }
-            try:
-                stream = sd.OutputStream(dtype=output_dtype, **stream_options)
-            except Exception as exc:
-                if "Sample format not supported" not in str(exc):
-                    raise
+            last_format_error = None
+            for candidate_dtype in ("float32", "int32", "int24", "int16", "int8", "uint8"):
+                try:
+                    stream = sd.OutputStream(dtype=candidate_dtype, **stream_options)
+                    output_dtype = candidate_dtype
+                    break
+                except Exception as exc:
+                    if "Sample format not supported" not in str(exc):
+                        raise
+                    last_format_error = exc
+                    logger.warning(
+                        f"Audio output does not support {candidate_dtype}; trying another format."
+                    )
 
-                # Some PortAudio backends cannot open float output streams.
-                # Retry with the widely supported signed 16-bit PCM format.
-                logger.exception(
-                    "Float32 audio output is unsupported; retrying with int16 PCM.",
-                    exc,
-                )
-                output_dtype = "int16"
-                stream = sd.OutputStream(dtype=output_dtype, **stream_options)
+            if stream is None:
+                raise last_format_error
+
+            logger.info(f"Audio output stream opened with {output_dtype} samples.")
 
             stream.start()
 
@@ -297,8 +301,20 @@ class AudioPlaybackService:
                     pass
 
     def _format_output_samples(self, samples, output_dtype):
-        if output_dtype == "int16":
-            return np.rint(np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
+        integer_formats = {
+            "int32": (np.int32, 2**31),
+            "int24": (np.int32, 2**23),
+            "int16": (np.int16, 2**15),
+            "int8": (np.int8, 2**7),
+            "uint8": (np.uint8, 2**7),
+        }
+        if output_dtype in integer_formats:
+            dtype, scale = integer_formats[output_dtype]
+            converted = np.rint(np.clip(samples, -1.0, 1.0) * scale)
+            if output_dtype == "uint8":
+                return np.clip(converted + scale, 0, 2 * scale - 1).astype(dtype)
+            limits = np.iinfo(dtype)
+            return np.clip(converted, limits.min, limits.max).astype(dtype)
         return samples
 
     async def stop(self):
