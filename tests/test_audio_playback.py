@@ -58,3 +58,53 @@ def test_playback_falls_back_to_int16_when_float32_is_unsupported(monkeypatch):
         written_chunks[0],
         np.array([[1073741824, -1073741824]], dtype=np.int32),
     )
+
+
+def test_playback_adapts_to_device_sample_rate_and_channels(monkeypatch):
+    stream_options = []
+    written_chunks = []
+
+    class FakeStream:
+        def start(self):
+            pass
+
+        def write(self, samples):
+            written_chunks.append(samples)
+
+        def stop(self):
+            pass
+
+        def close(self):
+            pass
+
+    def open_output_stream(*, dtype, **options):
+        stream_options.append({"dtype": dtype, **options})
+        return FakeStream()
+
+    service = audio_playback.AudioPlaybackService()
+    monkeypatch.setattr(
+        audio_playback,
+        "sd",
+        SimpleNamespace(
+            OutputStream=open_output_stream,
+            query_devices=lambda _device: {
+                "default_samplerate": 44100,
+                "max_output_channels": 1,
+            },
+        ),
+    )
+    monkeypatch.setattr(audio_playback.SCREEN_CAST, "AUDIO_PREBUFFER_FRAMES", 1)
+
+    service._start_worker_locked(sample_rate=48000, channels=2)
+    service._enqueue_samples(
+        service._resample_samples(
+            service._coerce_channels(np.array([[0.5, 0.5], [-0.5, -0.5]], dtype=np.float32))
+        )
+    )
+    service._queue.put(audio_playback._SENTINEL)
+    service._worker.join(timeout=1)
+
+    assert stream_options[0]["samplerate"] == 44100
+    assert stream_options[0]["channels"] == 1
+    assert written_chunks[0].shape[1] == 1
+    assert written_chunks[0].shape[0] == 2
