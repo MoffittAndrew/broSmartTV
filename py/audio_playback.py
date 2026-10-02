@@ -49,8 +49,6 @@ class AudioPlaybackService:
         self._running = False
         self._sample_rate = None
         self._channels = None
-        self._output_sample_rate = None
-        self._output_channels = None
         self._dropped_frames = 0
         self._trimmed_backlog_frames = 0
         self._last_overflow_log_at = 0.0
@@ -61,51 +59,30 @@ class AudioPlaybackService:
         self._running = False
         self._sample_rate = None
         self._channels = None
-        self._output_sample_rate = None
-        self._output_channels = None
         self._dropped_frames = 0
         self._trimmed_backlog_frames = 0
         self._last_overflow_log_at = 0.0
 
     def _coerce_channels(self, interleaved_samples):
-        if self._output_channels is None:
+        if self._channels is None:
             return interleaved_samples
 
         input_channels = interleaved_samples.shape[1]
-        if input_channels == self._output_channels:
+        if input_channels == self._channels:
             return interleaved_samples
 
-        if self._output_channels == 1:
+        if self._channels == 1:
             return interleaved_samples.mean(axis=1, keepdims=True)
 
         if input_channels == 1:
-            return interleaved_samples.repeat(self._output_channels, axis=1)
+            return interleaved_samples.repeat(self._channels, axis=1)
 
-        if input_channels > self._output_channels:
-            return interleaved_samples[:, : self._output_channels]
+        if input_channels > self._channels:
+            return interleaved_samples[:, : self._channels]
 
-        missing = self._output_channels - input_channels
+        missing = self._channels - input_channels
         zeros = np.zeros((interleaved_samples.shape[0], missing), dtype=interleaved_samples.dtype)
         return np.hstack((interleaved_samples, zeros))
-
-    def _resample_samples(self, samples):
-        if self._output_sample_rate in (None, self._sample_rate):
-            return samples
-
-        output_length = max(
-            1,
-            round(samples.shape[0] * self._output_sample_rate / self._sample_rate),
-        )
-        source_positions = np.linspace(0, samples.shape[0] - 1, num=output_length)
-        target_positions = np.arange(samples.shape[0])
-        resampled = np.empty((output_length, samples.shape[1]), dtype=np.float32)
-        for channel in range(samples.shape[1]):
-            resampled[:, channel] = np.interp(
-                source_positions,
-                target_positions,
-                samples[:, channel],
-            )
-        return resampled
 
     def _frame_to_samples(self, frame):
         # AudioFrame.to_ndarray() does not support the VideoFrame-style
@@ -205,23 +182,6 @@ class AudioPlaybackService:
         self._queue = queue.Queue(maxsize=max_frames)
         self._sample_rate = int(sample_rate)
         self._channels = int(channels)
-        self._output_sample_rate = self._sample_rate
-        self._output_channels = self._channels
-
-        try:
-            if SCREEN_CAST.AUDIO_OUTPUT_DEVICE is None:
-                device_info = sd.query_devices(kind="output")
-            else:
-                device_info = sd.query_devices(SCREEN_CAST.AUDIO_OUTPUT_DEVICE)
-            default_sample_rate = float(device_info.get("default_samplerate", 0) or 0)
-            max_output_channels = int(device_info.get("max_output_channels", 0) or 0)
-            if default_sample_rate > 0:
-                self._output_sample_rate = int(round(default_sample_rate))
-            if max_output_channels > 0:
-                self._output_channels = min(self._channels, max_output_channels)
-        except Exception as exc:
-            logger.warning(f"Unable to query audio output capabilities; using source format: {exc}")
-
         self._running = True
 
         self._worker = threading.Thread(target=self._playback_loop, daemon=True)
@@ -229,7 +189,6 @@ class AudioPlaybackService:
         log(
             "Audio playback worker started "
             f"(sample_rate={self._sample_rate}, channels={self._channels}, "
-            f"output_sample_rate={self._output_sample_rate}, output_channels={self._output_channels}, "
             f"queue_max_frames={max_frames})."
         )
 
@@ -265,45 +224,18 @@ class AudioPlaybackService:
                 return
 
             samples = self._coerce_channels(samples)
-            samples = self._resample_samples(samples)
             self._enqueue_samples(samples)
 
     def _playback_loop(self):
         stream = None
-        output_dtype = None
         try:
-            stream_options = {
-                "samplerate": self._output_sample_rate,
-                "channels": self._output_channels,
-                "device": SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
-            }
-            last_format_error = None
-            latency_options = [SCREEN_CAST.AUDIO_OUTPUT_LATENCY]
-            if SCREEN_CAST.AUDIO_OUTPUT_LATENCY != "high":
-                latency_options.append("high")
-            for latency in latency_options:
-                stream_options["latency"] = latency
-                for candidate_dtype in ("float32", "int32", "int24", "int16", "int8", "uint8"):
-                    try:
-                        stream = sd.OutputStream(dtype=candidate_dtype, **stream_options)
-                        output_dtype = candidate_dtype
-                        break
-                    except Exception as exc:
-                        if "Sample format not supported" not in str(exc):
-                            raise
-                        last_format_error = exc
-                        logger.warning(
-                            f"Audio output does not support {candidate_dtype} at {latency} latency; "
-                            "trying another configuration."
-                        )
-                if stream is not None:
-                    break
-
-            if stream is None:
-                raise last_format_error
-
-            logger.info(f"Audio output stream opened with {output_dtype} samples.")
-
+            stream = sd.OutputStream(
+                samplerate=self._sample_rate,
+                channels=self._channels,
+                dtype="float32",
+                latency=SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
+                device=SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
+            )
             stream.start()
 
             prebuffer_frames = max(1, int(SCREEN_CAST.AUDIO_PREBUFFER_FRAMES))
@@ -330,12 +262,12 @@ class AudioPlaybackService:
                         continue
 
                     for pending in buffered:
-                        stream.write(self._format_output_samples(pending, output_dtype))
+                        stream.write(pending)
                     buffered.clear()
                     prebuffering = False
                     continue
 
-                stream.write(self._format_output_samples(chunk, output_dtype))
+                stream.write(chunk)
         except Exception as exc:
             log(f"Audio playback loop failed: {exc}")
         finally:
@@ -348,23 +280,6 @@ class AudioPlaybackService:
                     stream.close()
                 except Exception:
                     pass
-
-    def _format_output_samples(self, samples, output_dtype):
-        integer_formats = {
-            "int32": (np.int32, 2**31),
-            "int24": (np.int32, 2**23),
-            "int16": (np.int16, 2**15),
-            "int8": (np.int8, 2**7),
-            "uint8": (np.uint8, 2**7),
-        }
-        if output_dtype in integer_formats:
-            dtype, scale = integer_formats[output_dtype]
-            converted = np.rint(np.clip(samples, -1.0, 1.0) * scale)
-            if output_dtype == "uint8":
-                return np.clip(converted + scale, 0, 2 * scale - 1).astype(dtype)
-            limits = np.iinfo(dtype)
-            return np.clip(converted, limits.min, limits.max).astype(dtype)
-        return samples
 
     async def stop(self):
         if sd is None or np is None:
