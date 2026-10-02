@@ -367,10 +367,10 @@ class SCREEN_CAST:
     # Ask the sender for a fresh keyframe periodically. This repairs a decoder
     # that is displaying corrupted reference frames without renegotiating the
     # peer connection or asking the user to select a capture surface again.
-    KEYFRAME_REQUEST_INTERVAL_SECONDS = 10
-    KEYFRAME_REQUEST_STARTUP_GRACE_SECONDS = 5
+    KEYFRAME_REQUEST_INTERVAL_SECONDS = 3
+    KEYFRAME_REQUEST_STARTUP_GRACE_SECONDS = 3
     KEYFRAME_REQUEST_WINDOW_SECONDS = 60
-    KEYFRAME_REQUEST_MAX_PER_WINDOW = 3
+    KEYFRAME_REQUEST_MAX_PER_WINDOW = 20
 
     FRAME_TIMEOUT_SECONDS = 10
     FRAME_LOG_INTERVAL_SECONDS = 5
