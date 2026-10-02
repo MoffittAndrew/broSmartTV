@@ -36,6 +36,39 @@ def log(message, level="INFO", **fields):
     return logger.log(level, message, **fields)
 
 
+def _peer_state_fields(pc):
+    return {
+        "connection_state": pc.connectionState,
+        "ice_connection_state": pc.iceConnectionState,
+        "ice_gathering_state": pc.iceGatheringState,
+        "signaling_state": pc.signalingState,
+    }
+
+
+def _log_peer_state(pc, message, level="INFO", **fields):
+    fields.update(_peer_state_fields(pc))
+    return logger.log(level, message, **fields)
+
+
+def _exception_summary(exc):
+    return str(exc).strip() or "<no exception message>"
+
+
+def _log_stream_exception(pc, message, exc, **fields):
+    fields.update(_peer_state_fields(pc))
+    message = (
+        f"{message} exception_type={type(exc).__name__}; "
+        f"exception_message={_exception_summary(exc)}"
+    )
+    if type(exc).__name__ == "MediaStreamError" and pc.connectionState in ("closed", "failed", "disconnected"):
+        fields.update({
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc),
+        })
+        return logger.warning(message, **fields)
+    return logger.exception(message, exc, **fields)
+
+
 def setFrameHandler(callback):
     global _frame_handler
     _frame_handler = callback
@@ -112,13 +145,25 @@ async def _cleanup_peer(pc):
         try:
             await stopAudioPlayback()
         except Exception as exc:
-            log(f"Audio playback cleanup failed: {exc}")
+            logger.exception(
+                "Audio playback cleanup failed "
+                f"exception_type={type(exc).__name__}; "
+                f"exception_message={_exception_summary(exc)}",
+                exc,
+                **_peer_state_fields(pc),
+            )
 
         try:
             await pc.close()
-            log("Peer connection closed.")
+            _log_peer_state(pc, "Peer connection closed.")
         except Exception as exc:
-            log(f"Peer cleanup close failed: {exc}")
+            logger.exception(
+                "Peer cleanup close failed "
+                f"exception_type={type(exc).__name__}; "
+                f"exception_message={_exception_summary(exc)}",
+                exc,
+                **_peer_state_fields(pc),
+            )
     finally:
         _cleaning_peers.discard(pc)
 
@@ -242,7 +287,15 @@ async def offer(request):
                     log("Stream reader cancelled.")
                     raise
                 except Exception as exc:
-                    log(f"Stream ended with error: {exc}")
+                    _log_stream_exception(
+                        pc,
+                        "Video stream reader ended with an exception.",
+                        exc,
+                        track_kind="video",
+                        frame_count=frame_count,
+                        coalesced_before_ui=coalesced_before_ui,
+                        elapsed_seconds=round(time.monotonic() - start_time, 1),
+                    )
                 finally:
                     total_elapsed = time.monotonic() - start_time
                     log(
@@ -280,7 +333,14 @@ async def offer(request):
                     log("Audio stream reader cancelled.")
                     raise
                 except Exception as exc:
-                    log(f"Audio stream ended with error: {exc}")
+                    _log_stream_exception(
+                        pc,
+                        "Audio stream reader ended with an exception.",
+                        exc,
+                        track_kind="audio",
+                        frame_count=frame_count,
+                        elapsed_seconds=round(time.monotonic() - start_time, 1),
+                    )
                 finally:
                     elapsed = time.monotonic() - start_time
                     log(
@@ -295,27 +355,50 @@ async def offer(request):
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
-        log(f"Connection state changed: {pc.connectionState}")
+        _log_peer_state(pc, "Connection state changed.", state=pc.connectionState)
         if pc.connectionState in ("failed", "closed", "disconnected"):
             await _cleanup_peer(pc)
             _notifyDisconnected()
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange():
-        log(f"ICE connection state changed: {pc.iceConnectionState}")
+        _log_peer_state(pc, "ICE connection state changed.", state=pc.iceConnectionState)
+
+    @pc.on("icegatheringstatechange")
+    def on_icegatheringstatechange():
+        _log_peer_state(pc, "ICE gathering state changed.", state=pc.iceGatheringState)
 
     @pc.on("signalingstatechange")
     def on_signalingstatechange():
-        log(f"Signaling state changed: {pc.signalingState}")
+        _log_peer_state(pc, "Signaling state changed.", state=pc.signalingState)
 
-    await pc.setRemoteDescription(offer)
-    log(f"Remote description set (type={offer.type}).")
-    answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
-    await _wait_for_ice_gathering_complete(pc, SCREEN_CAST.ICE_GATHER_TIMEOUT_SECONDS)
-    answer_candidates = _count_sdp_candidates(pc.localDescription.sdp)
-    log(f"Local description created (type={pc.localDescription.type}).")
-    log(f"Answer metadata: candidate_count={answer_candidates}.")
+    negotiation_phase = "set_remote_description"
+    try:
+        await pc.setRemoteDescription(offer)
+        log(f"Remote description set (type={offer.type}).")
+        negotiation_phase = "create_answer"
+        answer = await pc.createAnswer()
+        negotiation_phase = "set_local_description"
+        await pc.setLocalDescription(answer)
+        negotiation_phase = "ice_gathering"
+        await _wait_for_ice_gathering_complete(pc, SCREEN_CAST.ICE_GATHER_TIMEOUT_SECONDS)
+        answer_candidates = _count_sdp_candidates(pc.localDescription.sdp)
+        log(f"Local description created (type={pc.localDescription.type}).")
+        log(f"Answer metadata: candidate_count={answer_candidates}.")
+    except Exception as exc:
+        logger.exception(
+            "Screen cast negotiation failed "
+            f"exception_type={type(exc).__name__}; "
+            f"exception_message={_exception_summary(exc)}",
+            exc,
+            phase=negotiation_phase,
+            remote=request.remote,
+            offer_type=offer.type,
+            offer_candidate_count=offer_candidates,
+            **_peer_state_fields(pc),
+        )
+        await _cleanup_peer(pc)
+        raise
 
     return web.Response(
         content_type="application/json",

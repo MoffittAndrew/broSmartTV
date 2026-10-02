@@ -67,6 +67,7 @@ export const state = {
   lastQualityChangeAtMs: 0,
   captureSourceWidthDecreaseSamples: 0,
   captureSourceHeightDecreaseSamples: 0,
+  lastPeerState: null,
 };
 
 function countSdpCandidates(sdp) {
@@ -95,6 +96,21 @@ function setStatusText(text) {
   if (uiRefs.statusDiv) {
     uiRefs.statusDiv.textContent = text;
   }
+}
+
+function logPeerState(eventName, pc) {
+  const current = {
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+    signalingState: pc.signalingState,
+  };
+  const previous = state.lastPeerState;
+  state.lastPeerState = current;
+  console.info(`[screencast ${new Date().toISOString()}] ${eventName}`, {
+    previous,
+    current,
+  });
 }
 
 function updateStreamingStatus() {
@@ -456,6 +472,7 @@ async function stopStream(reason = 'stopped') {
   }
 
   if (state.pc) {
+    logPeerState(`Stopping stream: ${reason}`, state.pc);
     state.pc.close();
     state.pc = null;
   }
@@ -701,9 +718,11 @@ async function startStreaming(options = {}) {
     iceCandidatePoolSize: 4,
   });
   const currentPc = state.pc;
+  state.lastPeerState = null;
+  logPeerState('Peer connection created', currentPc);
 
   currentPc.onconnectionstatechange = () => {
-    console.log('Connection state:', currentPc.connectionState);
+    logPeerState('Connection state changed', currentPc);
     if (currentPc.connectionState === 'connected') {
       clearConnectionTimeout();
     }
@@ -713,7 +732,15 @@ async function startStreaming(options = {}) {
   };
 
   currentPc.oniceconnectionstatechange = () => {
-    console.log('ICE connection state:', currentPc.iceConnectionState);
+    logPeerState('ICE connection state changed', currentPc);
+  };
+
+  currentPc.onicegatheringstatechange = () => {
+    logPeerState('ICE gathering state changed', currentPc);
+  };
+
+  currentPc.onsignalingstatechange = () => {
+    logPeerState('Signaling state changed', currentPc);
   };
 
   currentPc.onicecandidate = (event) => {
