@@ -23,8 +23,8 @@ logger = get_adapter("audio", "audio")
 _SENTINEL = object()
 
 
-def log(message):
-    logger.info(message)
+def log(message, **fields):
+    logger.info(message, **fields)
 
 
 class AudioPlaybackService:
@@ -188,6 +188,30 @@ class AudioPlaybackService:
             f"queue_max_frames={max_frames})."
         )
 
+    def _build_aplay_command(self):
+        command = [
+            "aplay",
+            "-q",
+            "-D",
+            SCREEN_CAST.AUDIO_ALSA_DEVICE,
+            "-t",
+            "raw",
+            "-f",
+            "S16_LE",
+            "-c",
+            str(self._channels),
+            "-r",
+            str(self._sample_rate),
+        ]
+
+        buffer_time_us = int(getattr(SCREEN_CAST, "AUDIO_ALSA_BUFFER_TIME_US", 0) or 0)
+        period_time_us = int(getattr(SCREEN_CAST, "AUDIO_ALSA_PERIOD_TIME_US", 0) or 0)
+        if buffer_time_us > 0:
+            command.extend(["--buffer-time", str(buffer_time_us)])
+        if period_time_us > 0:
+            command.extend(["--period-time", str(period_time_us)])
+        return command
+
     def submit_frame(self, frame):
         if not SCREEN_CAST.AUDIO_ENABLED:
             return
@@ -226,20 +250,7 @@ class AudioPlaybackService:
         playback_process = None
         try:
             playback_process = subprocess.Popen(
-                [
-                    "aplay",
-                    "-q",
-                    "-D",
-                    SCREEN_CAST.AUDIO_ALSA_DEVICE,
-                    "-t",
-                    "raw",
-                    "-f",
-                    "S16_LE",
-                    "-c",
-                    str(self._channels),
-                    "-r",
-                    str(self._sample_rate),
-                ],
+                self._build_aplay_command(),
                 stdin=subprocess.PIPE,
             )
             playback_stdin = playback_process.stdin
@@ -254,6 +265,7 @@ class AudioPlaybackService:
             prebuffer_frames = max(1, int(SCREEN_CAST.AUDIO_PREBUFFER_FRAMES))
             buffered = []
             prebuffering = True
+            first_write_started_at = time.monotonic()
 
             while True:
                 if self._queue is None:
@@ -278,6 +290,11 @@ class AudioPlaybackService:
                         playback_stdin.write(self._samples_to_s16(pending).tobytes())
                     buffered.clear()
                     prebuffering = False
+                    log(
+                        "First audio samples written to playback device.",
+                        startup_buffer_frames=prebuffer_frames,
+                        startup_wait_ms=round((time.monotonic() - first_write_started_at) * 1000),
+                    )
                     continue
 
                 playback_stdin.write(self._samples_to_s16(chunk).tobytes())

@@ -336,9 +336,14 @@ class SCREEN_CAST:
     # Keep audio startup buffer short so speech/lip movement stays in sync
     # with video. This intentionally trades some underrun tolerance for lower
     # end-to-end latency.
-    AUDIO_PREBUFFER_FRAMES = 2
-    AUDIO_QUEUE_MAX_FRAMES = 10
-    AUDIO_TARGET_QUEUE_FRAMES = 4
+    AUDIO_PREBUFFER_FRAMES = 1
+    AUDIO_QUEUE_MAX_FRAMES = 6
+    AUDIO_TARGET_QUEUE_FRAMES = 1
+    # Keep the ALSA device from accumulating the large default HDMI buffer.
+    # These values are passed to aplay in microseconds and can be overridden
+    # if a particular HDMI device requires a larger period or buffer.
+    AUDIO_ALSA_BUFFER_TIME_US = 80_000
+    AUDIO_ALSA_PERIOD_TIME_US = 20_000
     AUDIO_OUTPUT_LATENCY = "low"
     AUDIO_OUTPUT_DEVICE = None
     AUDIO_ALSA_DEVICE = os.getenv(
@@ -346,10 +351,9 @@ class SCREEN_CAST:
         "hdmi:CARD=vc4hdmi1,DEV=0",
     )
 
-    # Apply a tiny one-time receiver-side video holdback at stream start so
-    # playback can be nudged into lip-sync when audio lands slightly behind on
-    # HDMI output, without reducing steady-state video FPS.
-    VIDEO_SYNC_DELAY_MS = 200
+    # Audio playback now uses an explicitly bounded ALSA buffer, so video does
+    # not need an artificial startup holdback that would add end-to-end delay.
+    VIDEO_SYNC_DELAY_MS = 0
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
