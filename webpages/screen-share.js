@@ -190,6 +190,8 @@ function scheduleReconnect(reason, failedPeerConnection = state.pc) {
   state.isStreaming = false;
   state.isStarting = false;
   state.reconnectInProgress = true;
+  // The old sender must stop contributing samples while its peer is being replaced.
+  stopFpsMonitor(false);
   closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
 
   state.reconnectAttempt += 1;
@@ -262,6 +264,19 @@ async function evaluateAdaptiveQuality() {
   }
 
   if (state.currentQualityMode === 'floor') {
+    const lowCount = countWindowByPredicate(
+      state.adaptivePolicy.lowSampleWindow,
+      (sample) => sample < state.adaptivePolicy.lowFpsThreshold,
+      state,
+    );
+
+    if (lowCount !== null && lowCount >= state.adaptivePolicy.lowSampleRequired) {
+      // A floor stream that remains below the downgrade threshold may need a fresh
+      // peer connection, but the existing capture stream must remain permission-free.
+      scheduleReconnect('persistent low FPS at floor quality', state.pc);
+      return;
+    }
+
     const recoveryCount = countWindowByPredicate(
       state.adaptivePolicy.recoverySampleWindow,
       (sample) => sample >= state.adaptivePolicy.recoveryFpsThreshold,
