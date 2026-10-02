@@ -6,6 +6,7 @@ audio output device (typically HDMI on Pi when configured as default).
 
 import asyncio
 import queue
+import subprocess
 import threading
 import time
 
@@ -13,11 +14,6 @@ try:
     import numpy as np
 except Exception:  # pragma: no cover - environment-dependent import
     np = None
-
-try:
-    import sounddevice as sd
-except Exception:  # pragma: no cover - environment-dependent import
-    sd = None
 
 from globals import SCREEN_CAST
 from app_logging import get_adapter
@@ -196,7 +192,7 @@ class AudioPlaybackService:
         if not SCREEN_CAST.AUDIO_ENABLED:
             return
 
-        if sd is None or np is None:
+        if np is None:
             return
 
         try:
@@ -227,16 +223,33 @@ class AudioPlaybackService:
             self._enqueue_samples(samples)
 
     def _playback_loop(self):
-        stream = None
+        playback_process = None
         try:
-            stream = sd.OutputStream(
-                samplerate=self._sample_rate,
-                channels=self._channels,
-                dtype="float32",
-                latency=SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
-                device=SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
+            playback_process = subprocess.Popen(
+                [
+                    "aplay",
+                    "-q",
+                    "-D",
+                    SCREEN_CAST.AUDIO_ALSA_DEVICE,
+                    "-t",
+                    "raw",
+                    "-f",
+                    "S16_LE",
+                    "-c",
+                    str(self._channels),
+                    "-r",
+                    str(self._sample_rate),
+                ],
+                stdin=subprocess.PIPE,
             )
-            stream.start()
+            playback_stdin = playback_process.stdin
+            if playback_stdin is None:
+                raise RuntimeError("aplay stdin pipe was not created")
+            log(
+                "Audio playback process started "
+                f"(device={SCREEN_CAST.AUDIO_ALSA_DEVICE}, sample_rate={self._sample_rate}, "
+                f"channels={self._channels})."
+            )
 
             prebuffer_frames = max(1, int(SCREEN_CAST.AUDIO_PREBUFFER_FRAMES))
             buffered = []
@@ -262,27 +275,31 @@ class AudioPlaybackService:
                         continue
 
                     for pending in buffered:
-                        stream.write(pending)
+                        playback_stdin.write(self._samples_to_s16(pending).tobytes())
                     buffered.clear()
                     prebuffering = False
                     continue
 
-                stream.write(chunk)
+                playback_stdin.write(self._samples_to_s16(chunk).tobytes())
         except Exception as exc:
             log(f"Audio playback loop failed: {exc}")
         finally:
-            if stream is not None:
+            if playback_process is not None:
                 try:
-                    stream.stop()
+                    if playback_process.stdin is not None:
+                        playback_process.stdin.close()
                 except Exception:
                     pass
                 try:
-                    stream.close()
+                    playback_process.wait(timeout=2)
                 except Exception:
-                    pass
+                    playback_process.terminate()
+
+    def _samples_to_s16(self, samples):
+        return np.rint(np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
 
     async def stop(self):
-        if sd is None or np is None:
+        if np is None:
             return
 
         worker = None

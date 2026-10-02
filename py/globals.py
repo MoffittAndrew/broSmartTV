@@ -341,6 +341,10 @@ class SCREEN_CAST:
     AUDIO_TARGET_QUEUE_FRAMES = 4
     AUDIO_OUTPUT_LATENCY = "low"
     AUDIO_OUTPUT_DEVICE = None
+    AUDIO_ALSA_DEVICE = os.getenv(
+        "BRO_AUDIO_ALSA_DEVICE",
+        "hdmi:CARD=vc4hdmi1,DEV=0",
+    )
 
     # Apply a tiny one-time receiver-side video holdback at stream start so
     # playback can be nudged into lip-sync when audio lands slightly behind on
