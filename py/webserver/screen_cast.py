@@ -87,9 +87,9 @@ def setDisconnectHandler(callback):
     _disconnect_handler = callback
 
 
-def _notifyFrame(frame):
+def _notifyFrame(frame, arrival_time=None):
     if _frame_handler is not None:
-        _frame_handler(frame)
+        _frame_handler(frame, arrival_time)
 
 
 def _notifyConnected():
@@ -318,12 +318,10 @@ async def offer(request):
             async def read_frames():
                 frame_timeout = SCREEN_CAST.FRAME_TIMEOUT_SECONDS
                 log_interval = SCREEN_CAST.FRAME_LOG_INTERVAL_SECONDS
-                receiver_drain_timeout = SCREEN_CAST.RECEIVER_DRAIN_TIMEOUT_SECONDS
                 start_time = time.monotonic()
                 last_frame_time = None
                 last_log_time = start_time
                 frame_count = 0
-                coalesced_before_ui = 0
 
                 try:
                     while True:
@@ -344,18 +342,6 @@ async def offer(request):
                         frame_count += 1
                         last_frame_time = now
 
-                        # Drain any immediately available decoded backlog so we
-                        # forward only the freshest frame. This avoids the
-                        # visible lag-then-fast-forward behavior under pressure.
-                        while True:
-                            try:
-                                frame = await asyncio.wait_for(track.recv(), timeout=receiver_drain_timeout)
-                                coalesced_before_ui += 1
-                                frame_count += 1
-                                last_frame_time = time.monotonic()
-                            except asyncio.TimeoutError:
-                                break
-
                         if frame_count == 1:
                             log(f"First video frame received after {now - start_time:.2f}s.")
 
@@ -364,14 +350,14 @@ async def offer(request):
                             avg_fps = frame_count / elapsed
                             log(
                                 f"Frame stats: frames={frame_count}, elapsed={elapsed:.1f}s, "
-                                f"avg_fps={avg_fps:.1f}, coalesced_before_ui={coalesced_before_ui}."
+                                f"avg_fps={avg_fps:.1f}."
                             )
                             last_log_time = now
 
                         # Send raw frames to the UI callback so receiver-side
                         # coalescing can drop stale frames before expensive
                         # RGB numpy conversion is performed.
-                        _notifyFrame(frame)
+                        _notifyFrame(frame, now)
                 except asyncio.CancelledError:
                     log("Stream reader cancelled.")
                     raise
@@ -382,14 +368,13 @@ async def offer(request):
                         exc,
                         track_kind="video",
                         frame_count=frame_count,
-                        coalesced_before_ui=coalesced_before_ui,
                         elapsed_seconds=round(time.monotonic() - start_time, 1),
                     )
                 finally:
                     total_elapsed = time.monotonic() - start_time
                     log(
                         f"Stream reader stopping (frames={frame_count}, elapsed={total_elapsed:.1f}s, "
-                        f"connectionState={pc.connectionState}, coalesced_before_ui={coalesced_before_ui})."
+                        f"connectionState={pc.connectionState})."
                     )
                     await _cleanup_peer(
                         pc,

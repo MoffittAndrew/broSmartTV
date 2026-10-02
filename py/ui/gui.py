@@ -13,6 +13,8 @@ import asyncio
 import inspect
 import time
 
+from ui.video_timing import VideoTimingQueue
+
 
 class CustomQLabel(QLabel):
     def __init__(self, *args, **kwargs):
@@ -43,11 +45,17 @@ class ScreenCastView(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
-        self._pending_frame = None
         self._render_scheduled = False
         self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._video_queue = VideoTimingQueue(
+            delay_seconds=max(
+                0.0,
+                float(getattr(SCREEN_CAST, "VIDEO_PRESENTATION_DELAY_MS", 0)) / 1000.0,
+            ),
+            max_frames=getattr(SCREEN_CAST, "VIDEO_QUEUE_MAX_FRAMES", 30),
+        )
         self._received_frames_since_log = 0
         self._rendered_frames_since_log = 0
         self._last_receiver_log_at = time.monotonic()
@@ -77,31 +85,34 @@ class ScreenCastView(QLabel):
         return max(0, int(remaining * 1000))
 
     def _scheduleRender(self):
+        render_tick_ms = max(1, int(getattr(SCREEN_CAST, "VIDEO_RENDER_TICK_MS", 5)))
         delay_ms = self._currentScheduleDelayMs()
+        if self._sync_hold_until is None:
+            delay_ms = render_tick_ms
+        queue_delay = self._video_queue.seconds_until_next(time.monotonic())
+        if queue_delay is not None:
+            delay_ms = min(delay_ms, render_tick_ms, max(0, int(queue_delay * 1000)))
         QTimer.singleShot(delay_ms, self._renderPendingFrame)
 
     def resetSyncHoldback(self):
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._video_queue.reset()
+        self._render_scheduled = False
 
-    def setFrame(self, frame):
+    def setFrame(self, frame, arrival_time=None):
         if frame is None:
             return
 
-        # Receiver-side CPU is currently the most likely bottleneck on Pi. We
-        # therefore coalesce incoming frames down to "latest only" instead of
-        # forcing Qt to spend time rendering stale frames that the user will
-        # never meaningfully see. This favors lower latency and better motion
-        # smoothness over exhaustive per-frame rendering.
-        self._pending_frame = frame
+        self._video_queue.enqueue(
+            frame,
+            time.monotonic() if arrival_time is None else float(arrival_time),
+        )
         self._received_frames_since_log += 1
         self._beginSyncHoldbackIfNeeded()
 
         if not self._render_scheduled:
             self._render_scheduled = True
-            # Apply holdback only at stream start; afterwards render cadence is
-            # immediate so FPS remains constrained by decode/render speed, not
-            # by an artificial timer delay.
             self._scheduleRender()
 
         self._maybeLogReceiverStats()
@@ -109,10 +120,13 @@ class ScreenCastView(QLabel):
     def _renderPendingFrame(self):
         self._render_scheduled = False
 
-        frame = self._pending_frame
-        self._pending_frame = None
-        if frame is None:
+        scheduled_frame = self._video_queue.pop_due(time.monotonic())
+        if scheduled_frame is None:
+            if self._video_queue.queued_frames > 0:
+                self._render_scheduled = True
+                self._scheduleRender()
             return
+        frame = scheduled_frame.frame
 
         # Some senders pass av.VideoFrame objects while others may pass numpy
         # arrays. Convert only the frame that will actually be rendered.
@@ -149,10 +163,7 @@ class ScreenCastView(QLabel):
         self._rendered_frames_since_log += 1
         self.update()
 
-        # If newer frames arrived while we were rendering, process only the
-        # latest one on the next Qt turn rather than recursively rendering the
-        # entire backlog.
-        if self._pending_frame is not None and not self._render_scheduled:
+        if self._video_queue.queued_frames > 0 and not self._render_scheduled:
             self._render_scheduled = True
             self._scheduleRender()
 
@@ -172,7 +183,8 @@ class ScreenCastView(QLabel):
         print(
             "[screencast-view] receiver stats: "
             f"received_fps={received_fps:.1f}, rendered_fps={rendered_fps:.1f}, "
-            f"coalesced_frames={dropped}"
+            f"coalesced_frames={dropped}, queued_frames={self._video_queue.queued_frames}, "
+            f"dropped_frames={self._video_queue.dropped_frames}"
         )
 
         self._received_frames_since_log = 0

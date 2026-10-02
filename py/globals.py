@@ -354,6 +354,11 @@ class SCREEN_CAST:
     # Audio playback now uses an explicitly bounded ALSA buffer, so video does
     # not need an artificial startup holdback that would add end-to-end delay.
     VIDEO_SYNC_DELAY_MS = 0
+    # Delay video continuously so it can be presented against the delayed audio
+    # clock instead of relying on a startup-only holdback.
+    VIDEO_PRESENTATION_DELAY_MS = 250
+    VIDEO_QUEUE_MAX_FRAMES = 30
+    VIDEO_RENDER_TICK_MS = 5
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
