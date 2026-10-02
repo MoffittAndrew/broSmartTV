@@ -108,3 +108,49 @@ def test_playback_adapts_to_device_sample_rate_and_channels(monkeypatch):
     assert stream_options[0]["channels"] == 1
     assert written_chunks[0].shape[1] == 1
     assert written_chunks[0].shape[0] == 2
+
+
+def test_playback_retries_high_latency_when_low_latency_is_unsupported(monkeypatch):
+    opened_latencies = []
+
+    class FakeStream:
+        def start(self):
+            pass
+
+        def write(self, _samples):
+            pass
+
+        def stop(self):
+            pass
+
+        def close(self):
+            pass
+
+    def open_output_stream(*, latency, **_options):
+        opened_latencies.append(latency)
+        if latency == "low":
+            raise RuntimeError("Sample format not supported [PaErrorCode -9994]")
+        return FakeStream()
+
+    service = audio_playback.AudioPlaybackService()
+    service._sample_rate = 48000
+    service._channels = 2
+    service._output_sample_rate = 48000
+    service._output_channels = 2
+    service._running = True
+    service._queue = queue.Queue()
+    service._queue.put(np.zeros((1, 2), dtype=np.float32))
+    service._queue.put(audio_playback._SENTINEL)
+
+    monkeypatch.setattr(
+        audio_playback,
+        "sd",
+        SimpleNamespace(OutputStream=open_output_stream),
+    )
+    monkeypatch.setattr(audio_playback.SCREEN_CAST, "AUDIO_OUTPUT_LATENCY", "low")
+    monkeypatch.setattr(audio_playback.SCREEN_CAST, "AUDIO_PREBUFFER_FRAMES", 1)
+
+    service._playback_loop()
+
+    assert opened_latencies[0] == "low"
+    assert "high" in opened_latencies

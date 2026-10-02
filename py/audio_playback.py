@@ -275,22 +275,29 @@ class AudioPlaybackService:
             stream_options = {
                 "samplerate": self._output_sample_rate,
                 "channels": self._output_channels,
-                "latency": SCREEN_CAST.AUDIO_OUTPUT_LATENCY,
                 "device": SCREEN_CAST.AUDIO_OUTPUT_DEVICE,
             }
             last_format_error = None
-            for candidate_dtype in ("float32", "int32", "int24", "int16", "int8", "uint8"):
-                try:
-                    stream = sd.OutputStream(dtype=candidate_dtype, **stream_options)
-                    output_dtype = candidate_dtype
+            latency_options = [SCREEN_CAST.AUDIO_OUTPUT_LATENCY]
+            if SCREEN_CAST.AUDIO_OUTPUT_LATENCY != "high":
+                latency_options.append("high")
+            for latency in latency_options:
+                stream_options["latency"] = latency
+                for candidate_dtype in ("float32", "int32", "int24", "int16", "int8", "uint8"):
+                    try:
+                        stream = sd.OutputStream(dtype=candidate_dtype, **stream_options)
+                        output_dtype = candidate_dtype
+                        break
+                    except Exception as exc:
+                        if "Sample format not supported" not in str(exc):
+                            raise
+                        last_format_error = exc
+                        logger.warning(
+                            f"Audio output does not support {candidate_dtype} at {latency} latency; "
+                            "trying another configuration."
+                        )
+                if stream is not None:
                     break
-                except Exception as exc:
-                    if "Sample format not supported" not in str(exc):
-                        raise
-                    last_format_error = exc
-                    logger.warning(
-                        f"Audio output does not support {candidate_dtype}; trying another format."
-                    )
 
             if stream is None:
                 raise last_format_error
