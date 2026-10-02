@@ -97,6 +97,68 @@ def test_closed_peer_media_stream_end_is_a_structured_warning(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cleanup_records_first_owner_and_is_idempotent(monkeypatch):
+    app_logger = app_logging.AppLogger()
+    monkeypatch.setattr(
+        screen_cast,
+        "logger",
+        app_logging.LoggerAdapter(app_logger, "screencast", "screencast"),
+    )
+
+    async def fake_stop_audio_playback():
+        return None
+
+    monkeypatch.setattr(screen_cast, "stopAudioPlayback", fake_stop_audio_playback)
+
+    class FakePeer:
+        connectionState = "connected"
+        iceConnectionState = "connected"
+        iceGatheringState = "complete"
+        signalingState = "stable"
+
+        async def close(self):
+            self.connectionState = "closed"
+            self.iceConnectionState = "closed"
+            self.signalingState = "closed"
+
+    peer = FakePeer()
+    screen_cast.pcs.add(peer)
+    screen_cast.active_pc = peer
+    screen_cast._cleaning_peers.discard(peer)
+    screen_cast._cleaned_peers.discard(peer)
+
+    await screen_cast._cleanup_peer(
+        peer,
+        reason="video_reader_finished",
+        initiated_by="video_reader",
+    )
+    await screen_cast._cleanup_peer(
+        peer,
+        reason="connection_state_closed",
+        initiated_by="connection_state_callback",
+    )
+
+    cleanup_records = [
+        record
+        for record in app_logger.history()
+        if record.message == "Peer cleanup started."
+    ]
+    close_records = [
+        record
+        for record in app_logger.history()
+        if record.message == "Peer connection closed."
+    ]
+    assert len(cleanup_records) == 1
+    assert len(close_records) == 1
+    assert cleanup_records[0].fields["cleanup_reason"] == "video_reader_finished"
+    assert cleanup_records[0].fields["cleanup_initiated_by"] == "video_reader"
+    assert close_records[0].fields["cleanup_reason"] == "video_reader_finished"
+    assert peer not in screen_cast.pcs
+    assert screen_cast.active_pc is None
+    screen_cast._cleaned_peers.discard(peer)
+
+
+@pytest.mark.asyncio
 async def test_request_keyframe_sends_pli_without_closing_peer(monkeypatch):
     monkeypatch.setattr(screen_cast.SCREEN_CAST, "KEYFRAME_REQUEST_MAX_PER_WINDOW", 3)
     monkeypatch.setattr(screen_cast.SCREEN_CAST, "KEYFRAME_REQUEST_WINDOW_SECONDS", 60)

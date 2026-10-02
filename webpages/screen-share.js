@@ -68,6 +68,12 @@ export const state = {
   captureSourceWidthDecreaseSamples: 0,
   captureSourceHeightDecreaseSamples: 0,
   lastPeerState: null,
+  reconnectTimerId: null,
+  reconnectStableTimerId: null,
+  reconnectAttempt: 0,
+  reconnectGeneration: 0,
+  reconnectInProgress: false,
+  stopRequested: false,
 };
 
 function countSdpCandidates(sdp) {
@@ -88,7 +94,7 @@ function startConnectionTimeout() {
   clearConnectionTimeout();
   state.connectionTimeoutId = setTimeout(() => {
     console.warn(`Connection timed out after ${APP_CONSTANTS.CONNECTION_TIMEOUT_MS / 1000}s without reaching connected state.`);
-    stopStream('connection timed out');
+    scheduleReconnect('connection timed out', state.pc);
   }, APP_CONSTANTS.CONNECTION_TIMEOUT_MS);
 }
 
@@ -111,6 +117,111 @@ function logPeerState(eventName, pc) {
     previous,
     current,
   });
+}
+
+function clearReconnectTimers() {
+  if (state.reconnectTimerId !== null) {
+    clearTimeout(state.reconnectTimerId);
+    state.reconnectTimerId = null;
+  }
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+    state.reconnectStableTimerId = null;
+  }
+  state.reconnectGeneration += 1;
+  state.reconnectInProgress = false;
+}
+
+function closePeerConnection(reason, peerConnection = state.pc) {
+  if (!peerConnection || peerConnection !== state.pc) {
+    return;
+  }
+  logPeerState(`Closing peer connection: ${reason}`, peerConnection);
+  state.pc = null;
+  state.videoSender = null;
+  peerConnection.close();
+}
+
+function scheduleStableReconnectReset(peerConnection) {
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+  }
+  if (state.reconnectAttempt === 0) {
+    return;
+  }
+
+  state.reconnectStableTimerId = setTimeout(() => {
+    state.reconnectStableTimerId = null;
+    if (peerConnection === state.pc && peerConnection.connectionState === 'connected') {
+      console.info('[screencast] Connection stable; resetting reconnect budget.');
+      state.reconnectAttempt = 0;
+      state.reconnectInProgress = false;
+    }
+  }, APP_CONSTANTS.RECONNECT_STABLE_WINDOW_MS);
+}
+
+function scheduleReconnect(reason, failedPeerConnection = state.pc) {
+  if (
+    (failedPeerConnection && failedPeerConnection !== state.pc)
+    || state.stopRequested
+    || !state.stream
+    || state.reconnectTimerId !== null
+  ) {
+    return;
+  }
+
+  clearConnectionTimeout();
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+    state.reconnectStableTimerId = null;
+  }
+
+  if (state.reconnectAttempt >= APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS) {
+    state.reconnectInProgress = false;
+    closePeerConnection(`reconnect exhausted: ${reason}`, failedPeerConnection);
+    if (uiRefs.startBtn) {
+      uiRefs.startBtn.disabled = false;
+      uiRefs.startBtn.textContent = 'start screen share';
+    }
+    setStatusText(`❌ stream failed after ${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS} reconnect attempts`);
+    console.error('[screencast] Reconnect attempts exhausted:', reason);
+    return;
+  }
+
+  state.isStreaming = false;
+  state.isStarting = false;
+  state.reconnectInProgress = true;
+  closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
+
+  state.reconnectAttempt += 1;
+  const delayMs = Math.min(
+    APP_CONSTANTS.RECONNECT_MAX_DELAY_MS,
+    APP_CONSTANTS.RECONNECT_INITIAL_DELAY_MS * (2 ** (state.reconnectAttempt - 1)),
+  );
+  const generation = state.reconnectGeneration;
+  if (uiRefs.startBtn) {
+    uiRefs.startBtn.disabled = true;
+    uiRefs.startBtn.textContent = `reconnecting (${state.reconnectAttempt}/${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS})`;
+  }
+  setStatusText(`⚠ reconnecting in ${(delayMs / 1000).toFixed(1)}s`);
+  console.warn(`[screencast] Scheduling reconnect ${state.reconnectAttempt}/${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS}`, {
+    reason,
+    delayMs,
+  });
+
+  state.reconnectTimerId = setTimeout(async () => {
+    state.reconnectTimerId = null;
+    if (generation !== state.reconnectGeneration || state.stopRequested || !state.stream) {
+      return;
+    }
+    try {
+      await startStreaming({ isReconnect: true });
+    } catch (err) {
+      console.error('[screencast] Reconnect attempt failed:', err);
+      state.isStarting = false;
+      scheduleReconnect('reconnect attempt failed', state.pc);
+    }
+  }, delayMs);
 }
 
 function updateStreamingStatus() {
@@ -456,6 +567,9 @@ async function checkAvailability() {
 async function stopStream(reason = 'stopped') {
   clearConnectionTimeout();
   state.isAdaptiveRestartInProgress = false;
+  clearReconnectTimers();
+  state.stopRequested = true;
+  state.reconnectAttempt = 0;
   stopFpsMonitor();
   state.isStreaming = false;
   state.isStarting = false;
@@ -472,9 +586,7 @@ async function stopStream(reason = 'stopped') {
   }
 
   if (state.pc) {
-    logPeerState(`Stopping stream: ${reason}`, state.pc);
-    state.pc.close();
-    state.pc = null;
+    closePeerConnection(`stopping stream: ${reason}`);
   }
 
   if (uiRefs.startBtn) {
@@ -627,15 +739,22 @@ async function startStreaming(options = {}) {
   const { startBtn } = uiRefs;
   let selectedProfile = options.profile || null;
   const isAdaptiveRestart = options.isAdaptiveRestart === true;
+  const isReconnect = options.isReconnect === true;
 
-  if (state.isStarting || state.isStreaming) {
+  if (state.isStarting || (state.isStreaming && !isReconnect)) {
     return;
+  }
+
+  if (!isReconnect) {
+    state.stopRequested = false;
+    state.reconnectAttempt = 0;
+    clearReconnectTimers();
   }
 
   state.isStarting = true;
   startBtn.disabled = true;
 
-  if (!isAdaptiveRestart) {
+  if (!isAdaptiveRestart && !isReconnect) {
     await loadCaptureSettings();
     state.activeProfile = profileForMode('high', state);
   }
@@ -649,6 +768,11 @@ async function startStreaming(options = {}) {
 
   const available = await checkAvailability();
   if (!available) {
+    if (isReconnect) {
+      state.isStarting = false;
+      scheduleReconnect('server is busy', state.pc);
+      return;
+    }
     state.isStarting = false;
     startBtn.disabled = false;
     alert('Stream is currently busy. Try again later.');
@@ -658,7 +782,9 @@ async function startStreaming(options = {}) {
   }
 
   try {
-    state.stream = await requestDisplayMedia(profile);
+    if (!state.stream) {
+      state.stream = await requestDisplayMedia(profile);
+    }
   } catch (err) {
     state.isStarting = false;
     startBtn.disabled = false;
@@ -725,14 +851,24 @@ async function startStreaming(options = {}) {
     logPeerState('Connection state changed', currentPc);
     if (currentPc.connectionState === 'connected') {
       clearConnectionTimeout();
+      scheduleStableReconnectReset(currentPc);
     }
-    if (['disconnected', 'failed', 'closed'].includes(currentPc.connectionState)) {
-      stopStream('disconnected');
+    if (
+      currentPc === state.pc
+      && ['disconnected', 'failed', 'closed'].includes(currentPc.connectionState)
+    ) {
+      scheduleReconnect(`connection state ${currentPc.connectionState}`, currentPc);
     }
   };
 
   currentPc.oniceconnectionstatechange = () => {
     logPeerState('ICE connection state changed', currentPc);
+    if (
+      currentPc === state.pc
+      && ['disconnected', 'failed'].includes(currentPc.iceConnectionState)
+    ) {
+      scheduleReconnect(`ICE connection state ${currentPc.iceConnectionState}`, currentPc);
+    }
   };
 
   currentPc.onicegatheringstatechange = () => {
@@ -751,28 +887,40 @@ async function startStreaming(options = {}) {
     }
   };
 
-  for (const track of state.stream.getTracks()) {
-    const sender = currentPc.addTrack(track, state.stream);
-    if (track.kind === 'video') {
-      state.videoSender = sender;
-      const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
-      const preferredCodecs = getPreferredVideoCodecs();
-      if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === 'function') {
-        videoTransceiver.setCodecPreferences(preferredCodecs);
+  try {
+    for (const track of state.stream.getTracks()) {
+      const sender = currentPc.addTrack(track, state.stream);
+      if (track.kind === 'video') {
+        state.videoSender = sender;
+        const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
+        const preferredCodecs = getPreferredVideoCodecs();
+        if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === 'function') {
+          videoTransceiver.setCodecPreferences(preferredCodecs);
+        }
+        await applySenderEncodingPolicy(sender, resolvedProfile, 'initial stream start', state);
       }
-      await applySenderEncodingPolicy(sender, resolvedProfile, 'initial stream start', state);
+      if (track.kind === 'audio') {
+        await applyAudioSenderEncodingPolicy(sender, 'initial stream start');
+      }
     }
-    if (track.kind === 'audio') {
-      await applyAudioSenderEncodingPolicy(sender, 'initial stream start');
+
+    const offer = await currentPc.createOffer();
+    await currentPc.setLocalDescription(offer);
+    await waitForIceGatheringComplete(currentPc);
+
+    console.log('Offer candidate count:', countSdpCandidates(currentPc.localDescription && currentPc.localDescription.sdp));
+    startConnectionTimeout();
+  } catch (err) {
+    console.error('[screencast] Failed to prepare peer offer:', err);
+    state.isStarting = false;
+    if (isReconnect) {
+      scheduleReconnect('peer offer preparation failed', currentPc);
+    } else {
+      await stopStream('connection failed');
+      state.isAdaptiveRestartInProgress = false;
     }
+    return;
   }
-
-  const offer = await currentPc.createOffer();
-  await currentPc.setLocalDescription(offer);
-  await waitForIceGatheringComplete(currentPc);
-
-  console.log('Offer candidate count:', countSdpCandidates(currentPc.localDescription && currentPc.localDescription.sdp));
-  startConnectionTimeout();
 
   try {
     const response = await fetch('/offer', {
@@ -784,8 +932,13 @@ async function startStreaming(options = {}) {
     if (!response.ok) {
       const message = await response.text();
       alert(message);
-      await stopStream('rejected');
-      state.isAdaptiveRestartInProgress = false;
+      if (isReconnect) {
+        state.isStarting = false;
+        scheduleReconnect(`offer rejected (${response.status})`, currentPc);
+      } else {
+        await stopStream('rejected');
+        state.isAdaptiveRestartInProgress = false;
+      }
       return;
     }
 
@@ -794,8 +947,13 @@ async function startStreaming(options = {}) {
     console.log('Answer candidate count:', countSdpCandidates(answer.sdp));
   } catch (err) {
     console.error('Offer/answer exchange failed:', err);
-    await stopStream('connection failed');
-    state.isAdaptiveRestartInProgress = false;
+    if (isReconnect) {
+      state.isStarting = false;
+      scheduleReconnect('offer/answer exchange failed', currentPc);
+    } else {
+      await stopStream('connection failed');
+      state.isAdaptiveRestartInProgress = false;
+    }
     return;
   }
 

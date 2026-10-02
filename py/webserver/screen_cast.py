@@ -10,6 +10,7 @@ import os
 import asyncio
 import json
 import time
+import weakref
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from globals import PATH, SCREEN_CAST
@@ -26,6 +27,7 @@ pcs = set()
 active_pc = None  # only one active peer connection at a time
 _track_tasks = set()
 _cleaning_peers = set()
+_cleaned_peers = weakref.WeakSet()
 _keyframe_tasks = {}
 
 _frame_handler = None
@@ -198,13 +200,20 @@ async def _wait_for_ice_gathering_complete(pc, timeout_seconds):
     return True
 
 
-async def _cleanup_peer(pc):
+async def _cleanup_peer(pc, reason="unspecified", initiated_by="unknown"):
     global active_pc
 
-    if pc in _cleaning_peers:
+    if pc in _cleaning_peers or pc in _cleaned_peers:
         return
 
     _cleaning_peers.add(pc)
+    _cleaned_peers.add(pc)
+    cleanup_fields = {
+        "cleanup_reason": reason,
+        "cleanup_initiated_by": initiated_by,
+        **_peer_state_fields(pc),
+    }
+    _log_peer_state(pc, "Peer cleanup started.", **cleanup_fields)
 
     try:
         keyframe_task = _keyframe_tasks.pop(pc, None)
@@ -230,7 +239,12 @@ async def _cleanup_peer(pc):
 
         try:
             await pc.close()
-            _log_peer_state(pc, "Peer connection closed.")
+            _log_peer_state(
+                pc,
+                "Peer connection closed.",
+                cleanup_reason=reason,
+                cleanup_initiated_by=initiated_by,
+            )
         except Exception as exc:
             logger.exception(
                 "Peer cleanup close failed "
@@ -377,7 +391,11 @@ async def offer(request):
                         f"Stream reader stopping (frames={frame_count}, elapsed={total_elapsed:.1f}s, "
                         f"connectionState={pc.connectionState}, coalesced_before_ui={coalesced_before_ui})."
                     )
-                    await _cleanup_peer(pc)
+                    await _cleanup_peer(
+                        pc,
+                        reason="video_reader_finished",
+                        initiated_by="video_reader",
+                    )
                     _notifyDisconnected()
 
             task = asyncio.create_task(read_frames())
@@ -436,7 +454,11 @@ async def offer(request):
     async def on_connectionstatechange():
         _log_peer_state(pc, "Connection state changed.", state=pc.connectionState)
         if pc.connectionState in ("failed", "closed", "disconnected"):
-            await _cleanup_peer(pc)
+            await _cleanup_peer(
+                pc,
+                reason=f"connection_state_{pc.connectionState}",
+                initiated_by="connection_state_callback",
+            )
             _notifyDisconnected()
 
     @pc.on("iceconnectionstatechange")
@@ -476,7 +498,11 @@ async def offer(request):
             offer_candidate_count=offer_candidates,
             **_peer_state_fields(pc),
         )
-        await _cleanup_peer(pc)
+        await _cleanup_peer(
+            pc,
+            reason=f"negotiation_failed_{negotiation_phase}",
+            initiated_by="offer_handler",
+        )
         raise
 
     return web.Response(
@@ -498,7 +524,10 @@ async def on_shutdown(screenCastServer):
         await asyncio.gather(*list(_track_tasks), return_exceptions=True)
     if _keyframe_tasks:
         await asyncio.gather(*list(_keyframe_tasks.values()), return_exceptions=True)
-    coros = [_cleanup_peer(pc) for pc in list(pcs)]
+    coros = [
+        _cleanup_peer(pc, reason="application_shutdown", initiated_by="server_shutdown")
+        for pc in list(pcs)
+    ]
     await asyncio.gather(*coros)
     pcs.clear()
     global active_pc
