@@ -45,7 +45,6 @@ export const state = {
   isStreaming: false,
   isStarting: false,
   isAdaptiveRestartInProgress: false,
-  isLowMotionContent: false,
   currentFps: 'unknown',
   currentWidth: 'unknown',
   currentHeight: 'unknown',
@@ -316,7 +315,6 @@ function stopFpsMonitor(resetStatus = true) {
     state.currentHeight = 'unknown';
   }
   state.fpsSamples = [];
-  state.isLowMotionContent = false;
   state.videoSender = null;
 }
 
@@ -329,7 +327,6 @@ function startFpsMonitor(sender) {
   let lastTimestamp = null;
   let lastFramesEncoded = null;
   let lastBytesSent = null;
-  let lastSenderLogAt = 0;
   let wasEncoderDownscaling = false;
 
   state.fpsMonitor = setInterval(async () => {
@@ -350,9 +347,6 @@ function startFpsMonitor(sender) {
 
       const timestamp = videoStat.timestamp;
       const limitationReason = videoStat.qualityLimitationReason || 'none';
-      // Only CPU/bandwidth pressure means the encoder could not keep up; anything
-      // else (typically 'none') means the capture source simply had nothing new.
-      const isEncoderLimited = limitationReason === 'cpu' || limitationReason === 'bandwidth';
       const framesEncoded = typeof videoStat.framesEncoded === 'number'
         ? videoStat.framesEncoded
         : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
@@ -387,32 +381,8 @@ function startFpsMonitor(sender) {
         lastBytesSent = bytesSent;
       }
 
-      const lowMotionDetected = sampledFps !== null
-        && sampledFps <= APP_CONSTANTS.LOW_MOTION_FPS_THRESHOLD
-        && Number.isFinite(currentBitrateBps)
-        && currentBitrateBps <= APP_CONSTANTS.LOW_MOTION_BITRATE_BPS_THRESHOLD;
-
-      if (lowMotionDetected) {
-        if (!state.isLowMotionContent) {
-          console.log('Low-motion scene detected; pausing FPS-driven auto-downgrade.', { sampledFps, currentBitrateBps });
-        }
-        state.isLowMotionContent = true;
-        state.fpsSamples = [];
-        state.currentFps = '<idle>';
-
-        if (state.qualityControlMode === 'auto' && state.currentQualityMode === 'floor' && !state.isAdaptiveRestartInProgress) {
-          await requestAdaptiveQualitySwitch(profileForMode('high', state), 'high', 'low-motion scene prioritize detail');
-        }
-      } else {
-        state.isLowMotionContent = false;
-        // Screen capture only emits frames when pixels change, so a low FPS reading
-        // with no encoder limitation is a near-static scene, not an overloaded link.
-        // Feeding those samples to the downgrade window is what caused 60fps streams
-        // to randomly drop to the floor profile after a quiet stretch.
-        const isOverloadEvidence = isEncoderLimited || sampledFps >= state.adaptivePolicy.lowFpsThreshold;
-        if (sampledFps !== null && isOverloadEvidence) {
-          pushFpsSample(sampledFps, state);
-        }
+      if (sampledFps !== null) {
+        pushFpsSample(sampledFps, state);
       }
 
       const videoTrack = state.stream ? state.stream.getVideoTracks()[0] : null;
@@ -452,36 +422,30 @@ function startFpsMonitor(sender) {
         await syncProfileToSourceGeometry('capture source resized');
       }
 
-      if (timestamp - lastSenderLogAt >= 5000) {
-        lastSenderLogAt = timestamp;
-        const qualityLimitationReason = limitationReason;
-        const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
-        const captureFps = typeof videoStat.framesPerSecond === 'number' ? Math.round(videoStat.framesPerSecond) : null;
-        const frameWidth = videoStat.frameWidth || state.currentWidth;
-        const frameHeight = videoStat.frameHeight || state.currentHeight;
-        const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
-        const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : 'unknown';
-        console.log('Sender stats:', {
-          fps: state.currentFps,
-          frameWidth,
-          frameHeight,
-          captureFps,
-          sourceWidth: state.captureSourceWidth,
-          sourceHeight: state.captureSourceHeight,
-          displaySurface: state.captureDisplaySurface,
-          qualityLimitationReason,
-          qualityLimitationDurations,
-          bytesSent,
-          currentBitrateBps,
-          isLowMotionContent: state.isLowMotionContent,
-          negotiatedCodec,
-        });
-      }
+      const qualityLimitationReason = limitationReason;
+      const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
+      const captureFps = typeof videoStat.framesPerSecond === 'number' ? Math.round(videoStat.framesPerSecond) : null;
+      const frameWidth = videoStat.frameWidth || state.currentWidth;
+      const frameHeight = videoStat.frameHeight || state.currentHeight;
+      const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
+      const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : 'unknown';
+      console.log('Sender stats:', {
+        fps: state.currentFps,
+        frameWidth,
+        frameHeight,
+        captureFps,
+        sourceWidth: state.captureSourceWidth,
+        sourceHeight: state.captureSourceHeight,
+        displaySurface: state.captureDisplaySurface,
+        qualityLimitationReason,
+        qualityLimitationDurations,
+        bytesSent,
+        currentBitrateBps,
+        negotiatedCodec,
+      });
 
       updateStreamingStatus();
-      if (!state.isLowMotionContent) {
-        await evaluateAdaptiveQuality();
-      }
+      await evaluateAdaptiveQuality();
     } catch (err) {
       console.warn('Failed to read outbound video stats:', err);
       state.currentFps = 'unknown';
