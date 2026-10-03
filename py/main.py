@@ -56,6 +56,8 @@ from webserver.screen_cast import (
     setFrameHandler,
     setConnectionHandler,
     setDisconnectHandler,
+    setReconnectHandler,
+    setStreamStoppedHandler,
 )
 from teardown import reset_shutdown_state, teardown_app
 from ui.home import homeScreen
@@ -164,6 +166,8 @@ MAIN_WINDOW.setScreenCastWidget(screenCastView)
 setFrameHandler(screenCastView.setFrame)
 setConnectionHandler(MAIN_WINDOW.showScreenCast)
 setDisconnectHandler(MAIN_WINDOW.hideScreenCast)
+setReconnectHandler(MAIN_WINDOW.showReconnectScreen)
+setStreamStoppedHandler(MAIN_WINDOW.hideReconnectScreen)
 
 if __name__ == "__main__":
     logger.info("Running main event loop...")

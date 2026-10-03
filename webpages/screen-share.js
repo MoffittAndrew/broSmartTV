@@ -34,6 +34,7 @@ const uiRefs = {
   startBtn: null,
   qualitySelect: null,
   statusDiv: null,
+  syncTestVideo: null,
 };
 
 export const state = {
@@ -45,7 +46,6 @@ export const state = {
   isStreaming: false,
   isStarting: false,
   isAdaptiveRestartInProgress: false,
-  isLowMotionContent: false,
   currentFps: 'unknown',
   currentWidth: 'unknown',
   currentHeight: 'unknown',
@@ -62,11 +62,19 @@ export const state = {
   senderPolicy: { ...DEFAULT_SENDER_POLICY },
   currentQualityMode: 'high',
   qualityControlMode: 'auto',
+  isStaticContent: false,
   activeProfile: null,
   fpsSamples: [],
   lastQualityChangeAtMs: 0,
   captureSourceWidthDecreaseSamples: 0,
   captureSourceHeightDecreaseSamples: 0,
+  lastPeerState: null,
+  reconnectTimerId: null,
+  reconnectStableTimerId: null,
+  reconnectAttempt: 0,
+  reconnectGeneration: 0,
+  reconnectInProgress: false,
+  stopRequested: false,
 };
 
 function countSdpCandidates(sdp) {
@@ -87,7 +95,7 @@ function startConnectionTimeout() {
   clearConnectionTimeout();
   state.connectionTimeoutId = setTimeout(() => {
     console.warn(`Connection timed out after ${APP_CONSTANTS.CONNECTION_TIMEOUT_MS / 1000}s without reaching connected state.`);
-    stopStream('connection timed out');
+    scheduleReconnect('connection timed out', state.pc);
   }, APP_CONSTANTS.CONNECTION_TIMEOUT_MS);
 }
 
@@ -95,6 +103,164 @@ function setStatusText(text) {
   if (uiRefs.statusDiv) {
     uiRefs.statusDiv.textContent = text;
   }
+}
+
+function startSyncTestVideo() {
+  const video = uiRefs.syncTestVideo;
+  if (!video) {
+    return;
+  }
+
+  video.muted = true;
+  video.currentTime = 0;
+  const playPromise = video.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch((err) => {
+      console.warn('Sync test video could not autoplay; use the player controls to start it:', err);
+    });
+  }
+}
+
+function stopSyncTestVideo() {
+  const video = uiRefs.syncTestVideo;
+  if (!video) {
+    return;
+  }
+
+  video.pause();
+  video.currentTime = 0;
+}
+
+function notifyReceiver(path) {
+  fetch(path, { method: 'POST', keepalive: true }).catch((err) => {
+    console.warn(`Unable to notify receiver about ${path}:`, err);
+  });
+}
+
+function logPeerState(eventName, pc) {
+  const current = {
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+    signalingState: pc.signalingState,
+  };
+  const previous = state.lastPeerState;
+  state.lastPeerState = current;
+  console.info(`[screencast ${new Date().toISOString()}] ${eventName}`, {
+    previous,
+    current,
+  });
+}
+
+function clearReconnectTimers() {
+  if (state.reconnectTimerId !== null) {
+    clearTimeout(state.reconnectTimerId);
+    state.reconnectTimerId = null;
+  }
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+    state.reconnectStableTimerId = null;
+  }
+  state.reconnectGeneration += 1;
+  state.reconnectInProgress = false;
+}
+
+function closePeerConnection(reason, peerConnection = state.pc) {
+  if (!peerConnection || peerConnection !== state.pc) {
+    return;
+  }
+  logPeerState(`Closing peer connection: ${reason}`, peerConnection);
+  state.pc = null;
+  state.videoSender = null;
+  peerConnection.close();
+}
+
+function scheduleStableReconnectReset(peerConnection) {
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+  }
+  if (state.reconnectAttempt === 0) {
+    return;
+  }
+
+  state.reconnectStableTimerId = setTimeout(() => {
+    state.reconnectStableTimerId = null;
+    if (peerConnection === state.pc && peerConnection.connectionState === 'connected') {
+      console.info('[screencast] Connection stable; resetting reconnect budget.');
+      state.reconnectAttempt = 0;
+      state.reconnectInProgress = false;
+    }
+  }, APP_CONSTANTS.RECONNECT_STABLE_WINDOW_MS);
+}
+
+function scheduleReconnect(reason, failedPeerConnection = state.pc) {
+  if (
+    (failedPeerConnection && failedPeerConnection !== state.pc)
+    || state.stopRequested
+    || !state.stream
+    || state.reconnectTimerId !== null
+  ) {
+    return;
+  }
+
+  clearConnectionTimeout();
+  if (state.reconnectStableTimerId !== null) {
+    clearTimeout(state.reconnectStableTimerId);
+    state.reconnectStableTimerId = null;
+  }
+
+  if (state.reconnectAttempt >= APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS) {
+    state.reconnectInProgress = false;
+    closePeerConnection(`reconnect exhausted: ${reason}`, failedPeerConnection);
+    if (uiRefs.startBtn) {
+      uiRefs.startBtn.disabled = false;
+      uiRefs.startBtn.textContent = 'start screen share';
+    }
+    setStatusText(`❌ stream failed after ${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS} reconnect attempts`);
+    console.error('[screencast] Reconnect attempts exhausted:', reason);
+    return;
+  }
+
+  state.isStreaming = false;
+  state.isStarting = false;
+  state.reconnectInProgress = true;
+  if (state.qualityControlMode === 'auto') {
+    // Give the fresh peer a high-quality attempt; persistent low FPS can then
+    // pass through the normal high-to-floor adaptive path again.
+    state.currentQualityMode = 'high';
+    state.activeProfile = profileForMode('high', state);
+  }
+  // The old sender must stop contributing samples while its peer is being replaced.
+  stopFpsMonitor(false);
+  notifyReceiver('/reconnecting');
+  closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
+
+  state.reconnectAttempt += 1;
+  const delayMs = APP_CONSTANTS.RECONNECT_DELAY_MS;
+  const generation = state.reconnectGeneration;
+  if (uiRefs.startBtn) {
+    uiRefs.startBtn.disabled = true;
+    uiRefs.startBtn.textContent = `reconnecting (${state.reconnectAttempt}/${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS})`;
+  }
+  setStatusText(`⚠ reconnecting in ${(delayMs / 1000).toFixed(1)}s`);
+  console.warn(`[screencast] Scheduling reconnect ${state.reconnectAttempt}/${APP_CONSTANTS.RECONNECT_MAX_ATTEMPTS}`, {
+    reason,
+    delayMs,
+  });
+
+  state.reconnectTimerId = setTimeout(async () => {
+    state.reconnectTimerId = null;
+    if (generation !== state.reconnectGeneration || state.stopRequested || !state.stream) {
+      return;
+    }
+    try {
+      await startStreaming({ isReconnect: true });
+    } catch (err) {
+      console.error('[screencast] Reconnect attempt failed:', err);
+      state.isStarting = false;
+      scheduleReconnect('reconnect attempt failed', state.pc);
+    }
+  }, delayMs);
 }
 
 function updateStreamingStatus() {
@@ -136,6 +302,25 @@ async function evaluateAdaptiveQuality() {
   }
 
   if (state.currentQualityMode === 'floor') {
+    if (state.isStaticContent) {
+      // Paused content may remain at the floor, but must not repeatedly reset its peer.
+      state.fpsSamples = [];
+      return;
+    }
+
+    const lowCount = countWindowByPredicate(
+      state.adaptivePolicy.lowSampleWindow,
+      (sample) => sample < state.adaptivePolicy.lowFpsThreshold,
+      state,
+    );
+
+    if (lowCount !== null && lowCount >= state.adaptivePolicy.lowSampleRequired) {
+      // A floor stream that remains below the downgrade threshold may need a fresh
+      // peer connection, but the existing capture stream must remain permission-free.
+      scheduleReconnect('persistent low FPS at floor quality', state.pc);
+      return;
+    }
+
     const recoveryCount = countWindowByPredicate(
       state.adaptivePolicy.recoverySampleWindow,
       (sample) => sample >= state.adaptivePolicy.recoveryFpsThreshold,
@@ -189,7 +374,7 @@ function stopFpsMonitor(resetStatus = true) {
     state.currentHeight = 'unknown';
   }
   state.fpsSamples = [];
-  state.isLowMotionContent = false;
+  state.isStaticContent = false;
   state.videoSender = null;
 }
 
@@ -202,7 +387,6 @@ function startFpsMonitor(sender) {
   let lastTimestamp = null;
   let lastFramesEncoded = null;
   let lastBytesSent = null;
-  let lastSenderLogAt = 0;
   let wasEncoderDownscaling = false;
 
   state.fpsMonitor = setInterval(async () => {
@@ -223,9 +407,6 @@ function startFpsMonitor(sender) {
 
       const timestamp = videoStat.timestamp;
       const limitationReason = videoStat.qualityLimitationReason || 'none';
-      // Only CPU/bandwidth pressure means the encoder could not keep up; anything
-      // else (typically 'none') means the capture source simply had nothing new.
-      const isEncoderLimited = limitationReason === 'cpu' || limitationReason === 'bandwidth';
       const framesEncoded = typeof videoStat.framesEncoded === 'number'
         ? videoStat.framesEncoded
         : (typeof videoStat.framesSent === 'number' ? videoStat.framesSent : null);
@@ -260,32 +441,14 @@ function startFpsMonitor(sender) {
         lastBytesSent = bytesSent;
       }
 
-      const lowMotionDetected = sampledFps !== null
+      state.isStaticContent = sampledFps !== null
         && sampledFps <= APP_CONSTANTS.LOW_MOTION_FPS_THRESHOLD
         && Number.isFinite(currentBitrateBps)
-        && currentBitrateBps <= APP_CONSTANTS.LOW_MOTION_BITRATE_BPS_THRESHOLD;
+        && currentBitrateBps <= APP_CONSTANTS.LOW_MOTION_BITRATE_BPS_THRESHOLD
+        && limitationReason === 'none';
 
-      if (lowMotionDetected) {
-        if (!state.isLowMotionContent) {
-          console.log('Low-motion scene detected; pausing FPS-driven auto-downgrade.', { sampledFps, currentBitrateBps });
-        }
-        state.isLowMotionContent = true;
-        state.fpsSamples = [];
-        state.currentFps = '<idle>';
-
-        if (state.qualityControlMode === 'auto' && state.currentQualityMode === 'floor' && !state.isAdaptiveRestartInProgress) {
-          await requestAdaptiveQualitySwitch(profileForMode('high', state), 'high', 'low-motion scene prioritize detail');
-        }
-      } else {
-        state.isLowMotionContent = false;
-        // Screen capture only emits frames when pixels change, so a low FPS reading
-        // with no encoder limitation is a near-static scene, not an overloaded link.
-        // Feeding those samples to the downgrade window is what caused 60fps streams
-        // to randomly drop to the floor profile after a quiet stretch.
-        const isOverloadEvidence = isEncoderLimited || sampledFps >= state.adaptivePolicy.lowFpsThreshold;
-        if (sampledFps !== null && isOverloadEvidence) {
-          pushFpsSample(sampledFps, state);
-        }
+      if (sampledFps !== null) {
+        pushFpsSample(sampledFps, state);
       }
 
       const videoTrack = state.stream ? state.stream.getVideoTracks()[0] : null;
@@ -325,36 +488,30 @@ function startFpsMonitor(sender) {
         await syncProfileToSourceGeometry('capture source resized');
       }
 
-      if (timestamp - lastSenderLogAt >= 5000) {
-        lastSenderLogAt = timestamp;
-        const qualityLimitationReason = limitationReason;
-        const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
-        const captureFps = typeof videoStat.framesPerSecond === 'number' ? Math.round(videoStat.framesPerSecond) : null;
-        const frameWidth = videoStat.frameWidth || state.currentWidth;
-        const frameHeight = videoStat.frameHeight || state.currentHeight;
-        const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
-        const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : 'unknown';
-        console.log('Sender stats:', {
-          fps: state.currentFps,
-          frameWidth,
-          frameHeight,
-          captureFps,
-          sourceWidth: state.captureSourceWidth,
-          sourceHeight: state.captureSourceHeight,
-          displaySurface: state.captureDisplaySurface,
-          qualityLimitationReason,
-          qualityLimitationDurations,
-          bytesSent,
-          currentBitrateBps,
-          isLowMotionContent: state.isLowMotionContent,
-          negotiatedCodec,
-        });
-      }
+      const qualityLimitationReason = limitationReason;
+      const qualityLimitationDurations = videoStat.qualityLimitationDurations || {};
+      const captureFps = typeof videoStat.framesPerSecond === 'number' ? Math.round(videoStat.framesPerSecond) : null;
+      const frameWidth = videoStat.frameWidth || state.currentWidth;
+      const frameHeight = videoStat.frameHeight || state.currentHeight;
+      const codec = videoStat.codecId ? stats.get(videoStat.codecId) : null;
+      const negotiatedCodec = codec && codec.mimeType ? codec.mimeType : 'unknown';
+      console.log('Sender stats:', {
+        fps: state.currentFps,
+        frameWidth,
+        frameHeight,
+        captureFps,
+        sourceWidth: state.captureSourceWidth,
+        sourceHeight: state.captureSourceHeight,
+        displaySurface: state.captureDisplaySurface,
+        qualityLimitationReason,
+        qualityLimitationDurations,
+        bytesSent,
+        currentBitrateBps,
+        negotiatedCodec,
+      });
 
       updateStreamingStatus();
-      if (!state.isLowMotionContent) {
-        await evaluateAdaptiveQuality();
-      }
+      await evaluateAdaptiveQuality();
     } catch (err) {
       console.warn('Failed to read outbound video stats:', err);
       state.currentFps = 'unknown';
@@ -440,6 +597,9 @@ async function checkAvailability() {
 async function stopStream(reason = 'stopped') {
   clearConnectionTimeout();
   state.isAdaptiveRestartInProgress = false;
+  clearReconnectTimers();
+  state.stopRequested = true;
+  state.reconnectAttempt = 0;
   stopFpsMonitor();
   state.isStreaming = false;
   state.isStarting = false;
@@ -456,15 +616,17 @@ async function stopStream(reason = 'stopped') {
   }
 
   if (state.pc) {
-    state.pc.close();
-    state.pc = null;
+    closePeerConnection(`stopping stream: ${reason}`);
   }
+
+  stopSyncTestVideo();
 
   if (uiRefs.startBtn) {
     uiRefs.startBtn.textContent = 'start screen share';
     uiRefs.startBtn.disabled = false;
   }
   setStatusText(`🛑 stream ${reason}`);
+  notifyReceiver('/stream-stopped');
   console.log('Stream stopped:', reason);
 }
 
@@ -610,15 +772,22 @@ async function startStreaming(options = {}) {
   const { startBtn } = uiRefs;
   let selectedProfile = options.profile || null;
   const isAdaptiveRestart = options.isAdaptiveRestart === true;
+  const isReconnect = options.isReconnect === true;
 
-  if (state.isStarting || state.isStreaming) {
+  if (state.isStarting || (state.isStreaming && !isReconnect)) {
     return;
+  }
+
+  if (!isReconnect) {
+    state.stopRequested = false;
+    state.reconnectAttempt = 0;
+    clearReconnectTimers();
   }
 
   state.isStarting = true;
   startBtn.disabled = true;
 
-  if (!isAdaptiveRestart) {
+  if (!isAdaptiveRestart && !isReconnect) {
     await loadCaptureSettings();
     state.activeProfile = profileForMode('high', state);
   }
@@ -632,6 +801,11 @@ async function startStreaming(options = {}) {
 
   const available = await checkAvailability();
   if (!available) {
+    if (isReconnect) {
+      state.isStarting = false;
+      scheduleReconnect('server is busy', state.pc);
+      return;
+    }
     state.isStarting = false;
     startBtn.disabled = false;
     alert('Stream is currently busy. Try again later.');
@@ -641,7 +815,9 @@ async function startStreaming(options = {}) {
   }
 
   try {
-    state.stream = await requestDisplayMedia(profile);
+    if (!state.stream) {
+      state.stream = await requestDisplayMedia(profile);
+    }
   } catch (err) {
     state.isStarting = false;
     startBtn.disabled = false;
@@ -668,10 +844,10 @@ async function startStreaming(options = {}) {
   state.isAudioActive = audioTracks.length > 0;
   if (state.audioEnabled && !state.isAudioActive) {
     state.audioWarning = selectedDisplaySurface === 'window'
-      ? 'window audio unavailable here; use tab capture for reliable app-only audio'
+      ? 'window audio unavailable here; use tab capture for audio'
       : 'audio unavailable; streaming video only';
   } else if (selectedDisplaySurface === 'window') {
-    state.audioWarning = 'window audio isolation depends on browser; tab capture is most reliable';
+    state.audioWarning = 'note: window audio may not work on every browser. If audio isnt working, try tab capture instead';
   } else {
     state.audioWarning = null;
   }
@@ -701,19 +877,39 @@ async function startStreaming(options = {}) {
     iceCandidatePoolSize: 4,
   });
   const currentPc = state.pc;
+  state.lastPeerState = null;
+  logPeerState('Peer connection created', currentPc);
 
   currentPc.onconnectionstatechange = () => {
-    console.log('Connection state:', currentPc.connectionState);
+    logPeerState('Connection state changed', currentPc);
     if (currentPc.connectionState === 'connected') {
       clearConnectionTimeout();
+      scheduleStableReconnectReset(currentPc);
     }
-    if (['disconnected', 'failed', 'closed'].includes(currentPc.connectionState)) {
-      stopStream('disconnected');
+    if (
+      currentPc === state.pc
+      && ['disconnected', 'failed', 'closed'].includes(currentPc.connectionState)
+    ) {
+      scheduleReconnect(`connection state ${currentPc.connectionState}`, currentPc);
     }
   };
 
   currentPc.oniceconnectionstatechange = () => {
-    console.log('ICE connection state:', currentPc.iceConnectionState);
+    logPeerState('ICE connection state changed', currentPc);
+    if (
+      currentPc === state.pc
+      && ['disconnected', 'failed'].includes(currentPc.iceConnectionState)
+    ) {
+      scheduleReconnect(`ICE connection state ${currentPc.iceConnectionState}`, currentPc);
+    }
+  };
+
+  currentPc.onicegatheringstatechange = () => {
+    logPeerState('ICE gathering state changed', currentPc);
+  };
+
+  currentPc.onsignalingstatechange = () => {
+    logPeerState('Signaling state changed', currentPc);
   };
 
   currentPc.onicecandidate = (event) => {
@@ -724,28 +920,40 @@ async function startStreaming(options = {}) {
     }
   };
 
-  for (const track of state.stream.getTracks()) {
-    const sender = currentPc.addTrack(track, state.stream);
-    if (track.kind === 'video') {
-      state.videoSender = sender;
-      const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
-      const preferredCodecs = getPreferredVideoCodecs();
-      if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === 'function') {
-        videoTransceiver.setCodecPreferences(preferredCodecs);
+  try {
+    for (const track of state.stream.getTracks()) {
+      const sender = currentPc.addTrack(track, state.stream);
+      if (track.kind === 'video') {
+        state.videoSender = sender;
+        const videoTransceiver = currentPc.getTransceivers().find((transceiver) => transceiver.sender === sender);
+        const preferredCodecs = getPreferredVideoCodecs();
+        if (videoTransceiver && preferredCodecs.length > 0 && typeof videoTransceiver.setCodecPreferences === 'function') {
+          videoTransceiver.setCodecPreferences(preferredCodecs);
+        }
+        await applySenderEncodingPolicy(sender, resolvedProfile, 'initial stream start', state);
       }
-      await applySenderEncodingPolicy(sender, resolvedProfile, 'initial stream start', state);
+      if (track.kind === 'audio') {
+        await applyAudioSenderEncodingPolicy(sender, 'initial stream start');
+      }
     }
-    if (track.kind === 'audio') {
-      await applyAudioSenderEncodingPolicy(sender, 'initial stream start');
+
+    const offer = await currentPc.createOffer();
+    await currentPc.setLocalDescription(offer);
+    await waitForIceGatheringComplete(currentPc);
+
+    console.log('Offer candidate count:', countSdpCandidates(currentPc.localDescription && currentPc.localDescription.sdp));
+    startConnectionTimeout();
+  } catch (err) {
+    console.error('[screencast] Failed to prepare peer offer:', err);
+    state.isStarting = false;
+    if (isReconnect) {
+      scheduleReconnect('peer offer preparation failed', currentPc);
+    } else {
+      await stopStream('connection failed');
+      state.isAdaptiveRestartInProgress = false;
     }
+    return;
   }
-
-  const offer = await currentPc.createOffer();
-  await currentPc.setLocalDescription(offer);
-  await waitForIceGatheringComplete(currentPc);
-
-  console.log('Offer candidate count:', countSdpCandidates(currentPc.localDescription && currentPc.localDescription.sdp));
-  startConnectionTimeout();
 
   try {
     const response = await fetch('/offer', {
@@ -757,8 +965,13 @@ async function startStreaming(options = {}) {
     if (!response.ok) {
       const message = await response.text();
       alert(message);
-      await stopStream('rejected');
-      state.isAdaptiveRestartInProgress = false;
+      if (isReconnect) {
+        state.isStarting = false;
+        scheduleReconnect(`offer rejected (${response.status})`, currentPc);
+      } else {
+        await stopStream('rejected');
+        state.isAdaptiveRestartInProgress = false;
+      }
       return;
     }
 
@@ -767,8 +980,13 @@ async function startStreaming(options = {}) {
     console.log('Answer candidate count:', countSdpCandidates(answer.sdp));
   } catch (err) {
     console.error('Offer/answer exchange failed:', err);
-    await stopStream('connection failed');
-    state.isAdaptiveRestartInProgress = false;
+    if (isReconnect) {
+      state.isStarting = false;
+      scheduleReconnect('offer/answer exchange failed', currentPc);
+    } else {
+      await stopStream('connection failed');
+      state.isAdaptiveRestartInProgress = false;
+    }
     return;
   }
 
@@ -794,6 +1012,10 @@ async function startStreaming(options = {}) {
   console.log(`Capture settings: ${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps`);
   updateStreamingStatus();
 
+  if (!isReconnect) {
+    startSyncTestVideo();
+  }
+
   startFpsMonitor(state.videoSender);
 }
 
@@ -801,6 +1023,7 @@ export function initScreenShareApp(ui = {}) {
   const startBtn = ui.startBtn ?? document.getElementById('startBtn');
   const qualitySelect = ui.qualitySelect ?? document.getElementById('qualitySelect');
   const statusDiv = ui.statusDiv ?? document.getElementById('status');
+  const syncTestVideo = ui.syncTestVideo ?? document.getElementById('syncTestVideo');
 
   if (!startBtn || !qualitySelect || !statusDiv) {
     return null;
@@ -809,6 +1032,7 @@ export function initScreenShareApp(ui = {}) {
   uiRefs.startBtn = startBtn;
   uiRefs.qualitySelect = qualitySelect;
   uiRefs.statusDiv = statusDiv;
+  uiRefs.syncTestVideo = syncTestVideo;
 
   startBtn.onclick = async () => {
     if (state.isStreaming) {
@@ -848,7 +1072,7 @@ export function initScreenShareApp(ui = {}) {
   };
 
   qualitySelect.value = state.qualityControlMode;
-  return { state, startBtn, qualitySelect, statusDiv };
+  return { state, startBtn, qualitySelect, statusDiv, syncTestVideo };
 }
 
 initScreenShareApp();

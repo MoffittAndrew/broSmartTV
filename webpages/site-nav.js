@@ -12,6 +12,9 @@ function buildNav() {
 
   const nav = document.createElement('nav');
   nav.setAttribute('aria-label', 'Site navigation');
+  nav.style.display = 'flex';
+  nav.style.gap = '1.5rem';
+  nav.style.padding = '0.5rem 1rem';
 
   PAGE_REGISTRY.forEach((page) => {
     const link = document.createElement('a');

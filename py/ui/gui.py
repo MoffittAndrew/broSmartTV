@@ -13,6 +13,8 @@ import asyncio
 import inspect
 import time
 
+from ui.video_timing import VideoTimingQueue
+
 
 class CustomQLabel(QLabel):
     def __init__(self, *args, **kwargs):
@@ -43,11 +45,23 @@ class ScreenCastView(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap = None
-        self._pending_frame = None
         self._render_scheduled = False
+        self._presentation_interval_seconds = 1.0 / max(
+            1,
+            float(getattr(SCREEN_CAST, "VIDEO_PRESENTATION_FPS", 24)),
+        )
+        self._next_presentation_deadline = None
         self._render_delay_ms = max(0, int(getattr(SCREEN_CAST, "VIDEO_SYNC_DELAY_MS", 0)))
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._render_loop_active = False
+        self._video_queue = VideoTimingQueue(
+            delay_seconds=max(
+                0.0,
+                float(getattr(SCREEN_CAST, "VIDEO_PRESENTATION_DELAY_MS", 0)) / 1000.0,
+            ),
+            max_frames=getattr(SCREEN_CAST, "VIDEO_QUEUE_MAX_FRAMES", 30),
+        )
         self._received_frames_since_log = 0
         self._rendered_frames_since_log = 0
         self._last_receiver_log_at = time.monotonic()
@@ -77,82 +91,95 @@ class ScreenCastView(QLabel):
         return max(0, int(remaining * 1000))
 
     def _scheduleRender(self):
-        delay_ms = self._currentScheduleDelayMs()
-        QTimer.singleShot(delay_ms, self._renderPendingFrame)
+        now = time.monotonic()
+        if self._next_presentation_deadline is None:
+            self._next_presentation_deadline = now + self._presentation_interval_seconds
+
+        delay_seconds = max(0.0, self._next_presentation_deadline - now)
+        holdback_delay_seconds = self._currentScheduleDelayMs() / 1000.0
+        if holdback_delay_seconds > 0:
+            delay_seconds = min(delay_seconds, holdback_delay_seconds)
+        QTimer.singleShot(max(0, int(delay_seconds * 1000)), self._renderPendingFrame)
 
     def resetSyncHoldback(self):
         self._sync_hold_until = None
         self._sync_hold_applied_for_stream = False
+        self._render_loop_active = False
+        self._video_queue.reset()
+        self._render_scheduled = False
+        self._next_presentation_deadline = None
 
-    def setFrame(self, frame):
+    def setFrame(self, frame, arrival_time=None):
         if frame is None:
             return
 
-        # Receiver-side CPU is currently the most likely bottleneck on Pi. We
-        # therefore coalesce incoming frames down to "latest only" instead of
-        # forcing Qt to spend time rendering stale frames that the user will
-        # never meaningfully see. This favors lower latency and better motion
-        # smoothness over exhaustive per-frame rendering.
-        self._pending_frame = frame
+        self._render_loop_active = True
+        self._video_queue.enqueue(
+            frame,
+            time.monotonic() if arrival_time is None else float(arrival_time),
+        )
         self._received_frames_since_log += 1
         self._beginSyncHoldbackIfNeeded()
 
         if not self._render_scheduled:
             self._render_scheduled = True
-            # Apply holdback only at stream start; afterwards render cadence is
-            # immediate so FPS remains constrained by decode/render speed, not
-            # by an artificial timer delay.
             self._scheduleRender()
 
         self._maybeLogReceiverStats()
 
     def _renderPendingFrame(self):
         self._render_scheduled = False
-
-        frame = self._pending_frame
-        self._pending_frame = None
-        if frame is None:
+        if not self._render_loop_active:
             return
 
-        # Some senders pass av.VideoFrame objects while others may pass numpy
-        # arrays. Convert only the frame that will actually be rendered.
-        if hasattr(frame, "to_ndarray"):
-            frame = frame.to_ndarray(format="rgb24")
+        now = time.monotonic()
+        scheduled_frame = self._video_queue.pop_latest_due(now)
+        if scheduled_frame is not None:
+            frame = scheduled_frame.frame
 
-        height, width = frame.shape[:2]
-        target_size = self.size()
-        if frame.ndim == 3:
-            rgb = frame if frame.flags.c_contiguous else frame.copy()
-            image = QImage(
-                sip.voidptr(rgb.ctypes.data),
-                width,
-                height,
-                width * 3,
-                QImage.Format_RGB888,
-            )
+            # Some senders pass av.VideoFrame objects while others may pass numpy
+            # arrays. Convert only the frame that will actually be rendered.
+            if hasattr(frame, "to_ndarray"):
+                frame = frame.to_ndarray(format="rgb24")
+
+            height, width = frame.shape[:2]
+            target_size = self.size()
+            if frame.ndim == 3:
+                rgb = frame if frame.flags.c_contiguous else frame.copy()
+                image = QImage(
+                    sip.voidptr(rgb.ctypes.data),
+                    width,
+                    height,
+                    width * 3,
+                    QImage.Format_RGB888,
+                )
+            else:
+                grayscale = frame if frame.flags.c_contiguous else frame.copy()
+                image = QImage(
+                    sip.voidptr(grayscale.ctypes.data),
+                    width,
+                    height,
+                    width,
+                    QImage.Format_Grayscale8,
+                )
+
+            self._pixmap = QPixmap.fromImage(image)
+            if not target_size.isEmpty() and self._pixmap.size() != target_size:
+                self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
+            else:
+                self.setPixmap(self._pixmap)
+
+            self._rendered_frames_since_log += 1
+            self.update()
+
+        if self._next_presentation_deadline is None:
+            self._next_presentation_deadline = now + self._presentation_interval_seconds
         else:
-            grayscale = frame if frame.flags.c_contiguous else frame.copy()
-            image = QImage(
-                sip.voidptr(grayscale.ctypes.data),
-                width,
-                height,
-                width,
-                QImage.Format_Grayscale8,
-            )
+            self._next_presentation_deadline += self._presentation_interval_seconds
+            while self._next_presentation_deadline <= now:
+                self._next_presentation_deadline += self._presentation_interval_seconds
 
-        self._pixmap = QPixmap.fromImage(image)
-        if not target_size.isEmpty() and self._pixmap.size() != target_size:
-            self.setPixmap(self._pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.FastTransformation))
-        else:
-            self.setPixmap(self._pixmap)
-
-        self._rendered_frames_since_log += 1
-        self.update()
-
-        # If newer frames arrived while we were rendering, process only the
-        # latest one on the next Qt turn rather than recursively rendering the
-        # entire backlog.
-        if self._pending_frame is not None and not self._render_scheduled:
+        if not self._render_scheduled:
             self._render_scheduled = True
             self._scheduleRender()
 
@@ -172,7 +199,8 @@ class ScreenCastView(QLabel):
         print(
             "[screencast-view] receiver stats: "
             f"received_fps={received_fps:.1f}, rendered_fps={rendered_fps:.1f}, "
-            f"coalesced_frames={dropped}"
+            f"coalesced_frames={dropped}, queued_frames={self._video_queue.queued_frames}, "
+            f"dropped_frames={self._video_queue.dropped_frames}"
         )
 
         self._received_frames_since_log = 0
@@ -208,6 +236,10 @@ class CustomQWindow(CustomQWidget):
         self.__shutdownScreen = ShutdownScreen(parent=self)
         self.addWidget(self.__shutdownScreen)
         self.__shutdownScreen.hide()
+        from ui.reconnect_screen import ReconnectScreen
+        self.__reconnectScreen = ReconnectScreen(parent=self)
+        self.addWidget(self.__reconnectScreen)
+        self.__reconnectScreen.hide()
 
     def getKeyboard(self):
         return self.__keyboard
@@ -226,6 +258,9 @@ class CustomQWindow(CustomQWidget):
 
     def getShutdownScreen(self):
         return self.__shutdownScreen
+
+    def getReconnectScreen(self):
+        return self.__reconnectScreen
 
     def getAbsolutePos(self):
         return QPoint(0, 0)
@@ -383,6 +418,8 @@ class CustomQWindow(CustomQWidget):
         if self.__screenCastWidget is None:
             return
 
+        self.hideReconnectScreen()
+
         if self.__screenCastPreviousWidget is None:
             self.__screenCastPreviousWidget = self.__layout.currentWidget()
 
@@ -400,6 +437,18 @@ class CustomQWindow(CustomQWidget):
         if self.__screenCastPreviousWidget is not None:
             self.__layout.setCurrentWidget(self.__screenCastPreviousWidget)
             self.__screenCastPreviousWidget = None
+
+    def showReconnectScreen(self, msg=None):
+        self.__reconnectScreen.setGeometry(0, 0, self.width(), self.height())
+        self.__reconnectScreen.setMessage(msg)
+        self.__reconnectScreen.show()
+        self.__reconnectScreen.raise_()
+        self.__layout.setCurrentWidget(self.__reconnectScreen)
+        self.__reconnectScreen.start()
+
+    def hideReconnectScreen(self):
+        self.__reconnectScreen.stop()
+        self.__reconnectScreen.hide()
 
     def showShutdownScreen(self, msg=None):
         # One-way transition: no corresponding hide, the process exits shortly after.

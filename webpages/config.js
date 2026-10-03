@@ -3,6 +3,9 @@ export const APP_CONSTANTS = {
   SOURCE_GEOMETRY_DECREASE_MIN_FRACTION: 0.03,
   ICE_GATHER_TIMEOUT_MS: 8000,
   CONNECTION_TIMEOUT_MS: 10000,
+  RECONNECT_DELAY_MS: 3000,
+  RECONNECT_MAX_ATTEMPTS: 5,
+  RECONNECT_STABLE_WINDOW_MS: 30000,
   LOW_MOTION_FPS_THRESHOLD: 2,
   LOW_MOTION_BITRATE_BPS_THRESHOLD: 120000,
   AUDIO_SENDER_MAX_BITRATE_BPS: 256_000,
@@ -17,8 +20,8 @@ export const DEFAULT_CAPTURE_SETTINGS = {
 
 export const DEFAULT_ADAPTIVE_POLICY = {
   lowFpsThreshold: 30,
-  lowSampleWindow: 10,
-  lowSampleRequired: 10,
+  lowSampleWindow: 15,
+  lowSampleRequired: 13,
   recoveryFpsThreshold: 35,
   recoverySampleWindow: 20,
   recoverySampleRequired: 18,

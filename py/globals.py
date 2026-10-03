@@ -109,7 +109,7 @@ class CONFIG:
 class _BUTTON:
     MIN_WIDTH = 200
     MIN_HEIGHT = 100
-    TEXT_SIZE = 60
+    TEXT_SIZE = 80
     ROUNDNESS = 30
     COLOR = Qt.white
     COLOR_DISABLED = Qt.gray
@@ -291,12 +291,12 @@ class SCREEN_CAST:
     CAPTURE_HEIGHT = 1080
     CAPTURE_FRAME_RATE = 60
 
-    # Adaptive downshift trigger: if FPS remains below 15 for 10 consecutive
+    # Adaptive downshift trigger: if FPS remains below 15 for 13 of 15
     # one-second samples, prioritize smoothness over fidelity by switching to
     # the 720p floor profile.
     ADAPT_LOW_FPS_THRESHOLD = 15
-    ADAPT_LOW_SAMPLE_WINDOW = 10
-    ADAPT_LOW_SAMPLE_REQUIRED = 10
+    ADAPT_LOW_SAMPLE_WINDOW = 15
+    ADAPT_LOW_SAMPLE_REQUIRED = 13
 
     # Adaptive recovery trigger: if floor quality is consistently healthy,
     # return to 1080p once FPS is at least 20 for roughly 15 seconds.
@@ -336,20 +336,43 @@ class SCREEN_CAST:
     # Keep audio startup buffer short so speech/lip movement stays in sync
     # with video. This intentionally trades some underrun tolerance for lower
     # end-to-end latency.
-    AUDIO_PREBUFFER_FRAMES = 2
-    AUDIO_QUEUE_MAX_FRAMES = 10
-    AUDIO_TARGET_QUEUE_FRAMES = 4
+    AUDIO_PREBUFFER_FRAMES = 1
+    AUDIO_QUEUE_MAX_FRAMES = 6
+    AUDIO_TARGET_QUEUE_FRAMES = 1
+    # Keep the ALSA device from accumulating the large default HDMI buffer.
+    # These values are passed to aplay in microseconds and can be overridden
+    # if a particular HDMI device requires a larger period or buffer.
+    AUDIO_ALSA_BUFFER_TIME_US = 80_000
+    AUDIO_ALSA_PERIOD_TIME_US = 20_000
     AUDIO_OUTPUT_LATENCY = "low"
     AUDIO_OUTPUT_DEVICE = None
+    AUDIO_ALSA_DEVICE = os.getenv(
+        "BRO_AUDIO_ALSA_DEVICE",
+        "hdmi:CARD=vc4hdmi1,DEV=0",
+    )
 
-    # Apply a tiny one-time receiver-side video holdback at stream start so
-    # playback can be nudged into lip-sync when audio lands slightly behind on
-    # HDMI output, without reducing steady-state video FPS.
-    VIDEO_SYNC_DELAY_MS = 200
+    # Audio playback now uses an explicitly bounded ALSA buffer, so video does
+    # not need an artificial startup holdback that would add end-to-end delay.
+    VIDEO_SYNC_DELAY_MS = 0
+    # Delay video continuously so it can be presented against the delayed audio
+    # clock instead of relying on a startup-only holdback.
+    VIDEO_PRESENTATION_DELAY_MS = 250
+    # Display cadence is independent of capture and encoding FPS; cinematic
+    # content is presented at a stable 24 FPS while newer due frames replace stale ones.
+    VIDEO_PRESENTATION_FPS = 24
+    VIDEO_QUEUE_MAX_FRAMES = 30
 
     # If the receiver loop is behind, drain any immediately available backlog
     # and forward only the freshest decoded frame to avoid catch-up bursts.
     RECEIVER_DRAIN_TIMEOUT_SECONDS = 0.001
+
+    # Ask the sender for a fresh keyframe periodically. This repairs a decoder
+    # that is displaying corrupted reference frames without renegotiating the
+    # peer connection or asking the user to select a capture surface again.
+    KEYFRAME_REQUEST_INTERVAL_SECONDS = 5
+    KEYFRAME_REQUEST_STARTUP_GRACE_SECONDS = 3
+    KEYFRAME_REQUEST_WINDOW_SECONDS = 60
+    KEYFRAME_REQUEST_MAX_PER_WINDOW = 20
 
     FRAME_TIMEOUT_SECONDS = 10
     FRAME_LOG_INTERVAL_SECONDS = 5
