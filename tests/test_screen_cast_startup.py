@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from aiohttp.test_utils import make_mocked_request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "py"))
 
@@ -94,3 +95,12 @@ async def test_start_screen_cast_server_cleans_up_permission_denied(monkeypatch)
     assert created_runners[0].cleanup_called is True
     assert screen_cast._runner is None
     assert screen_cast._site is None
+
+
+@pytest.mark.asyncio
+async def test_screen_cast_server_routes_sync_test_video():
+    resolved = await screen_cast.screenCastServer.router.resolve(
+        make_mocked_request("GET", "/test_clip.mp4")
+    )
+
+    assert resolved.handler.__name__ == "serve_static_file"

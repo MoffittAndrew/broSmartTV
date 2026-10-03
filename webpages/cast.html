@@ -15,6 +15,14 @@
       <option value="high">high (like 1080p or smthn like that)</option>
       <option value="floor">low (bad)</option>
     </select>
+    <section aria-labelledby="syncTestHeading">
+      <h2 id="syncTestHeading">24fps sync test</h2>
+      <p>Use this looped clip to compare audio and video timing while screen sharing. It starts muted; use the player controls to unmute or pause it.</p>
+      <video id="syncTestVideo" controls loop muted playsinline preload="none">
+        <source src="/test_clip.mp4" type="video/mp4">
+        Your browser does not support the sync test video.
+      </video>
+    </section>
     <div id="status"></div>
   </main>
 

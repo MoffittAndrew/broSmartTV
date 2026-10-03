@@ -34,6 +34,7 @@ const uiRefs = {
   startBtn: null,
   qualitySelect: null,
   statusDiv: null,
+  syncTestVideo: null,
 };
 
 export const state = {
@@ -103,6 +104,33 @@ function setStatusText(text) {
     uiRefs.statusDiv.textContent = text;
   }
 }
+
+function startSyncTestVideo() {
+  const video = uiRefs.syncTestVideo;
+  if (!video) {
+    return;
+  }
+
+  video.muted = true;
+  video.currentTime = 0;
+  const playPromise = video.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch((err) => {
+      console.warn('Sync test video could not autoplay; use the player controls to start it:', err);
+    });
+  }
+}
+
+function stopSyncTestVideo() {
+  const video = uiRefs.syncTestVideo;
+  if (!video) {
+    return;
+  }
+
+  video.pause();
+  video.currentTime = 0;
+}
+
 function notifyReceiver(path) {
   fetch(path, { method: 'POST', keepalive: true }).catch((err) => {
     console.warn(`Unable to notify receiver about ${path}:`, err);
@@ -591,6 +619,8 @@ async function stopStream(reason = 'stopped') {
     closePeerConnection(`stopping stream: ${reason}`);
   }
 
+  stopSyncTestVideo();
+
   if (uiRefs.startBtn) {
     uiRefs.startBtn.textContent = 'start screen share';
     uiRefs.startBtn.disabled = false;
@@ -982,6 +1012,10 @@ async function startStreaming(options = {}) {
   console.log(`Capture settings: ${state.currentWidth}x${state.currentHeight} @ ${state.currentFps}fps`);
   updateStreamingStatus();
 
+  if (!isReconnect) {
+    startSyncTestVideo();
+  }
+
   startFpsMonitor(state.videoSender);
 }
 
@@ -989,6 +1023,7 @@ export function initScreenShareApp(ui = {}) {
   const startBtn = ui.startBtn ?? document.getElementById('startBtn');
   const qualitySelect = ui.qualitySelect ?? document.getElementById('qualitySelect');
   const statusDiv = ui.statusDiv ?? document.getElementById('status');
+  const syncTestVideo = ui.syncTestVideo ?? document.getElementById('syncTestVideo');
 
   if (!startBtn || !qualitySelect || !statusDiv) {
     return null;
@@ -997,6 +1032,7 @@ export function initScreenShareApp(ui = {}) {
   uiRefs.startBtn = startBtn;
   uiRefs.qualitySelect = qualitySelect;
   uiRefs.statusDiv = statusDiv;
+  uiRefs.syncTestVideo = syncTestVideo;
 
   startBtn.onclick = async () => {
     if (state.isStreaming) {
@@ -1036,7 +1072,7 @@ export function initScreenShareApp(ui = {}) {
   };
 
   qualitySelect.value = state.qualityControlMode;
-  return { state, startBtn, qualitySelect, statusDiv };
+  return { state, startBtn, qualitySelect, statusDiv, syncTestVideo };
 }
 
 initScreenShareApp();

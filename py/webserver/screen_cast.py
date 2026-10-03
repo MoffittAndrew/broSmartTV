@@ -601,7 +601,7 @@ add_logs_routes(screenCastServer)
 # Registered before the static-file catch-all below, since some proxied devtools assets end in
 # .html/.js and would otherwise be shadowed by that broader pattern.
 webdebug_routes.add_routes(screenCastServer)
-screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp)}", serve_static_file)
+screenCastServer.router.add_get("/{filename:.*\\.(js|css|html|json|map|svg|png|jpg|jpeg|gif|webp|mp4)}", serve_static_file)
 screenCastServer.router.add_post("/offer", offer)
 screenCastServer.router.add_get("/status", status)
 screenCastServer.router.add_get("/power-status", power_status)
