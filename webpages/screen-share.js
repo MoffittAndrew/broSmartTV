@@ -844,10 +844,10 @@ async function startStreaming(options = {}) {
   state.isAudioActive = audioTracks.length > 0;
   if (state.audioEnabled && !state.isAudioActive) {
     state.audioWarning = selectedDisplaySurface === 'window'
-      ? 'window audio unavailable here; use tab capture for reliable app-only audio'
+      ? 'window audio unavailable here; use tab capture for audio'
       : 'audio unavailable; streaming video only';
   } else if (selectedDisplaySurface === 'window') {
-    state.audioWarning = 'window audio isolation depends on browser; tab capture is most reliable';
+    state.audioWarning = 'note: window audio may not work on every browser. If audio isnt working, try tab capture instead';
   } else {
     state.audioWarning = null;
   }
