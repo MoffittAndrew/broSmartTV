@@ -61,6 +61,7 @@ export const state = {
   senderPolicy: { ...DEFAULT_SENDER_POLICY },
   currentQualityMode: 'high',
   qualityControlMode: 'auto',
+  isStaticContent: false,
   activeProfile: null,
   fpsSamples: [],
   lastQualityChangeAtMs: 0,
@@ -207,10 +208,7 @@ function scheduleReconnect(reason, failedPeerConnection = state.pc) {
   closePeerConnection(`recovering after ${reason}`, failedPeerConnection);
 
   state.reconnectAttempt += 1;
-  const delayMs = Math.min(
-    APP_CONSTANTS.RECONNECT_MAX_DELAY_MS,
-    APP_CONSTANTS.RECONNECT_INITIAL_DELAY_MS * (2 ** (state.reconnectAttempt - 1)),
-  );
+  const delayMs = APP_CONSTANTS.RECONNECT_DELAY_MS;
   const generation = state.reconnectGeneration;
   if (uiRefs.startBtn) {
     uiRefs.startBtn.disabled = true;
@@ -276,6 +274,12 @@ async function evaluateAdaptiveQuality() {
   }
 
   if (state.currentQualityMode === 'floor') {
+    if (state.isStaticContent) {
+      // Paused content may remain at the floor, but must not repeatedly reset its peer.
+      state.fpsSamples = [];
+      return;
+    }
+
     const lowCount = countWindowByPredicate(
       state.adaptivePolicy.lowSampleWindow,
       (sample) => sample < state.adaptivePolicy.lowFpsThreshold,
@@ -342,6 +346,7 @@ function stopFpsMonitor(resetStatus = true) {
     state.currentHeight = 'unknown';
   }
   state.fpsSamples = [];
+  state.isStaticContent = false;
   state.videoSender = null;
 }
 
@@ -407,6 +412,12 @@ function startFpsMonitor(sender) {
       if (bytesSent !== null) {
         lastBytesSent = bytesSent;
       }
+
+      state.isStaticContent = sampledFps !== null
+        && sampledFps <= APP_CONSTANTS.LOW_MOTION_FPS_THRESHOLD
+        && Number.isFinite(currentBitrateBps)
+        && currentBitrateBps <= APP_CONSTANTS.LOW_MOTION_BITRATE_BPS_THRESHOLD
+        && limitationReason === 'none';
 
       if (sampledFps !== null) {
         pushFpsSample(sampledFps, state);
