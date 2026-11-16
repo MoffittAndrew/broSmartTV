@@ -1,3 +1,4 @@
+import asyncio
 from PyQt5.QtCore import QCoreApplication
 
 from app_logging import get_adapter
@@ -32,6 +33,7 @@ async def teardown_app(projector_interface=None, soundbar_interface=None, quit_a
         if projector_interface is not None:
             try:
                 await projector_interface.switchInputChannel()
+                await asyncio.sleep(1)
                 if switch_projector_off:
                     await projector_interface.off()
             except Exception as exc:
