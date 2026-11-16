@@ -33,8 +33,8 @@ async def teardown_app(projector_interface=None, soundbar_interface=None, quit_a
         if projector_interface is not None:
             try:
                 await projector_interface.switchInputChannel()
-                await asyncio.sleep(3)
                 if switch_projector_off:
+                    await asyncio.sleep(5)
                     await projector_interface.off()
             except Exception as exc:
                 logger.exception("Projector shutdown failed", exc, component="projector")
